@@ -76,7 +76,7 @@ class COCODoomLoader:
 
             class_idx = self.ENEMY_TYPES.index(category["name"])
             instance_mask = masking.get_mask(anno, image_shape[:2])
-            mask[instance_mask] = class_idx
+            mask[instance_mask] = class_idx+1
         return mask
 
     def stream(self, shuffle=True, use_onehot_y=False, run_number=None, level_number=None):
