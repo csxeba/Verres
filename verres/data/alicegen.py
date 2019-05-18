@@ -1,46 +1,10 @@
 import os
 from collections import defaultdict
 
-import numpy as np
 import cv2
-from keras.datasets import cifar10
-from keras.utils import to_categorical
 
 
-def load_cifar():
-    (lX, lY), (tX, tY) = cifar10.load_data()
-    lX, tX = map(lambda x: x / 255., [lX, tX])
-    lY, tY = map(to_categorical, [lY, tY])
-    return lX, lY, tX, tY
-
-
-def load_mnist():
-    from keras.datasets import mnist
-    from keras.utils import to_categorical
-
-    (lX, lY), (vX, vY) = mnist.load_data()
-    lX, vX = lX[..., None] / 255., vX[..., None] / 255.
-    lY, vY = map(to_categorical, [lY, vY])
-    return lX, lY, vX, vY
-
-
-def stream_cifar(batch_size=32, data=None, batch_preprocessor=None):
-    if data is None:
-        data = load_cifar()
-    lX, lY, *_ = data
-    N = len(lX)
-    arg = np.arange(N)
-    while 1:
-        np.random.shuffle(arg)
-        for start in range(0, N, batch_size):
-            idx = arg[start:start+batch_size]
-            batch = lX[idx], lY[idx]
-            if batch_preprocessor is not None:
-                batch = batch_preprocessor(batch)
-            yield batch
-
-
-class AliceData:
+class AliceLoader:
 
     def __init__(self, vid_root, img_root):
         self.vid_root = vid_root

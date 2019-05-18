@@ -2,12 +2,12 @@ import os
 
 import numpy as np
 
-from .loaders import AliceData
+from .alicegen import AliceLoader
 
 
 class AliceImageStream:
 
-    def __init__(self, data: AliceData, resize_shape=(64, 64)):
+    def __init__(self, data: AliceLoader, resize_shape=(64, 64)):
         self.data = data
         self.resize_shape = resize_shape
 
@@ -55,7 +55,7 @@ class AliceDiffStream:
             subsets[subset][int(index)] = os.path.join(self.data_root, file)
 
     @classmethod
-    def generate_data(cls, data: AliceData, output_directory, encoder):
+    def generate_data(cls, data: AliceLoader, output_directory, encoder):
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
         image_stream = AliceImageStream(data)
