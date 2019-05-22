@@ -30,7 +30,6 @@ def to_tpu(keras_model):
         raise RuntimeError("No TPU available!")
     TPU_WORKER = "grpc://" + TPU_ADDR
 
-    tf.keras.backend.clear_session()
     tpu_model = tf.contrib.tpu.keras_to_tpu_model(
         keras_model,
         strategy=tf.contrib.tpu.TPUDistributionStrategy(
