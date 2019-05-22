@@ -55,8 +55,8 @@ class COCODoomLoader:
         return cls(cfg)
 
     @property
-    def steps_per_epoch(self):
-        return len(self.index) // self.cfg.stream_batch_size
+    def N(self):
+        return len(self.index)
 
     def get_image(self, image_id):
         meta = self.image_meta[image_id]

@@ -14,6 +14,9 @@ class COCODoomStream:
         self.loader = data_loader
         self._internal_iterator = None
 
+    def steps_per_epoch(self):
+        return self.loader.N // self.cfg.batch_size
+
     def stream(self):
         meta_iterator = self.loader.image_meta.values()
         if self.cfg.run_number is not None:
