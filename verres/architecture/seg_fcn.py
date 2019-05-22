@@ -1,11 +1,11 @@
 from verres.keras_engine import get_engine
 
 
-def build(num_output_classes, onehot_y=False, ann_engine=None):
+def build(num_output_classes, onehot_y=False, ann_engine=None, input_shape=(None, 200, 320, 3)):
 
     engine = get_engine(ann_engine)
     
-    inputs = engine.layers.Input((200, 320, 3))
+    inputs = engine.layers.Input(batch_input_shape=input_shape)
 
     down_stage1 = engine.layers.Conv2D(8, 3, padding="same")(inputs)
     down_stage1 = engine.layers.BatchNormalization()(down_stage1)
