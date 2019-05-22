@@ -33,7 +33,7 @@ def to_tpu(keras_model):
     tf.keras.backend.clear_session()
     tpu_model = tf.contrib.tpu.keras_to_tpu_model(
         keras_model,
-        stategy=tf.contrib.tpu.TPUDistributionStrategy(
+        strategy=tf.contrib.tpu.TPUDistributionStrategy(
             tf.contrib.cluster_resolver.TPUClusterResolver(TPU_WORKER)
         ))
     return tpu_model
