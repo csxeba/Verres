@@ -21,7 +21,7 @@ def get_engine(engine_type: ENGINE=None):
     return engine
 
 
-def to_tpu(keras_model):
+def to_tpu(keras_model_function):
     import os
     import tensorflow as tf
 
@@ -29,6 +29,8 @@ def to_tpu(keras_model):
     if TPU_ADDR is None:
         raise RuntimeError("No TPU available!")
     TPU_WORKER = "grpc://" + TPU_ADDR
+
+    keras_model = keras_model_function(tf.keras)
 
     tpu_model = tf.contrib.tpu.keras_to_tpu_model(
         keras_model,
