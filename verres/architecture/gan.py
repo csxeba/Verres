@@ -2,113 +2,110 @@ from collections import deque
 
 import numpy as np
 
-from keras.models import Model
-from keras.layers import Input, Conv2DTranspose, Conv2D, Reshape, Dense, Flatten
-from keras.layers import BatchNormalization, Activation
-from keras.layers import LeakyReLU
-
-from verres.optimizers import AdaBound
+from verres.optimizers import adabound
+from verres.keras_engine import get_engine
 
 
 class GAN:
 
-    def __init__(self, latent_dim=32):
+    def __init__(self, latent_dim=32, ann_engine=None):
+        self.engine = get_engine(ann_engine)
         self.latent_dim = latent_dim
-        self.generator = None  # type: Model
-        self.discriminator = None  # type: Model
-        self.gan = None  # type: Model
+        self.generator = None
+        self.discriminator = None
+        self.gan = None
 
     def build_baseline(self):
 
-        z_input = Input(shape=(self.latent_dim,))
+        z_input = self.engine.layers.Input(shape=(self.latent_dim,))
 
-        x = Dense(1024)(z_input)
-        x = Reshape((1, 1, 1024))(x)
+        x = self.engine.layers.Dense(1024)(z_input)
+        x = self.engine.layers.Reshape((1, 1, 1024))(x)
 
-        x = Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
-        x = Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
-        x = Conv2DTranspose(filters=32, kernel_size=6, strides=2, activation="relu")(x)
-        x = Conv2DTranspose(filters=3, kernel_size=6, strides=2, activation="sigmoid")(x)
+        x = self.engine.layers.Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
+        x = self.engine.layers.Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
+        x = self.engine.layers.Conv2DTranspose(filters=32, kernel_size=6, strides=2, activation="relu")(x)
+        x = self.engine.layers.Conv2DTranspose(filters=3, kernel_size=6, strides=2, activation="sigmoid")(x)
 
-        self.generator = Model(z_input, x, name="Generator")
+        self.generator = self.engine.Model(z_input, x, name="Generator")
 
-        image = Input(shape=(64, 64, 3))
+        image = self.engine.layers.Input(shape=(64, 64, 3))
 
-        x = Conv2D(filters=32, kernel_size=4, strides=2, activation="relu")(image)
-        x = Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
-        x = Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
-        x = Conv2D(filters=128, kernel_size=4, strides=2, activation="relu")(x)
+        x = self.engine.layers.Conv2D(filters=32, kernel_size=4, strides=2, activation="relu")(image)
+        x = self.engine.layers.Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
+        x = self.engine.layers.Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
+        x = self.engine.layers.Conv2D(filters=128, kernel_size=4, strides=2, activation="relu")(x)
 
-        x = Flatten()(x)
+        x = self.engine.layers.Flatten()(x)
 
-        x = Dense(1, activation="sigmoid")(x)
+        x = self.engine.layers.Dense(1, activation="sigmoid")(x)
 
-        self.discriminator = Model(image, x, name="Discriminator")
-        self.gan = Model(z_input, self.discriminator(self.generator(z_input)), name="GAN")
+        self.discriminator = self.engine.Model(image, x, name="Discriminator")
+        self.gan = self.engine.Model(z_input, self.discriminator(self.generator(z_input)), name="GAN")
 
         self._disable_generator()
-        self.discriminator.compile(optimizer=AdaBound(2e-4), loss="binary_crossentropy")
+        self.discriminator.compile(optimizer=adabound.build(2e-4), loss="binary_crossentropy")
         self._disable_discriminator()
-        self.gan.compile(optimizer=AdaBound(2e-4), loss="binary_crossentropy")
+        self.gan.compile(optimizer=adabound.build(2e-4), loss="binary_crossentropy")
         self._enable()
 
     def build_reference(self):
-        noise = Input((self.latent_dim,))
-        x = Dense(1024, activation="relu", input_dim=self.latent_dim)(noise)
-        x = Dense(128 * 8 * 8, activation="relu")(x)
-        x = Reshape((8, 8, 128))(x)
-        x = Conv2DTranspose(256, kernel_size=3, strides=2, padding="same")(x)  # 16
-        x = BatchNormalization(momentum=0.8)(x)
-        x = Activation("relu")(x)
-        x = Conv2D(128, kernel_size=3, padding="same")(x)
-        x = BatchNormalization(momentum=0.8)(x)
-        x = Activation("relu")(x)
-        x = Conv2DTranspose(128, kernel_size=3, strides=2, padding="same")(x)  # 32
-        x = BatchNormalization(momentum=0.8)(x)
-        x = Activation("relu")(x)
-        x = Conv2D(64, kernel_size=3, padding="same")(x)
-        x = BatchNormalization(momentum=0.8)(x)
-        x = Activation("relu")(x)
-        x = Conv2DTranspose(64, kernel_size=3, strides=2, padding="same")(x)  # 64
-        x = BatchNormalization(momentum=0.8)(x)
-        x = Activation("relu")(x)
-        x = Conv2D(32, kernel_size=3, padding="same")(x)
-        x = BatchNormalization()(x)
-        x = Activation("relu")(x)
-        x = Conv2D(3, kernel_size=3, padding="same")(x)
-        x = Activation("sigmoid")(x)
+        noise = self.engine.layers.Input((self.latent_dim,))
+        x = self.engine.layers.Dense(1024, activation="relu", input_dim=self.latent_dim)(noise)
+        x = self.engine.layers.Dense(128 * 8 * 8, activation="relu")(x)
+        x = self.engine.layers.Reshape((8, 8, 128))(x)
+        x = self.engine.layers.Conv2DTranspose(256, kernel_size=3, strides=2, padding="same")(x)  # 16
+        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
+        x = self.engine.layers.Activation("relu")(x)
+        x = self.engine.layers.Conv2D(128, kernel_size=3, padding="same")(x)
+        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
+        x = self.engine.layers.Activation("relu")(x)
+        x = self.engine.layers.Conv2DTranspose(128, kernel_size=3, strides=2, padding="same")(x)  # 32
+        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
+        x = self.engine.layers.Activation("relu")(x)
+        x = self.engine.layers.Conv2D(64, kernel_size=3, padding="same")(x)
+        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
+        x = self.engine.layers.Activation("relu")(x)
+        x = self.engine.layers.Conv2DTranspose(64, kernel_size=3, strides=2, padding="same")(x)  # 64
+        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
+        x = self.engine.layers.Activation("relu")(x)
+        x = self.engine.layers.Conv2D(32, kernel_size=3, padding="same")(x)
+        x = self.engine.layers.BatchNormalization()(x)
+        x = self.engine.layers.Activation("relu")(x)
+        x = self.engine.layers.Conv2D(3, kernel_size=3, padding="same")(x)
+        x = self.engine.layers.Activation("sigmoid")(x)
 
-        self.generator = Model(noise, x, name="Generator")
+        self.generator = self.engine.Model(noise, x, name="Generator")
 
-        image = Input((64, 64, 3))
+        image = self.engine.layers.Input((64, 64, 3))
 
-        x = Conv2D(32, kernel_size=3, strides=1, padding="same")(image)  # 32
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(32, kernel_size=4, strides=2, padding="same")(x)  # 32
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)  # 16
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(64, kernel_size=4, strides=2, padding="same")(x)  # 16
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(128, kernel_size=3, strides=1, padding="same")(x)  # 8
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(128, kernel_size=4, strides=2, padding="same")(x)  # 8
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Conv2D(256, kernel_size=3, strides=1, padding="same")(x)  # 4
-        x = LeakyReLU(alpha=0.2)(x)
-        x = Flatten()(x)
+        x = self.engine.layers.Conv2D(32, kernel_size=3, strides=1, padding="same")(image)  # 32
+        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
+        x = self.engine.layers.Conv2D(32, kernel_size=4, strides=2, padding="same")(x)  # 32
+        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
+        x = self.engine.layers.Conv2D(64, kernel_size=3, strides=1, padding="same")(x)  # 16
+        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
+        x = self.engine.layers.Conv2D(64, kernel_size=4, strides=2, padding="same")(x)  # 16
+        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
+        x = self.engine.layers.Conv2D(128, kernel_size=3, strides=1, padding="same")(x)  # 8
+        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
+        x = self.engine.layers.Conv2D(128, kernel_size=4, strides=2, padding="same")(x)  # 8
+        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
+        x = self.engine.layers.Conv2D(256, kernel_size=3, strides=1, padding="same")(x)  # 4
+        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
+        x = self.engine.layers.Flatten()(x)
         # x = Dropout(0.25)(x)
-        x = Dense(256, activation="relu")(x)
+        x = self.engine.layers.Dense(256, activation="relu")(x)
         # x = Dropout(0.25)(x)
-        x = Dense(1, activation='sigmoid')(x)
+        x = self.engine.layers.Dense(1, activation='sigmoid')(x)
 
-        self.discriminator = Model(image, x, name="Discriminator")
-        self.gan = Model(noise, self.discriminator(self.generator(noise)), name="GAN")
+        self.discriminator = self.engine.Model(image, x, name="Discriminator")
+        self.gan = self.engine.Model(noise, self.discriminator(self.generator(noise)), name="GAN")
 
         self._disable_generator()
-        self.discriminator.compile(optimizer=AdaBound(2e-4, beta_1=0.5), loss="mse")
+        self.discriminator.compile(optimizer=adabound.build(2e-4, beta_1=0.5), loss="mse")
         self._disable_discriminator()
-        self.gan.compile(optimizer=AdaBound(2e-4, beta_1=0.5), loss="mse")
+        self.gan.compile(optimizer=adabound.build(2e-4, beta_1=0.5), loss="mse")
         self._enable()
 
     @staticmethod
