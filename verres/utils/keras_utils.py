@@ -17,7 +17,8 @@ def get_default_keras_callbacks(artifactory, checkpoint_template=None):
 def to_tpu(keras_model):
     TPU_ADDR = os.environ.get("COLAB_TPU_ADDR")
     if TPU_ADDR is None:
-        raise RuntimeError("No TPU available!")
+        print("[W] No TPU available, returning normal model!")
+        return keras_model
     TPU_WORKER = "grpc://" + TPU_ADDR
 
     tpu_model = tf.contrib.tpu.keras_to_tpu_model(

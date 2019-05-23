@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def build(num_output_classes, onehot_y=False, input_shape=(None, 200, 320, 3)):
+def build(num_output_classes, onehot_y=False, input_shape=(None, 200, 320, 3), up_interpolation="nearest"):
 
     inputs = tf.keras.layers.Input(batch_shape=input_shape)
 
@@ -41,7 +41,7 @@ def build(num_output_classes, onehot_y=False, input_shape=(None, 200, 320, 3)):
     down_stage5 = tf.keras.layers.BatchNormalization()(down_stage5)
     down_stage5 = tf.keras.layers.ReLU()(down_stage5)
 
-    x = tf.keras.layers.UpSampling2D()(down_stage5)  # 12, 20
+    x = tf.keras.layers.UpSampling2D(up_interpolation)(down_stage5)  # 12, 20
     x = tf.keras.layers.concatenate([down_stage4, x])
     x = tf.keras.layers.Conv2D(32, 5, padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
@@ -56,19 +56,19 @@ def build(num_output_classes, onehot_y=False, input_shape=(None, 200, 320, 3)):
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.UpSampling2D()(x)  # 50, 80
+    x = tf.keras.layers.UpSampling2D(up_interpolation)(x)  # 50, 80
     x = tf.keras.layers.concatenate([down_stage3, x])
     x = tf.keras.layers.Conv2D(16, 5, padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.UpSampling2D()(x)  # 100, 160
+    x = tf.keras.layers.UpSampling2D(up_interpolation)(x)  # 100, 160
     x = tf.keras.layers.concatenate([down_stage2, x])
     x = tf.keras.layers.Conv2D(8, 5, padding="same")(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.ReLU()(x)
 
-    x = tf.keras.layers.UpSampling2D()(x)  # 200, 320
+    x = tf.keras.layers.UpSampling2D(up_interpolation)(x)  # 200, 320
     classes = tf.keras.layers.Conv2D(num_output_classes+1, 5, activation="softmax", padding="same")(x)
 
     model = tf.keras.models.Model(inputs, classes)
