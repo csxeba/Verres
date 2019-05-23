@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from verres.utils import masking
-from .config import COCODoomLoaderConfig, COCODoomStreamConfig
+from .config import COCODoomLoaderConfig
 
 ENEMY_TYPES = [
     "POSSESSED", "SHOTGUY", "VILE", "UNDEAD", "FATSO", "CHAINGUY", "TROOP", "SERGEANT", "HEAD", "BRUISER",
@@ -36,22 +36,19 @@ class COCODoomLoader:
     @classmethod
     def default_train(cls):
         cfg = COCODoomLoaderConfig("/data/Datasets/cocodoom/map-train.json",
-                                   "/data/Datasets/cocodoom",
-                                   stream_batch_size=32)
+                                   "/data/Datasets/cocodoom")
         return cls(cfg)
 
     @classmethod
     def default_val(cls):
         cfg = COCODoomLoaderConfig("/data/Datasets/cocodoom/map-val.json",
-                                   "/data/Datasets/cocodoom",
-                                   stream_batch_size=32)
+                                   "/data/Datasets/cocodoom")
         return cls(cfg)
 
     @classmethod
     def default_test(cls):
         cfg = COCODoomLoaderConfig("/data/Datasets/cocodoom/map-full-test.json",
-                                   "/data/Datasets/cocodoom",
-                                   stream_batch_size=32)
+                                   "/data/Datasets/cocodoom")
         return cls(cfg)
 
     @property
