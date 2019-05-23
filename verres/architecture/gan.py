@@ -1,15 +1,14 @@
 from collections import deque
 
 import numpy as np
+import tensorflow as tf
 
 from verres.optimizers import adabound
-from verres.keras_engine import get_engine
 
 
 class GAN:
 
-    def __init__(self, latent_dim=32, ann_engine=None):
-        self.engine = get_engine(ann_engine)
+    def __init__(self, latent_dim=32):
         self.latent_dim = latent_dim
         self.generator = None
         self.discriminator = None
@@ -17,31 +16,31 @@ class GAN:
 
     def build_baseline(self):
 
-        z_input = self.engine.layers.Input(shape=(self.latent_dim,))
+        z_input = tf.keras.layers.Input(shape=(self.latent_dim,))
 
-        x = self.engine.layers.Dense(1024)(z_input)
-        x = self.engine.layers.Reshape((1, 1, 1024))(x)
+        x = tf.keras.layers.Dense(1024)(z_input)
+        x = tf.keras.layers.Reshape((1, 1, 1024))(x)
 
-        x = self.engine.layers.Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
-        x = self.engine.layers.Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
-        x = self.engine.layers.Conv2DTranspose(filters=32, kernel_size=6, strides=2, activation="relu")(x)
-        x = self.engine.layers.Conv2DTranspose(filters=3, kernel_size=6, strides=2, activation="sigmoid")(x)
+        x = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
+        x = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=5, strides=2, activation="relu")(x)
+        x = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=6, strides=2, activation="relu")(x)
+        x = tf.keras.layers.Conv2DTranspose(filters=3, kernel_size=6, strides=2, activation="sigmoid")(x)
 
-        self.generator = self.engine.Model(z_input, x, name="Generator")
+        self.generator = tf.keras.Model(z_input, x, name="Generator")
 
-        image = self.engine.layers.Input(shape=(64, 64, 3))
+        image = tf.keras.layers.Input(shape=(64, 64, 3))
 
-        x = self.engine.layers.Conv2D(filters=32, kernel_size=4, strides=2, activation="relu")(image)
-        x = self.engine.layers.Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
-        x = self.engine.layers.Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
-        x = self.engine.layers.Conv2D(filters=128, kernel_size=4, strides=2, activation="relu")(x)
+        x = tf.keras.layers.Conv2D(filters=32, kernel_size=4, strides=2, activation="relu")(image)
+        x = tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
+        x = tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides=2, activation="relu")(x)
+        x = tf.keras.layers.Conv2D(filters=128, kernel_size=4, strides=2, activation="relu")(x)
 
-        x = self.engine.layers.Flatten()(x)
+        x = tf.keras.layers.Flatten()(x)
 
-        x = self.engine.layers.Dense(1, activation="sigmoid")(x)
+        x = tf.keras.layers.Dense(1, activation="sigmoid")(x)
 
-        self.discriminator = self.engine.Model(image, x, name="Discriminator")
-        self.gan = self.engine.Model(z_input, self.discriminator(self.generator(z_input)), name="GAN")
+        self.discriminator = tf.keras.Model(image, x, name="Discriminator")
+        self.gan = tf.keras.Model(z_input, self.discriminator(self.generator(z_input)), name="GAN")
 
         self._disable_generator()
         self.discriminator.compile(optimizer=adabound.build(2e-4), loss="binary_crossentropy")
@@ -50,57 +49,57 @@ class GAN:
         self._enable()
 
     def build_reference(self):
-        noise = self.engine.layers.Input((self.latent_dim,))
-        x = self.engine.layers.Dense(1024, activation="relu", input_dim=self.latent_dim)(noise)
-        x = self.engine.layers.Dense(128 * 8 * 8, activation="relu")(x)
-        x = self.engine.layers.Reshape((8, 8, 128))(x)
-        x = self.engine.layers.Conv2DTranspose(256, kernel_size=3, strides=2, padding="same")(x)  # 16
-        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
-        x = self.engine.layers.Activation("relu")(x)
-        x = self.engine.layers.Conv2D(128, kernel_size=3, padding="same")(x)
-        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
-        x = self.engine.layers.Activation("relu")(x)
-        x = self.engine.layers.Conv2DTranspose(128, kernel_size=3, strides=2, padding="same")(x)  # 32
-        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
-        x = self.engine.layers.Activation("relu")(x)
-        x = self.engine.layers.Conv2D(64, kernel_size=3, padding="same")(x)
-        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
-        x = self.engine.layers.Activation("relu")(x)
-        x = self.engine.layers.Conv2DTranspose(64, kernel_size=3, strides=2, padding="same")(x)  # 64
-        x = self.engine.layers.BatchNormalization(momentum=0.8)(x)
-        x = self.engine.layers.Activation("relu")(x)
-        x = self.engine.layers.Conv2D(32, kernel_size=3, padding="same")(x)
-        x = self.engine.layers.BatchNormalization()(x)
-        x = self.engine.layers.Activation("relu")(x)
-        x = self.engine.layers.Conv2D(3, kernel_size=3, padding="same")(x)
-        x = self.engine.layers.Activation("sigmoid")(x)
+        noise = tf.keras.layers.Input((self.latent_dim,))
+        x = tf.keras.layers.Dense(1024, activation="relu", input_dim=self.latent_dim)(noise)
+        x = tf.keras.layers.Dense(128 * 8 * 8, activation="relu")(x)
+        x = tf.keras.layers.Reshape((8, 8, 128))(x)
+        x = tf.keras.layers.Conv2DTranspose(256, kernel_size=3, strides=2, padding="same")(x)  # 16
+        x = tf.keras.layers.BatchNormalization(momentum=0.8)(x)
+        x = tf.keras.layers.Activation("relu")(x)
+        x = tf.keras.layers.Conv2D(128, kernel_size=3, padding="same")(x)
+        x = tf.keras.layers.BatchNormalization(momentum=0.8)(x)
+        x = tf.keras.layers.Activation("relu")(x)
+        x = tf.keras.layers.Conv2DTranspose(128, kernel_size=3, strides=2, padding="same")(x)  # 32
+        x = tf.keras.layers.BatchNormalization(momentum=0.8)(x)
+        x = tf.keras.layers.Activation("relu")(x)
+        x = tf.keras.layers.Conv2D(64, kernel_size=3, padding="same")(x)
+        x = tf.keras.layers.BatchNormalization(momentum=0.8)(x)
+        x = tf.keras.layers.Activation("relu")(x)
+        x = tf.keras.layers.Conv2DTranspose(64, kernel_size=3, strides=2, padding="same")(x)  # 64
+        x = tf.keras.layers.BatchNormalization(momentum=0.8)(x)
+        x = tf.keras.layers.Activation("relu")(x)
+        x = tf.keras.layers.Conv2D(32, kernel_size=3, padding="same")(x)
+        x = tf.keras.layers.BatchNormalization()(x)
+        x = tf.keras.layers.Activation("relu")(x)
+        x = tf.keras.layers.Conv2D(3, kernel_size=3, padding="same")(x)
+        x = tf.keras.layers.Activation("sigmoid")(x)
 
-        self.generator = self.engine.Model(noise, x, name="Generator")
+        self.generator = tf.keras.Model(noise, x, name="Generator")
 
-        image = self.engine.layers.Input((64, 64, 3))
+        image = tf.keras.layers.Input((64, 64, 3))
 
-        x = self.engine.layers.Conv2D(32, kernel_size=3, strides=1, padding="same")(image)  # 32
-        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
-        x = self.engine.layers.Conv2D(32, kernel_size=4, strides=2, padding="same")(x)  # 32
-        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
-        x = self.engine.layers.Conv2D(64, kernel_size=3, strides=1, padding="same")(x)  # 16
-        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
-        x = self.engine.layers.Conv2D(64, kernel_size=4, strides=2, padding="same")(x)  # 16
-        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
-        x = self.engine.layers.Conv2D(128, kernel_size=3, strides=1, padding="same")(x)  # 8
-        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
-        x = self.engine.layers.Conv2D(128, kernel_size=4, strides=2, padding="same")(x)  # 8
-        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
-        x = self.engine.layers.Conv2D(256, kernel_size=3, strides=1, padding="same")(x)  # 4
-        x = self.engine.layers.LeakyReLU(alpha=0.2)(x)
-        x = self.engine.layers.Flatten()(x)
+        x = tf.keras.layers.Conv2D(32, kernel_size=3, strides=1, padding="same")(image)  # 32
+        x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
+        x = tf.keras.layers.Conv2D(32, kernel_size=4, strides=2, padding="same")(x)  # 32
+        x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
+        x = tf.keras.layers.Conv2D(64, kernel_size=3, strides=1, padding="same")(x)  # 16
+        x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
+        x = tf.keras.layers.Conv2D(64, kernel_size=4, strides=2, padding="same")(x)  # 16
+        x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
+        x = tf.keras.layers.Conv2D(128, kernel_size=3, strides=1, padding="same")(x)  # 8
+        x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
+        x = tf.keras.layers.Conv2D(128, kernel_size=4, strides=2, padding="same")(x)  # 8
+        x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
+        x = tf.keras.layers.Conv2D(256, kernel_size=3, strides=1, padding="same")(x)  # 4
+        x = tf.keras.layers.LeakyReLU(alpha=0.2)(x)
+        x = tf.keras.layers.Flatten()(x)
         # x = Dropout(0.25)(x)
-        x = self.engine.layers.Dense(256, activation="relu")(x)
+        x = tf.keras.layers.Dense(256, activation="relu")(x)
         # x = Dropout(0.25)(x)
-        x = self.engine.layers.Dense(1, activation='sigmoid')(x)
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
 
-        self.discriminator = self.engine.Model(image, x, name="Discriminator")
-        self.gan = self.engine.Model(noise, self.discriminator(self.generator(noise)), name="GAN")
+        self.discriminator = tf.keras.Model(image, x, name="Discriminator")
+        self.gan = tf.keras.Model(noise, self.discriminator(self.generator(noise)), name="GAN")
 
         self._disable_generator()
         self.discriminator.compile(optimizer=adabound.build(2e-4, beta_1=0.5), loss="mse")

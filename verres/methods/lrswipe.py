@@ -1,24 +1,20 @@
 import numpy as np
 
-from verres.keras_engine import get_engine
+import tensorflow as tf
 
 
-def make_callback(schedule, ann_engine=None):
+class LearningRateSwipeCallback(tf.keras.callbacks.Callback):
 
-    engine = get_engine(ann_engine)
+    def __init__(self, schedule, loss_container):
+        super().__init__()
+        self.schedule = schedule
+        self.loss_container = loss_container
 
-    class _LearningRateSwipeCallback(engine.callbacks.Callback):
+    def on_batch_begin(self, batch, logs=None):
+        return self.schedule[batch]
 
-        def __init__(self):
-            super().__init__()
-            self.current_learning_rate = schedule[0]
-
-        def on_batch_begin(self, batch, logs=None):
-            if callable(schedule):
-                return schedule(batch, self.current_learning_rate)
-            return schedule[batch]
-
-    return _LearningRateSwipeCallback()
+    def on_batch_end(self, batch, logs=None):
+        self.loss_container.append(logs["loss"])
 
 
 class LearningRateSwipeConfig:
@@ -27,47 +23,44 @@ class LearningRateSwipeConfig:
                  minimum_lrate,
                  maximum_lrate,
                  increment,
-                 num_steps=None,
                  verbose=0):
 
         self.minimum_lrate = minimum_lrate
         self.maximum_lrate = maximum_lrate
         self.increment = increment
-        self.num_steps = num_steps
         self.verbose = verbose
 
 
 class LearningRateSwipe:
 
-    def __init__(self, config: LearningRateSwipeConfig, model, training_iterator, ann_engine=None):
-        self.engine = get_engine(ann_engine)
+    def __init__(self, config: LearningRateSwipeConfig, model, training_iterator):
         self.cfg = config
         self.model = model
         self.training_iterator = training_iterator
         self.schedule = None
-        self.num_iterations = None
         self.losses = None
 
     def _create_schedule(self):
         if type(self.cfg.increment) in (float, int):
             self.schedule = np.arange(self.cfg.minimum_lrate, self.cfg.maximum_lrate + self.cfg.increment, self.cfg.increment)
-            self.num_iterations = len(self.schedule)
         elif callable(self.cfg.increment):
-            self.schedule = self.cfg.increment
-            self.num_iterations = self.cfg.num_steps
-        if self.num_iterations is None:
-            raise RuntimeError("Either pass a function as config.increment and config.num_steps or a scalar value!")
+            self.schedule = [self.cfg.minimum_lrate]
+            i = 1
+            while self.schedule[-1] < self.cfg.maximum_lrate:
+                self.schedule.append(self.cfg.increment(self.schedule[-1]), i)
+                i += 1
+                if i > 5000:
+                    raise RuntimeError("Too many iterations! Check your scheduler!")
 
     def run(self, plot=True):
-        swipe_callback = make_callback(
+        swipe_callback = LearningRateSwipeCallback(
             schedule=self.schedule,
-            ann_engine=self.engine
+            loss_container=self.losses
         )
-        history = self.model.fit_generator(self.training_iterator,
-                                           steps_per_epoch=self.num_iterations,
-                                           callbacks=[swipe_callback],
-                                           verbose=self.cfg.verbose)
-        self.losses = history.history["loss"]
+        self.model.fit_generator(self.training_iterator,
+                                 steps_per_epoch=self.num_iterations,
+                                 callbacks=[swipe_callback],
+                                 verbose=self.cfg.verbose)
         if plot:
             self.plot()
         return self.losses

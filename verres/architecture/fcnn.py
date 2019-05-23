@@ -1,22 +1,21 @@
-from verres.keras_engine import get_engine
+import tensorflow as tf
 
 
 class FCNN:
 
-    def __init__(self, ann_engine=None):
-        self.engine = get_engine(ann_engine)
+    def __init__(self):
         self.model = None
 
     def build_simple_classifier(self, input_shape, output_dim):
-        self.model = self.engine.models.Sequential([
-            self.engine.layers.Conv2D(32, (5, 5), strides=2, input_shape=input_shape, padding="same", activation="relu"),
-            self.engine.layers.Conv2D(64, (3, 3), activation="relu"),
-            self.engine.layers.Conv2D(64, (3, 3), activation="relu"),
-            self.engine.layers.Conv2D(128, (5, 5), strides=2, padding="same", activation="relu"),
-            self.engine.layers.Conv2D(128, (3, 3), activation="relu"),
-            self.engine.layers.Conv2D(output_dim, (1, 1), name="logits"),
-            self.engine.layers.GlobalAveragePooling2D(),
-            self.engine.layers.Activation("softmax")
+        self.model = tf.keras.models.Sequential([
+            tf.keras.layers.Conv2D(32, (5, 5), strides=2, input_shape=input_shape, padding="same", activation="relu"),
+            tf.keras.layers.Conv2D(64, (3, 3), activation="relu"),
+            tf.keras.layers.Conv2D(64, (3, 3), activation="relu"),
+            tf.keras.layers.Conv2D(128, (5, 5), strides=2, padding="same", activation="relu"),
+            tf.keras.layers.Conv2D(128, (3, 3), activation="relu"),
+            tf.keras.layers.Conv2D(output_dim, (1, 1), name="logits"),
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Activation("softmax")
         ])
         self.model.compile("adam", "categorical_crossentropy", metrics=["acc"])
 
