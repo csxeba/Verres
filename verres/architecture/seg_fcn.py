@@ -1,7 +1,14 @@
 import tensorflow as tf
 
+from verres.data import cocodoom
 
-def build(num_output_classes, onehot_y=False, input_shape=(None, 200, 320, 3), up_interpolation="nearest"):
+
+TASK = cocodoom.config.TASK
+
+
+def build(task: TASK=TASK.SEGMENTATION,
+          input_shape: tuple=(None, 200, 320, 3),
+          num_output_classes=None):
 
     inputs = tf.keras.layers.Input(batch_shape=input_shape)
 
@@ -69,11 +76,13 @@ def build(num_output_classes, onehot_y=False, input_shape=(None, 200, 320, 3), u
     x = tf.keras.layers.ReLU()(x)
 
     x = tf.keras.layers.Conv2DTranspose(16, 3, activation="relu", padding="same", strides=2)(x)  # 200, 320
-    classes = tf.keras.layers.Conv2D(num_output_classes+1, 5, activation="softmax", padding="same")(x)
+    if task == TASK.SEGMENTATION:
+        x = tf.keras.layers.Conv2D(num_output_classes+1, 5, padding="same")(x)
+        x = tf.keras.layers.Softmax()(x)
+    elif task == TASK.DEPTH:
+        x = tf.keras.layers.Conv2D(1, 5, padding="same")(x)
 
-    model = tf.keras.models.Model(inputs, classes)
-    # tf.keras.utils.plot_model(model, "unet.png", show_shapes=True)
-    return model
+    return tf.keras.models.Model(inputs, x)
 
 
 if __name__ == '__main__':

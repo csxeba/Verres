@@ -3,6 +3,8 @@ import numpy as np
 from .config import COCODoomStreamConfig, TASK
 from .loader import COCODoomLoader
 
+from verres.utils import cocodoom_utils
+
 
 class COCODoomStream:
 
@@ -18,14 +20,7 @@ class COCODoomStream:
         return self.loader.N // self.cfg.batch_size
 
     def stream(self):
-        meta_iterator = self.loader.image_meta.values()
-        if self.cfg.run_number is not None:
-            criterion = "run{}".format(self.cfg.run_number)
-            meta_iterator = filter(lambda meta: criterion in meta["file_name"], meta_iterator)
-        if self.cfg.level_number is not None:
-            criterion = "map{}".format(self.cfg.level_number)
-            meta_iterator = filter(lambda meta: criterion in meta["file_name"], meta_iterator)
-
+        meta_iterator = cocodoom_utils.apply_image_filters(self.loader.image_meta.values(), self.cfg)
         ids = sorted(meta["id"] for meta in meta_iterator)
         N = len(ids)
         if N == 0:

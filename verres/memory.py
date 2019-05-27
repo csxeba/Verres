@@ -1,8 +1,7 @@
-from keras.layers import Layer
-from keras import backend as K
+import tensorflow as tf
 
 
-class Memory(Layer):
+class Memory(tf.keras.layers.Layer):
 
     def __init__(self, memsize=32, wordsize=48, **kwargs):
         super().__init__(**kwargs)
@@ -13,10 +12,10 @@ class Memory(Layer):
 
     def call(self, weights, **kwargs):
         if self._do_reseted:
-            self.reset(K.shape(weights)[0])
+            self.reset(tf.keras.backend.shape(weights)[0])
         operation = kwargs.get("operation")
         final = kwargs.get("final", False)
-        result = K.zeros([K.shape(weights)[0], self.wordsize])
+        result = tf.keras.backend.zeros([tf.keras.backend.shape(weights)[0], self.wordsize])
         if operation == "read":
             result = self.read(weights)
         elif operation == "write":
@@ -28,17 +27,17 @@ class Memory(Layer):
         return result
 
     def reset(self, batch_size):
-        self.memory = K.zeros((batch_size, self.memsize, self.wordsize))
+        self.memory = tf.keras.backend.zeros((batch_size, self.memsize, self.wordsize))
 
     def read(self, weights):
-        weights = K.expand_dims(weights, 1)
-        readout = K.batch_dot(weights, self.memory)
-        return K.squeeze(readout, 1)
+        weights = tf.keras.backend.expand_dims(weights, 1)
+        readout = tf.keras.backend.batch_dot(weights, self.memory)
+        return tf.keras.backend.squeeze(readout, 1)
 
     def write(self, weights, content):
-        weights = K.expand_dims(weights, 2)
-        content = K.expand_dims(content, 1)
-        new_memories = K.batch_dot(weights, content)
+        weights = tf.keras.backend.expand_dims(weights, 2)
+        content = tf.keras.backend.expand_dims(content, 1)
+        new_memories = tf.keras.backend.batch_dot(weights, content)
         self.memory += new_memories
 
     def compute_output_shape(self, input_shape):
