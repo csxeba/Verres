@@ -11,7 +11,8 @@ class LearningRateSwipeCallback(tf.keras.callbacks.Callback):
         self.loss_container = loss_container
 
     def on_batch_begin(self, batch, logs=None):
-        return self.schedule[batch]
+        lrate = self.schedule[batch]
+        tf.keras.backend.set_value(self.model.optimizer.lr, lrate)
 
     def on_batch_end(self, batch, logs=None):
         self.loss_container.append(logs["loss"])
@@ -35,10 +36,12 @@ class LearningRateSwipe:
 
     def __init__(self, config: LearningRateSwipeConfig, model, training_iterator):
         self.cfg = config
-        self.model = model
+        self.model = model  # type: tf.keras.Model
         self.training_iterator = training_iterator
         self.schedule = None
-        self.losses = None
+        self.losses = []
+        self.num_iterations = None
+        self._create_schedule()
 
     def _create_schedule(self):
         if type(self.cfg.increment) in (float, int):
@@ -47,20 +50,21 @@ class LearningRateSwipe:
             self.schedule = [self.cfg.minimum_lrate]
             i = 1
             while self.schedule[-1] < self.cfg.maximum_lrate:
-                self.schedule.append(self.cfg.increment(self.schedule[-1]), i)
+                self.schedule.append(self.cfg.increment(self.schedule[-1], i))
                 i += 1
                 if i > 5000:
                     raise RuntimeError("Too many iterations! Check your scheduler!")
+        self.num_iterations = len(self.schedule)
 
     def run(self, plot=True):
         swipe_callback = LearningRateSwipeCallback(
             schedule=self.schedule,
             loss_container=self.losses
         )
-        self.model.fit_generator(self.training_iterator,
-                                 steps_per_epoch=self.num_iterations,
-                                 callbacks=[swipe_callback],
-                                 verbose=self.cfg.verbose)
+        self.model.fit(x=self.training_iterator,
+                       steps_per_epoch=self.num_iterations,
+                       callbacks=[swipe_callback],
+                       verbose=self.cfg.verbose)
         if plot:
             self.plot()
         return self.losses

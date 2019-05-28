@@ -27,10 +27,10 @@ def preprocess_path_tuple(image_paths, depth_paths):
     return images, depth_maps
 
 
-def build(loader: COCODoomLoader, stream_config: COCODoomStreamConfig):
-    metae = sorted(cocodoom_utils.apply_image_filters(loader.image_meta.values(), stream_config),
+def build(stream_config: COCODoomStreamConfig, data_loader: COCODoomLoader):
+    metae = sorted(cocodoom_utils.apply_image_filters(data_loader.image_meta.values(), stream_config),
                    key=lambda meta: meta["id"])
-    image_paths_py = [os.path.join(loader.cfg.images_root, meta["file_name"]) for meta in metae]
+    image_paths_py = [os.path.join(data_loader.cfg.images_root, meta["file_name"]) for meta in metae]
     image_paths = tfd.Dataset.from_tensor_slices(np.array(image_paths_py))
     depth_paths = tfd.Dataset.from_tensor_slices(
         np.array([path.replace("/rgb/", "/depth/") for path in image_paths_py]))

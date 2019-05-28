@@ -15,7 +15,9 @@ class COCODoomStream:
         self.cfg = stream_config
         self.loader = data_loader
         self._internal_iterator = None
+        self.shape = (self.steps_per_epoch, 200, 320, 3)
 
+    @property
     def steps_per_epoch(self):
         return self.loader.N // self.cfg.batch_size
 
