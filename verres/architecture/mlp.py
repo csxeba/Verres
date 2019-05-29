@@ -3,24 +3,25 @@ import tensorflow as tf
 
 class MLP:
 
-    def __init__(self, input_dim, *layers, activation="relu"):
-        raise RuntimeError("Buggy, fix the output layer addition!")
-        self.engine = get_engine(ann_engine)
+    def __init__(self, input_shape, hiddens, outputs, activation="relu", output_activation="linear"):
         self.model = tf.keras.models.Sequential()
-        self.model.add(tf.keras.layers.Dense(units=layers[0], input_dim=input_dim, activation=activation))
-        for unit in layers[1:-1]:
-            self.model.add(tf.keras.layers.Dense(units=unit, activation=activation))
+        self.model.add(tf.keras.layers.Flatten(input_shape=input_shape))
+        self.model.add(tf.keras.layers.Dense(units=hiddens, activation=activation))
+        self.model.add(tf.keras.layers.Dense(units=outputs, activation=output_activation))
 
     @classmethod
-    def build_classifier(cls, input_dim, output_dim, ann_engine=None):
-        engine = get_engine(ann_engine)
-        mlp = cls(input_dim, 32, output_dim, activation="tanh", ann_engine=ann_engine)
-        mlp.model.add(engine.layers.Activation("softmax"))
+    def build_classifier(cls, input_dim, output_dim):
+        mlp = cls(input_dim, 32, output_dim, activation="tanh", output_activation="softmax")
         mlp.model.compile("adam", "categorical_crossentropy")
         return mlp
 
     @classmethod
-    def build_regressor(cls, input_dim, output_dim, ann_engine=None):
-        mlp = cls(input_dim, 32, output_dim, activation="tanh", ann_engine=ann_engine)
+    def build_regressor(cls, input_dim, output_dim):
+        mlp = cls(input_dim, 32, output_dim, activation="tanh", output_activation="linear")
         mlp.model.compile("adam", "mse")
+        return mlp
+
+    @classmethod
+    def build_for_mnist(cls):
+        mlp = cls.build_classifier([28, 28, 1], 10)
         return mlp

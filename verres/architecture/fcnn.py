@@ -4,15 +4,13 @@ import tensorflow as tf
 class FCNN:
 
     def __init__(self):
-        self.model = None
+        self.model = None  # type: tf.keras.Model
 
     def build_simple_classifier(self, input_shape, output_dim):
         self.model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(32, (5, 5), strides=2, input_shape=input_shape, padding="same", activation="relu"),
-            tf.keras.layers.Conv2D(64, (3, 3), activation="relu"),
-            tf.keras.layers.Conv2D(64, (3, 3), activation="relu"),
-            tf.keras.layers.Conv2D(128, (5, 5), strides=2, padding="same", activation="relu"),
-            tf.keras.layers.Conv2D(128, (3, 3), activation="relu"),
+            tf.keras.layers.Conv2D(16, (5, 5), strides=2, input_shape=input_shape, padding="same", activation="relu"),
+            tf.keras.layers.Conv2D(32, (5, 5), strides=2, padding="same", activation="relu"),
+            tf.keras.layers.Conv2D(32, (5, 5), strides=2, activation="relu"),
             tf.keras.layers.Conv2D(output_dim, (1, 1), name="logits"),
             tf.keras.layers.GlobalAveragePooling2D(),
             tf.keras.layers.Activation("softmax")

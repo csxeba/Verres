@@ -7,7 +7,6 @@ class _InMemoryImageClassificationDatasets:
 
     def __init__(self):
 
-        self.dataset = None
         self.data = None
         self.labels = None
         self.training_indices = None
@@ -28,11 +27,19 @@ class _InMemoryImageClassificationDatasets:
         N_learning = len(learning[0])
 
         self.data = np.concatenate([learning[0], validation[0]])
+        if self.data.ndim == 3:
+            self.data = self.data[..., None]
         self.labels = np.concatenate([learning[1], validation[1]])
-        self.num_classes = self.labels.max()
+        self.labels = np.squeeze(self.labels)
+        self.labels -= self.labels.min()
+        self.num_classes = self.labels.max()+1
         self.sample_ids = np.arange(len(self.data))
         self.training_indices = self.sample_ids[:N_learning]
         self.validation_indices = self.sample_ids[N_learning:]
+        self.num_samples = {"train": len(self.training_indices), "val": len(self.validation_indices)}
+
+    def steps_per_epoch(self, subset, batch_size):
+        return self.num_samples[subset] // batch_size
 
     def load_input(self, sample_id):
         x = self.data[sample_id] / 255.
@@ -41,7 +48,7 @@ class _InMemoryImageClassificationDatasets:
         return x
 
     def load_label(self, sample_id):
-        return to_categorical(self.labels[sample_id])
+        return to_categorical(self.labels[sample_id], num_classes=self.num_classes)
 
     @property
     def dataset(self):
@@ -49,16 +56,22 @@ class _InMemoryImageClassificationDatasets:
 
     def stream(self, batch_size, subset, shuffle=True):
         ids = {"train": self.training_indices, "val": self.validation_indices}[subset]
+        N = self.num_samples[subset]
+
         while 1:
-            X, Y = [], []
             if shuffle:
                 np.random.shuffle(ids)
-            for ID in ids:
-                X.append(self.load_input(ID))
-                Y.append(self.load_label(ID))
-            X = np.array(X)
-            Y = np.array(Y)
-            yield X, Y
+
+            for start in range(0, N, batch_size):
+                X, Y = [], []
+                for ID in ids[start:start+batch_size]:
+                    X.append(self.load_input(ID))
+                    Y.append(self.load_label(ID))
+
+                X = np.array(X)
+                Y = np.array(Y)
+
+                yield X, Y
 
 
 class CIFAR10(_InMemoryImageClassificationDatasets):
