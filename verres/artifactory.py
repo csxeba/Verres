@@ -14,7 +14,7 @@ class Artifactory:
         self.tensorboard_root = self.experiment_root/"tensorboard"
         for roots in [self.checkpoint_root, self.tensorboard_root]:
             roots.mkdir(parents=True, exist_ok=True)
-        self.logfile_path = self.experiment_root/"training_logs.csv"
+        self.logfile_path = str(self.experiment_root/"training_logs.csv")
 
     @staticmethod
     def _default_root():

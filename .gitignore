@@ -178,6 +178,7 @@ fabric.properties
 tmp
 logs
 experiments/
+artifactory/
 *.h5
 *.png
 .idea

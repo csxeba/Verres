@@ -31,24 +31,35 @@ class COCODoomStream:
         while 1:
             if self.cfg.shuffle:
                 np.random.shuffle(ids)
-            for batch in (ids[start:start+self.cfg.batch_size]
-                          for start in range(0, N, self.cfg.batch_size)):
+            for start in range(0, N, self.cfg.batch_size):
 
                 X, Y = [], []
-                for ID in batch:
+                masks = []
+
+                for ID in ids[start:start+self.cfg.batch_size]:
                     x = self.loader.get_image(ID)
 
                     if self.cfg.task == TASK.SEGMENTATION:
                         y = self.loader.get_segmentation_mask(ID)
                     elif self.cfg.task == TASK.DEPTH:
                         y = self.loader.get_depth_image(ID)
+                    elif self.cfg.task in (TASK.DETECTION_TRAINING, TASK.DETECTION_INFERENCE):
+                        y, mask = self.loader.get_box_ground_truth(ID)
+                        masks.append(mask)
                     else:
                         assert False
 
                     X.append(x)
                     Y.append(y)
 
-                yield np.array(X) / 255, np.array(Y)
+                X = np.array(X) / 255.
+                Y = np.array(Y)
+
+                if self.cfg.task in (TASK.DETECTION_TRAINING, TASK.DETECTION_INFERENCE):
+                    masks = np.array(masks)
+                    X = [X, masks]
+
+                yield X, Y
 
     def __iter__(self):
         return self

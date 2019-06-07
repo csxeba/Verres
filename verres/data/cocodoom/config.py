@@ -2,16 +2,20 @@ class TASK:
 
     SEGMENTATION = "seg"
     DEPTH = "depth"
+    DETECTION_INFERENCE = "det_inf"
+    DETECTION_TRAINING = "det_train"
 
 
 class COCODoomLoaderConfig:
 
     def __init__(self,
                  data_json,
-                 images_root):
+                 images_root,
+                 stride=None):
 
         self.data_json = data_json
         self.images_root = images_root
+        self.stride = stride
 
 
 class COCODoomStreamConfig:

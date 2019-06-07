@@ -18,13 +18,13 @@ class COCOSegVisualizer:
     def __init__(self, n_classes):
         self.n_classes = n_classes
 
-    def _handle_sparse(self, y):
+    def _colorify_sparse_mask(self, y):
         segmentation = np.zeros(y.shape[:2] + (3,), dtype="uint8")
         for i in range(1, self.n_classes):
             segmentation[y[..., i] > 0.5] = self.COLORS[i]
         return segmentation
 
-    def _handle_dense(self, y):
+    def _colorify_dense_mask(self, y):
         segmentation = np.zeros(y.shape[:2] + (3,), dtype="uint8")
         for i in range(1, self.n_classes):
             indices = np.where(y == i)
@@ -35,15 +35,37 @@ class COCOSegVisualizer:
         if y.ndim == 4:
             y = y[0]
         if y.shape[-1] == 1:
-            return self._handle_dense(y)
+            return self._colorify_dense_mask(y)
         else:
-            return self._handle_sparse(y)
+            return self._colorify_sparse_mask(y)
 
-    def overlay(self, x, y, alpha=0.3):
+    def overlay_mask(self, x, y, alpha=0.3):
         colored = self.colorify_mask(y)  # type: np.ma.MaskedArray
         mask = colored > 0
         x[mask] = alpha * x[mask] + (1 - alpha) * colored[mask]
         return x
+
+    def overlay_heatmap(self, x, y, alpha=0.3):
+        heatmap = np.zeros_like(x)
+        if y.shape[:2] != x.shape[:2]:
+            y = cv2.resize(y, x.shape[:2][::-1], interpolation=cv2.INTER_CUBIC)
+        heatmap[..., 0] = heatmap[..., 1] = y*255
+        mask = heatmap > 0.1
+        x[mask] = (1 - alpha) * x[mask] + (alpha) * heatmap[mask]
+        return x
+
+    def overlay_box(self, image: np.ndarray, box: np.ndarray):
+        pt1 = tuple(map(int, box[:2]))
+        pt2 = tuple(map(int, box[:2] + box[2:4]))
+        c = int(box[-1])
+        canvas = np.copy(image)
+        canvas = cv2.rectangle(canvas, pt1, pt2, self.COLORS[c], thickness=3)
+        return canvas
+
+    def overlay_boxes(self, image: np.ndarray, boxes: np.ndarray):
+        for box in boxes:
+            image = self.overlay_box(image, box)
+        return image
 
 
 class CV2Screen:

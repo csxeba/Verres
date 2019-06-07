@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import cv2
 import numpy as np
+from skimage import filters
 
 from verres.utils import masking
 from .config import COCODoomLoaderConfig
@@ -82,3 +83,43 @@ class COCODoomLoader:
         depth_image_path = meta["file_path"].replace("/rgb/", "/depth/")
         depth_image = cv2.imread(depth_image_path)
         return depth_image
+
+    def get_box_ground_truth(self, image_id):
+        meta = self.image_meta[image_id]
+        tensor_shape = [meta["height"] // self.cfg.stride, meta["width"] // self.cfg.stride]
+        heatmap = np.zeros(tensor_shape + [len(ENEMY_TYPES)])
+        refinements = np.zeros(tensor_shape + [2])
+        wh = np.zeros(tensor_shape + [2])
+        mask = np.zeros(tensor_shape + [1])
+
+        hit = 0
+        for anno in self.index[image_id]:
+            category = self.categories[anno["category_id"]]
+            if category["name"] not in ENEMY_TYPES:
+                continue
+
+            hit = 1
+            class_idx = ENEMY_TYPES.index(category["name"])
+            box = np.array(anno["bbox"]) / self.cfg.stride
+            centroid = box[:2] + box[2:] / 2
+            centroid_rounded = np.floor(centroid).astype(int)
+            refinement = centroid - centroid_rounded
+
+            heatmap[centroid_rounded[1], centroid_rounded[0], class_idx] = 1
+            refinements[centroid_rounded[1], centroid_rounded[0]] = refinement
+            wh[centroid_rounded[1], centroid_rounded[0]] = box[2:] / 2
+            mask[centroid_rounded[1], centroid_rounded[0]] = 1
+
+        mask = np.concatenate([np.ones_like(heatmap)] + [mask]*4, axis=-1)
+
+        if hit:
+            kernel_size = 3
+            heatmap = cv2.GaussianBlur(heatmap, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_CONSTANT)
+            heatmap /= heatmap.max()
+            # mask = filters.gaussian(mask, mode="constant", cval=0, multichannel=True)
+
+        y = np.concatenate([heatmap, refinements, wh], axis=-1)
+
+        assert y.shape == mask.shape
+
+        return y, mask

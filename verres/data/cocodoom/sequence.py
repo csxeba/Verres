@@ -51,6 +51,7 @@ class COCODoomSequence(tf.keras.utils.Sequence):
                           for start in range(0, N, self.cfg.batch_size)):
 
                 X, Y = [], []
+                masks = []
                 for ID in batch:
                     x = self.loader.get_image(ID)
 
@@ -58,17 +59,26 @@ class COCODoomSequence(tf.keras.utils.Sequence):
                         y = self.loader.get_segmentation_mask(ID)
                     elif self.cfg.task == TASK.DEPTH:
                         y = self.loader.get_depth_image(ID)
+                    elif self.cfg.task in (TASK.DETECTION_TRAINING, TASK.DETECTION_INFERENCE):
+                        y, mask = self.loader.get_box_ground_truth(ID)
+                        masks.append(mask)
                     else:
                         assert False
 
                     X.append(x)
                     Y.append(y)
 
-                yield np.array(X) / 255, np.array(Y)
+                X = np.array(X) / 255.
+                Y = np.array(Y)
 
-    def __getitem__(self, item):
-        for batch in self._internal_interator:
-            return batch
+                if self.cfg.task in (TASK.DETECTION_TRAINING, TASK.DETECTION_INFERENCE):
+                    masks = np.array(masks)
+                    X = [X, masks]
+
+                yield X, Y
+
+    def __getitem__(self, item=None):
+        return next(self._internal_interator)
 
     def on_epoch_end(self):
         np.random.shuffle(self.ids)

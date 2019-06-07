@@ -38,7 +38,10 @@ class _InMemoryImageClassificationDatasets:
         self.validation_indices = self.sample_ids[N_learning:]
         self.num_samples = {"train": len(self.training_indices), "val": len(self.validation_indices)}
 
-    def steps_per_epoch(self, subset, batch_size):
+    def _get_ids(self, subset):
+        return {"train": self.training_indices, "val": self.validation_indices}[subset]
+
+    def steps_per_epoch(self, batch_size, subset):
         return self.num_samples[subset] // batch_size
 
     def load_input(self, sample_id):
@@ -54,8 +57,19 @@ class _InMemoryImageClassificationDatasets:
     def dataset(self):
         return self.__class__.__name__.lower()
 
+    def table(self, subset, shuffle=True):
+        ids = self._get_ids(subset)
+        if shuffle:
+            np.random.shuffle(ids)
+
+        X = np.array([self.load_input(ID) for ID in ids])
+        Y = np.array([self.load_label(ID) for ID in ids])
+
+        return X, Y
+
     def stream(self, batch_size, subset, shuffle=True):
-        ids = {"train": self.training_indices, "val": self.validation_indices}[subset]
+        ids = self._get_ids(subset)
+
         N = self.num_samples[subset]
 
         while 1:
