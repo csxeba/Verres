@@ -20,6 +20,9 @@ class COCODoomSequence(tf.keras.utils.Sequence):
         if self.cfg.level_number is not None:
             criterion = "map{}".format(self.cfg.level_number)
             meta_iterator = filter(lambda meta: criterion in meta["file_name"], meta_iterator)
+        if self.cfg.min_no_visible_objects > 0:
+            meta_iterator = (meta for meta in meta_iterator
+                             if len(self.loader.index[meta["id"]]) > self.cfg.min_no_visible_objects)
 
         self.ids = sorted(meta["id"] for meta in meta_iterator)
         self.N = len(self.ids)

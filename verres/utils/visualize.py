@@ -46,13 +46,14 @@ class COCOSegVisualizer:
         return x
 
     def overlay_heatmap(self, x, y, alpha=0.3):
+        canvas = x.copy()
         heatmap = np.zeros_like(x)
         if y.shape[:2] != x.shape[:2]:
             y = cv2.resize(y, x.shape[:2][::-1], interpolation=cv2.INTER_CUBIC)
         heatmap[..., 0] = heatmap[..., 1] = y*255
-        mask = heatmap > 0.1
-        x[mask] = (1 - alpha) * x[mask] + (alpha) * heatmap[mask]
-        return x
+        mask = heatmap > 25
+        canvas[mask] = alpha * x[mask] + (1 - alpha) * heatmap[mask]
+        return canvas
 
     def overlay_box(self, image: np.ndarray, box: np.ndarray):
         pt1 = tuple(map(int, box[:2]))
