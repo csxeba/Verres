@@ -6,10 +6,10 @@ from ..utils import losses
 def _block(x0, num_filters, depth, pool):
     if pool:
         x0 = tf.keras.layers.MaxPool2D()(x0)
-    x = tf.keras.layers.Conv2D(num_filters, 3, padding="same")(x0)
-    x = tf.keras.layers.BatchNormalization()(x)
+    x0 = tf.keras.layers.Conv2D(num_filters, 1, padding="valid")(x0)
+    x = tf.keras.layers.BatchNormalization()(x0)
     x = tf.keras.layers.ReLU()(x)
-    for d in range(depth-1):
+    for d in range(depth):
         x = tf.keras.layers.Conv2D(num_filters, 3, padding="same")(x0)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.ReLU()(x)
