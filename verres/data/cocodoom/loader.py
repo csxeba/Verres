@@ -2,9 +2,8 @@ import json
 import os
 from collections import defaultdict
 
-import cv2
 import numpy as np
-from skimage import filters
+import cv2
 
 from verres.utils import masking
 from .config import COCODoomLoaderConfig
@@ -110,7 +109,7 @@ class COCODoomLoader:
             wh[centroid_rounded[1], centroid_rounded[0]] = box[2:] / 2
             mask[centroid_rounded[1], centroid_rounded[0]] = 1
 
-        mask = np.concatenate([np.ones_like(heatmap)] + [mask]*4, axis=-1)
+        mask = np.concatenate([mask]*2, axis=-1)
 
         if hit:
             kernel_size = 3
@@ -118,8 +117,4 @@ class COCODoomLoader:
             heatmap /= heatmap.max()
             # mask = filters.gaussian(mask, mode="constant", cval=0, multichannel=True)
 
-        y = np.concatenate([heatmap, refinements, wh], axis=-1)
-
-        assert y.shape == mask.shape
-
-        return y, mask
+        return heatmap, refinements, wh, mask

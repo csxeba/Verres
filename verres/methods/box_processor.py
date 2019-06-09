@@ -2,11 +2,8 @@ import numpy as np
 from skimage.feature import peak_local_max
 
 
-def process(output, stride):
-    heatmaps = output[..., :-4]
-    refinements = output[..., -4:-2]
+def process(heatmaps, refinements, wh, stride):
     peaks_found = []
-    wh = output[..., -2:]
     for i in range(heatmaps.shape[-1]):
         peaks = peak_local_max(heatmaps[..., i], threshold_abs=0.1, min_distance=2)
         N = len(peaks)
