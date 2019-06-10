@@ -29,7 +29,7 @@ def _head(x, num_output_classes, postfix=""):
                                                name=f"Refinements{postfix}")(x)
     boxparam_output = tf.keras.layers.Conv2D(2, kernel_size=5, padding="same",
                                              name=f"BoxParams{postfix}")(x)
-    return heatmap_output, refinement_output, boxparam_output
+    return [heatmap_output, refinement_output, boxparam_output]
 
 
 def _mask(refinement_output, boxparam_output, mask, postfix=""):
@@ -37,7 +37,7 @@ def _mask(refinement_output, boxparam_output, mask, postfix=""):
                                                name=f"M_refine{postfix}")([refinement_output, mask])
     masked_boxparam = tf.keras.layers.Lambda(lambda xx: xx[0] * xx[1],
                                              name=f"M_boxparm{postfix}")([boxparam_output, mask])
-    return masked_refinement, masked_boxparam
+    return [masked_refinement, masked_boxparam]
 
 
 class COCODoomDetector:
