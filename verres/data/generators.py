@@ -11,21 +11,29 @@ class AliceImageStream:
         self.data = data
         self.resize_shape = resize_shape
 
-    def create_x(self, file_names):
+    def create_x(self, file_names, mixups=None):
         X = np.empty((len(file_names), self.resize_shape[0], self.resize_shape[1], 3), dtype="float32")
         for i, file in enumerate(file_names):
             x = self.data.load_and_resize(file, self.resize_shape, to_grey=False)
             X[i] = x / 255.
+        if mixups is not None:
+            mix = self.create_x(mixups)
+            ratio = np.random.uniform(size=len(X))[:, None, None, None]
+            X = X * ratio + mix * (1 - ratio)
         return X
 
-    def training_stream(self, batch_size=32):
+    def training_stream(self, batch_size=32, mixup=False):
         files = []
         for sequence in self.data.train_sequences.values():
             files.extend(list(sequence.values()))
         files = np.array(files)
         while 1:
             batch = np.random.choice(files, size=batch_size)
-            X = self.create_x(batch)
+            if mixup:
+                mix = np.random.choice(files, size=batch_size)
+            else:
+                mix = None
+            X = self.create_x(batch, mix)
             yield X, X
 
     def validation_set(self):

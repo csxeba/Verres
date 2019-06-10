@@ -68,6 +68,6 @@ class SNIP(Pruner):
             if drop_indices.size == filter_mask.size:
                 best_filter = saliency.argmax()
                 drop_indices = np.delete(drop_indices, best_filter)
-            if drop_indices.size > 0:
+            if drop_indices.shape:
                 surgeon.add_job("delete_channels", layer, channels=drop_indices)
         return surgeon.operate()

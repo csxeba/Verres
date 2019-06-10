@@ -3,7 +3,7 @@ from collections import deque
 import numpy as np
 import tensorflow as tf
 
-from verres.optimizers import adabound
+from verres.optimizers import AdaBound
 
 
 class GAN:
@@ -43,9 +43,9 @@ class GAN:
         self.gan = tf.keras.Model(z_input, self.discriminator(self.generator(z_input)), name="GAN")
 
         self._disable_generator()
-        self.discriminator.compile(optimizer=adabound.build(2e-4), loss="binary_crossentropy")
+        self.discriminator.compile(optimizer=AdaBound(2e-4), loss="binary_crossentropy")
         self._disable_discriminator()
-        self.gan.compile(optimizer=adabound.build(2e-4), loss="binary_crossentropy")
+        self.gan.compile(optimizer=AdaBound(2e-4), loss="binary_crossentropy")
         self._enable()
 
     def build_reference(self):
@@ -102,9 +102,9 @@ class GAN:
         self.gan = tf.keras.Model(noise, self.discriminator(self.generator(noise)), name="GAN")
 
         self._disable_generator()
-        self.discriminator.compile(optimizer=adabound.build(2e-4, beta_1=0.5), loss="mse")
+        self.discriminator.compile(optimizer=AdaBound(2e-4, beta_1=0.5), loss="mse")
         self._disable_discriminator()
-        self.gan.compile(optimizer=adabound.build(2e-4, beta_1=0.5), loss="mse")
+        self.gan.compile(optimizer=AdaBound(2e-4, beta_1=0.5), loss="mse")
         self._enable()
 
     @staticmethod
