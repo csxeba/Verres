@@ -22,6 +22,24 @@ def _pool(x):
     return tf.keras.layers.MaxPool2D()(x)
 
 
+def _head(x, num_output_classes, postfix=""):
+    heatmap_output = tf.keras.layers.Conv2D(num_output_classes, kernel_size=5, padding="same", activation="sigmoid",
+                                            name=f"Heatmaps{postfix}")(x)
+    refinement_output = tf.keras.layers.Conv2D(2, kernel_size=5, padding="same",
+                                               name=f"Refinements{postfix}")(x)
+    boxparam_output = tf.keras.layers.Conv2D(2, kernel_size=5, padding="same",
+                                             name=f"BoxParams{postfix}")(x)
+    return heatmap_output, refinement_output, boxparam_output
+
+
+def _mask(refinement_output, boxparam_output, mask, postfix=""):
+    masked_refinement = tf.keras.layers.Lambda(lambda xx: xx[0] * xx[1],
+                                               name=f"M_refine{postfix}")([refinement_output, mask])
+    masked_boxparam = tf.keras.layers.Lambda(lambda xx: xx[0] * xx[1],
+                                             name=f"M_boxparm{postfix}")([boxparam_output, mask])
+    return masked_refinement, masked_boxparam
+
+
 class COCODoomDetector:
 
     def __init__(self, input_shape: tuple="cocodoom", num_output_classes=18, block_depth=1, block_widening=1):
@@ -40,22 +58,14 @@ class COCODoomDetector:
 
         mask = tf.keras.Input(batch_shape=tf.keras.backend.int_shape(x)[:3] + (2,))
 
-        heatmap_output = tf.keras.layers.Conv2D(num_output_classes, kernel_size=5, padding="same",
-                                                name="Heatmaps")(x)
-        refinement_output = tf.keras.layers.Conv2D(2, kernel_size=5, padding="same",
-                                                   name="Refinements")(x)
-        boxparam_output = tf.keras.layers.Conv2D(2, kernel_size=5, padding="same",
-                                                 name="BoxParams")(x)
+        heatmap_output, *other_outputs = _head(x, num_output_classes)
 
-        masked_refinement = tf.keras.layers.Lambda(lambda xx: xx[0] * xx[1],
-                                                   name="Masked_refinements")([refinement_output, mask])
-        masked_boxparam = tf.keras.layers.Lambda(lambda xx: xx[0] * xx[1],
-                                                 name="Masked_boxparams")([boxparam_output, mask])
+        masked_outputs = _mask(*other_outputs, mask)
 
         self.learner = tf.keras.Model(inputs=[inputs, mask],
-                                      outputs=[heatmap_output, masked_refinement, masked_boxparam], name="Learner")
+                                      outputs=[heatmap_output] + masked_outputs, name="Learner")
         self.predictor = tf.keras.Model(inputs=inputs,
-                                        outputs=[heatmap_output, refinement_output, boxparam_output], name="Predictor")
+                                        outputs=[heatmap_output] + other_outputs, name="Predictor")
 
         self.stride = 8
 
