@@ -26,6 +26,9 @@ class COCODoomLoader:
         self.image_meta = {meta["id"]: meta for meta in data["images"]}
         self.index = defaultdict(list)
         for anno in data["annotations"]:
+            category = self.categories[anno["category_id"]]
+            if category["name"] not in ENEMY_TYPES:
+                continue
             self.index[anno["image_id"]].append(anno)
         self.num_classes = len(ENEMY_TYPES)
 
