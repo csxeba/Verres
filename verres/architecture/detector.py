@@ -71,4 +71,5 @@ class COCODoomDetector:
 
     def compile_default(self, lrate=2e-5):
         self.learner.compile(optimizer=tf.keras.optimizers.Adam(lrate),
-                             loss=losses.sse)
+                             loss=[losses.sse] + [losses.sae]*2,
+                             loss_weights=[1, 0.1, 1])
