@@ -73,3 +73,31 @@ class COCODoomDetector:
         self.learner.compile(optimizer=tf.keras.optimizers.Adam(lrate),
                              loss=[losses.sse] + [losses.sae]*2,
                              loss_weights=[1, 0.1, 1])
+
+    def train(self,
+              training_stream,
+              validation_stream,
+              epochs,
+              verbose=1,
+              callbacks=None,
+              continue_checkpoint=None,
+              workers=1,
+              use_multiprocessing=False,
+              initial_epoch=None):
+
+        if continue_checkpoint:
+            print(" [Verres] Loading checkpoint weights")
+            self.learner.load_weights(continue_checkpoint)
+
+        self.learner.fit_generator(
+            training_stream,
+            steps_per_epoch=training_stream.steps_per_epoch,
+            epochs=epochs,
+            verbose=verbose,
+            callbacks=callbacks,
+            validation_data=validation_stream,
+            validation_steps=validation_stream.steps_per_epoch,
+            workers=workers,
+            use_multiprocessing=use_multiprocessing,
+            initial_epoch=initial_epoch
+        )
