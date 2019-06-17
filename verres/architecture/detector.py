@@ -83,7 +83,7 @@ class COCODoomDetector:
               continue_checkpoint=None,
               workers=1,
               use_multiprocessing=False,
-              initial_epoch=None):
+              initial_epoch=0):
 
         if continue_checkpoint:
             print(" [Verres] Loading checkpoint weights")
