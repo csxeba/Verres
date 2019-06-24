@@ -38,7 +38,7 @@ class _InMemoryImageClassificationDatasets:
         self.validation_indices = self.sample_ids[N_learning:]
         self.num_samples = {"train": len(self.training_indices), "val": len(self.validation_indices)}
 
-    def _get_ids(self, subset):
+    def get_ids(self, subset):
         return {"train": self.training_indices, "val": self.validation_indices}[subset]
 
     def steps_per_epoch(self, batch_size, subset):
@@ -58,7 +58,7 @@ class _InMemoryImageClassificationDatasets:
         return self.__class__.__name__.lower()
 
     def table(self, subset, shuffle=True):
-        ids = self._get_ids(subset)
+        ids = self.get_ids(subset)
         if shuffle:
             np.random.shuffle(ids)
 
@@ -67,8 +67,17 @@ class _InMemoryImageClassificationDatasets:
 
         return X, Y
 
+    def make_batch(self, IDs):
+        X, Y = [], []
+        for ID in IDs:
+            X.append(self.load_input(ID))
+            Y.append(self.load_label(ID))
+        X = np.array(X)
+        Y = np.array(Y)
+        return X, Y
+
     def stream(self, batch_size, subset, shuffle=True):
-        ids = self._get_ids(subset)
+        ids = self.get_ids(subset)
 
         N = self.num_samples[subset]
 
@@ -77,15 +86,7 @@ class _InMemoryImageClassificationDatasets:
                 np.random.shuffle(ids)
 
             for start in range(0, N, batch_size):
-                X, Y = [], []
-                for ID in ids[start:start+batch_size]:
-                    X.append(self.load_input(ID))
-                    Y.append(self.load_label(ID))
-
-                X = np.array(X)
-                Y = np.array(Y)
-
-                yield X, Y
+                yield self.make_batch(ids[start:start+batch_size])
 
 
 class CIFAR10(_InMemoryImageClassificationDatasets):
