@@ -1,26 +1,26 @@
 import numpy as np
-from keras.datasets import cifar10 as _cifar10, cifar100 as _cifar100, mnist as _mnist, fashion_mnist as _fashion_mnist
-from keras.utils import to_categorical
+import tensorflow as tf
 
 
 class _InMemoryImageClassificationDatasets:
 
-    def __init__(self):
+    def __init__(self, onehot_label=True):
 
         self.data = None
         self.labels = None
         self.training_indices = None
         self.validation_indices = None
         self.sample_ids = None
+        self.sparse_label = onehot_label
 
         if self.data is None:
             self._load_data()
 
     def _load_data(self):
-        module = {"cifar10": _cifar10,
-                  "cifar100": _cifar100,
-                  "mnist": _mnist,
-                  "fashion_mnist": _fashion_mnist}[self.dataset]
+        module = {"cifar10": tf.keras.datasets.cifar10,
+                  "cifar100": tf.keras.datasets.cifar10,
+                  "mnist": tf.keras.datasets.mnist,
+                  "fashion_mnist": tf.keras.datasets.fashion_mnist}[self.dataset]
 
         learning, validation = module.load_data()
 
@@ -51,7 +51,10 @@ class _InMemoryImageClassificationDatasets:
         return x
 
     def load_label(self, sample_id):
-        return to_categorical(self.labels[sample_id], num_classes=self.num_classes)
+        y = self.labels[sample_id]
+        if self.sparse_label:
+            y = tf.keras.utils.to_categorical(y, num_classes=self.num_classes)
+        return y
 
     @property
     def dataset(self):

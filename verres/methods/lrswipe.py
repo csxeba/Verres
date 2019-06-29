@@ -61,10 +61,10 @@ class LearningRateSwipe:
             schedule=self.schedule,
             loss_container=self.losses
         )
-        self.model.fit(x=self.training_iterator,
-                       steps_per_epoch=self.num_iterations,
-                       callbacks=[swipe_callback],
-                       verbose=self.cfg.verbose)
+        self.model.fit_generator(self.training_iterator,
+                                 steps_per_epoch=self.num_iterations,
+                                 callbacks=[swipe_callback],
+                                 verbose=self.cfg.verbose)
         if plot:
             self.plot()
         return self.losses
