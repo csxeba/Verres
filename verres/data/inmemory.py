@@ -56,6 +56,11 @@ class _InMemoryImageClassificationDatasets:
             y = tf.keras.utils.to_categorical(y, num_classes=self.num_classes)
         return y
 
+    @staticmethod
+    def deprocess(x) -> np.ndarray:
+        x = (x * 255.).astype("uint8")
+        return x
+
     @property
     def dataset(self):
         return self.__class__.__name__.lower()
