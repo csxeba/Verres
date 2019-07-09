@@ -138,6 +138,8 @@ class YOLOv3:
 
 
 if __name__ == '__main__':
+    import numpy as np
     yolo = YOLOv3((352, 352, 3))
     print(tf.keras.__version__)
     print(sorted(layer.name for layer in yolo.model.layers))
+    yolo.model.predict(np.random.uniform(size=(1, 352, 352, 3)))

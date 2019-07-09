@@ -11,6 +11,8 @@ class _InMemoryImageClassificationDatasets:
         self.training_indices = None
         self.validation_indices = None
         self.sample_ids = None
+        self.input_shape = None
+        self.num_classes = None
         self.sparse_label = onehot_label
 
         if self.data is None:
@@ -33,6 +35,7 @@ class _InMemoryImageClassificationDatasets:
         self.labels = np.squeeze(self.labels)
         self.labels -= self.labels.min()
         self.num_classes = self.labels.max()+1
+        self.input_shape = self.data.shape[1:]
         self.sample_ids = np.arange(len(self.data))
         self.training_indices = self.sample_ids[:N_learning]
         self.validation_indices = self.sample_ids[N_learning:]
