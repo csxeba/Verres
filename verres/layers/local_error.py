@@ -5,6 +5,8 @@ from verres.layers import gradient_barrier, correlation, global_pooling
 
 class LocalErrorBase:
 
+    call_counter = 0
+
     def __init__(self,
                  base_layer_type,
                  base_layer_kwargs,
@@ -53,8 +55,9 @@ class LocalErrorBase:
         self.built = False
 
     def build(self):
+        layertype = self.base_layer_type.__name__.lower()
         self.base_layer = self.base_layer_type(**self.base_layer_kwargs)
-        if self.base_layer_type.__name__.lower() == "conv2d":
+        if layertype == "conv2d":
             self.global_pooling_layer = global_pooling.GlobalSTDPooling2D()
             self.flatten_layer = tf.keras.layers.Flatten()
 
@@ -63,16 +66,21 @@ class LocalErrorBase:
         if self.base_layer_activation is not None:
             self.activation_layer = tf.keras.layers.Activation(self.base_layer_activation)
         if self.use_label_prediction_loss or self.use_similarity_loss:
-            self.projection_layer = self.base_layer_type(**self.projection_kwargs)
+            self.projection_layer = self.base_layer_type(**self.projection_kwargs,
+                                                         name="{}_feature_projection_{}"
+                                                         .format(layertype, self.__class__.call_counter))
         if self.use_label_prediction_loss:
             self.label_prediction_layer = tf.keras.layers.Dense(
-                units=self.num_output_classes, activation=self.prediction_activation
+                units=self.num_output_classes, activation=self.prediction_activation,
+                name="{}_pred_{}".format(layertype, self.__class__.call_counter)
             )
         if self.use_similarity_loss:
-            self.correlation_layer = correlation.Correlation()
+            self.correlation_layer = correlation.Correlation(name="{}_sim_{}".format(
+                layertype, self.__class__.call_counter))
         if self.use_gradient_barrier:
             self.gradient_barrier_layer = gradient_barrier.GradientBarrier()
 
+        self.__class__.call_counter += 1
         self.built = True
 
     def call(self, inputs):

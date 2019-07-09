@@ -3,8 +3,8 @@ import tensorflow as tf
 
 class Correlation(tf.keras.layers.Layer):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
 
     def call(self, inputs, **kwargs):
         mean_x, std_x = tf.nn.moments(inputs, axes=1, keep_dims=True)
