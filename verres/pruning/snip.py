@@ -2,16 +2,17 @@ from collections import defaultdict
 
 import numpy as np
 
-from keras.models import Model
-from keras import backend as K
-from kerassurgeon import Surgeon
+import tensorflow as tf
+from tfkerassurgeon import Surgeon
 
 from .base import Pruner
+
+K = tf.keras.backend
 
 
 class SNIP(Pruner):
 
-    def __init__(self, model: Model, loss, excluded_layer_names=()):
+    def __init__(self, model: tf.keras.Model, loss, excluded_layer_names=()):
         super().__init__(model, excluded_layer_names)
         self.loss = loss
         self._get_saliencies = None

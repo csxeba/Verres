@@ -1,8 +1,10 @@
 import numpy as np
-from keras import backend as K
-from kerassurgeon import Surgeon
+import tensorflow as tf
+from tfkerassurgeon import Surgeon
 
 from .base import Pruner
+
+K = tf.keras.backend
 
 
 class RandomPruner(Pruner):
