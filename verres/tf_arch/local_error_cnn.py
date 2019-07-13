@@ -11,59 +11,62 @@ class LocalErrorCNN:
                  output_dim=10,
                  output_activation="softmax",
                  output_loss="categorical_crossentropy",
-                 optimizer="adam"):
+                 optimizer="adam",
+                 use_label_prediction_loss=True,
+                 use_similarity_loss=True,
+                 use_gradient_barrier=True):
 
         inputs = tf.keras.Input(input_shape)
 
         self.c1 = le_layers.LocalErrorConvContainer(
             32, (5, 5), padding="same", activation="relu", strides=2,
-            use_gradient_barrier=True,
-            use_label_prediction_loss=True,
-            use_similarity_loss=True,
+            use_gradient_barrier=use_gradient_barrier,
+            use_label_prediction_loss=use_label_prediction_loss,
+            use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
             label_prediction_activation=output_activation
         )
         self.c2 = le_layers.LocalErrorConvContainer(
             32, (3, 3), padding="same", activation="relu",
-            use_gradient_barrier=True,
-            use_label_prediction_loss=True,
-            use_similarity_loss=True,
+            use_gradient_barrier=use_gradient_barrier,
+            use_label_prediction_loss=use_label_prediction_loss,
+            use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
             label_prediction_activation=output_activation
 
         )
         self.c3 = le_layers.LocalErrorConvContainer(
             64, (5, 5), padding="same", activation="relu", strides=2,
-            use_gradient_barrier=True,
-            use_label_prediction_loss=True,
-            use_similarity_loss=True,
+            use_gradient_barrier=use_gradient_barrier,
+            use_label_prediction_loss=use_label_prediction_loss,
+            use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
             label_prediction_activation=output_activation
 
         )
         self.c4 = le_layers.LocalErrorConvContainer(
             64, (3, 3), padding="same", activation="relu",
-            use_gradient_barrier=True,
-            use_label_prediction_loss=True,
-            use_similarity_loss=True,
+            use_gradient_barrier=use_gradient_barrier,
+            use_label_prediction_loss=use_label_prediction_loss,
+            use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
             label_prediction_activation=output_activation
 
         )
         self.c5 = le_layers.LocalErrorConvContainer(
             128, (5, 5), padding="same", activation="relu", strides=2,
-            use_gradient_barrier=True,
-            use_label_prediction_loss=True,
-            use_similarity_loss=True,
+            use_gradient_barrier=use_gradient_barrier,
+            use_label_prediction_loss=use_label_prediction_loss,
+            use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
             label_prediction_activation=output_activation
         )
 
         self.d1 = le_layers.LocalErrorDenseContainer(
             32, activation="relu",
-            use_gradient_barrier=True,
-            use_label_prediction_loss=True,
-            use_similarity_loss=True,
+            use_gradient_barrier=use_gradient_barrier,
+            use_label_prediction_loss=use_label_prediction_loss,
+            use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
             label_prediction_activation=output_activation
         )

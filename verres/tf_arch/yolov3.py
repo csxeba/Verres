@@ -18,7 +18,7 @@ def _conv(x, filter_num, kernel=3, stride=1, activate=True):
                                            name="batch_normalization_{}".format(_batchnorm_counter))(x)
     _batchnorm_counter += 1
     if activate:
-        x = tf.keras.layers.LeakyReLU(name="leaky_re_lu_{}".format(_leakyrelu_counter))(x)
+        x = tf.keras.layers.LeakyReLU(alpha=0.1, name="leaky_re_lu_{}".format(_leakyrelu_counter))(x)
         _leakyrelu_counter += 1
     return x
 
