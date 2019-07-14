@@ -14,7 +14,8 @@ class LocalErrorCNN:
                  optimizer="adam",
                  use_label_prediction_loss=True,
                  use_similarity_loss=True,
-                 use_gradient_barrier=True):
+                 use_gradient_barrier=True,
+                 backbone_trainable=True):
 
         inputs = tf.keras.Input(input_shape)
 
@@ -24,7 +25,8 @@ class LocalErrorCNN:
             use_label_prediction_loss=use_label_prediction_loss,
             use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
-            label_prediction_activation=output_activation
+            label_prediction_activation=output_activation,
+            trainable=backbone_trainable
         )
         self.c2 = le_layers.LocalErrorConvContainer(
             32, (3, 3), padding="same", activation="relu",
@@ -32,8 +34,8 @@ class LocalErrorCNN:
             use_label_prediction_loss=use_label_prediction_loss,
             use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
-            label_prediction_activation=output_activation
-
+            label_prediction_activation=output_activation,
+            trainable=backbone_trainable
         )
         self.c3 = le_layers.LocalErrorConvContainer(
             64, (5, 5), padding="same", activation="relu", strides=2,
@@ -41,8 +43,8 @@ class LocalErrorCNN:
             use_label_prediction_loss=use_label_prediction_loss,
             use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
-            label_prediction_activation=output_activation
-
+            label_prediction_activation=output_activation,
+            trainable=backbone_trainable
         )
         self.c4 = le_layers.LocalErrorConvContainer(
             64, (3, 3), padding="same", activation="relu",
@@ -50,8 +52,8 @@ class LocalErrorCNN:
             use_label_prediction_loss=use_label_prediction_loss,
             use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
-            label_prediction_activation=output_activation
-
+            label_prediction_activation=output_activation,
+            trainable=backbone_trainable
         )
         self.c5 = le_layers.LocalErrorConvContainer(
             128, (5, 5), padding="same", activation="relu", strides=2,
@@ -59,7 +61,8 @@ class LocalErrorCNN:
             use_label_prediction_loss=use_label_prediction_loss,
             use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
-            label_prediction_activation=output_activation
+            label_prediction_activation=output_activation,
+            trainable=backbone_trainable
         )
 
         self.d1 = le_layers.LocalErrorDenseContainer(
@@ -68,7 +71,8 @@ class LocalErrorCNN:
             use_label_prediction_loss=use_label_prediction_loss,
             use_similarity_loss=use_similarity_loss,
             num_output_classes=output_dim,
-            label_prediction_activation=output_activation
+            label_prediction_activation=output_activation,
+            trainable=backbone_trainable
         )
         self.d2 = tf.keras.layers.Dense(output_dim, activation=output_activation)
 
