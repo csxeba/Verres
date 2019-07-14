@@ -57,21 +57,22 @@ class LocalErrorBase:
     def build(self):
         layertype = self.base_layer_type.__name__.lower()
         self.base_layer = self.base_layer_type(**self.base_layer_kwargs)
+        trainable = self.base_layer_kwargs.get("trainable", True)
         if layertype == "conv2d":
             self.global_pooling_layer = global_pooling.GlobalSTDPooling2D()
             self.flatten_layer = tf.keras.layers.Flatten()
 
         if self.batch_normalization:
-            self.batch_norm_layer = tf.keras.layers.BatchNormalization()
+            self.batch_norm_layer = tf.keras.layers.BatchNormalization(trainable=trainable)
         if self.base_layer_activation is not None:
-            self.activation_layer = tf.keras.layers.Activation(self.base_layer_activation)
+            self.activation_layer = tf.keras.layers.Activation(self.base_layer_activation, trainable=trainable)
         if self.use_label_prediction_loss or self.use_similarity_loss:
             self.projection_layer = self.base_layer_type(**self.projection_kwargs,
                                                          name="{}_feature_projection_{}"
                                                          .format(layertype, self.__class__.call_counter))
         if self.use_label_prediction_loss:
             self.label_prediction_layer = tf.keras.layers.Dense(
-                units=self.num_output_classes, activation=self.prediction_activation,
+                units=self.num_output_classes, activation=self.prediction_activation, trainable=False,
                 name="{}_pred_{}".format(layertype, self.__class__.call_counter)
             )
         if self.use_similarity_loss:

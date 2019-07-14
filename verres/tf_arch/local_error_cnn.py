@@ -17,82 +17,94 @@ class LocalErrorCNN:
                  use_gradient_barrier=True,
                  backbone_trainable=True):
 
-        inputs = tf.keras.Input(input_shape)
+        self.backbone_trainable = backbone_trainable
+        self.use_gradient_barrier = use_gradient_barrier
+        self.use_similarity_loss = use_similarity_loss
+        self.use_label_prediction_loss = use_label_prediction_loss
+        self.optimizer = optimizer
+        self.output_loss = output_loss
+        self.output_activation = output_activation
+        self.input_shape = input_shape
+        self.output_dim = output_dim
+        self.local_error_model_factory = None
 
-        self.c1 = le_layers.LocalErrorConvContainer(
+    def build_experiment_default(self):
+        inputs = tf.keras.Input(self.input_shape)
+
+        c1 = le_layers.LocalErrorConvContainer(
             32, (5, 5), padding="same", activation="relu", strides=2,
-            use_gradient_barrier=use_gradient_barrier,
-            use_label_prediction_loss=use_label_prediction_loss,
-            use_similarity_loss=use_similarity_loss,
-            num_output_classes=output_dim,
-            label_prediction_activation=output_activation,
-            trainable=backbone_trainable
+            use_gradient_barrier=self.use_gradient_barrier,
+            use_label_prediction_loss=self.use_label_prediction_loss,
+            use_similarity_loss=self.use_similarity_loss,
+            num_output_classes=self.output_dim,
+            label_prediction_activation=self.output_activation,
+            trainable=self.backbone_trainable
         )
-        self.c2 = le_layers.LocalErrorConvContainer(
+        c2 = le_layers.LocalErrorConvContainer(
             32, (3, 3), padding="same", activation="relu",
-            use_gradient_barrier=use_gradient_barrier,
-            use_label_prediction_loss=use_label_prediction_loss,
-            use_similarity_loss=use_similarity_loss,
-            num_output_classes=output_dim,
-            label_prediction_activation=output_activation,
-            trainable=backbone_trainable
+            use_gradient_barrier=self.use_gradient_barrier,
+            use_label_prediction_loss=self.use_label_prediction_loss,
+            use_similarity_loss=self.use_similarity_loss,
+            num_output_classes=self.output_dim,
+            label_prediction_activation=self.output_activation,
+            trainable=self.backbone_trainable
         )
-        self.c3 = le_layers.LocalErrorConvContainer(
+        c3 = le_layers.LocalErrorConvContainer(
             64, (5, 5), padding="same", activation="relu", strides=2,
-            use_gradient_barrier=use_gradient_barrier,
-            use_label_prediction_loss=use_label_prediction_loss,
-            use_similarity_loss=use_similarity_loss,
-            num_output_classes=output_dim,
-            label_prediction_activation=output_activation,
-            trainable=backbone_trainable
+            use_gradient_barrier=self.use_gradient_barrier,
+            use_label_prediction_loss=self.use_label_prediction_loss,
+            use_similarity_loss=self.use_similarity_loss,
+            num_output_classes=self.output_dim,
+            label_prediction_activation=self.output_activation,
+            trainable=self.backbone_trainable
         )
-        self.c4 = le_layers.LocalErrorConvContainer(
+        c4 = le_layers.LocalErrorConvContainer(
             64, (3, 3), padding="same", activation="relu",
-            use_gradient_barrier=use_gradient_barrier,
-            use_label_prediction_loss=use_label_prediction_loss,
-            use_similarity_loss=use_similarity_loss,
-            num_output_classes=output_dim,
-            label_prediction_activation=output_activation,
-            trainable=backbone_trainable
+            use_gradient_barrier=self.use_gradient_barrier,
+            use_label_prediction_loss=self.use_label_prediction_loss,
+            use_similarity_loss=self.use_similarity_loss,
+            num_output_classes=self.output_dim,
+            label_prediction_activation=self.output_activation,
+            trainable=self.backbone_trainable
         )
-        self.c5 = le_layers.LocalErrorConvContainer(
+        c5 = le_layers.LocalErrorConvContainer(
             128, (5, 5), padding="same", activation="relu", strides=2,
-            use_gradient_barrier=use_gradient_barrier,
-            use_label_prediction_loss=use_label_prediction_loss,
-            use_similarity_loss=use_similarity_loss,
-            num_output_classes=output_dim,
-            label_prediction_activation=output_activation,
-            trainable=backbone_trainable
+            use_gradient_barrier=self.use_gradient_barrier,
+            use_label_prediction_loss=self.use_label_prediction_loss,
+            use_similarity_loss=self.use_similarity_loss,
+            num_output_classes=self.output_dim,
+            label_prediction_activation=self.output_activation,
+            trainable=self.backbone_trainable
         )
 
-        self.d1 = le_layers.LocalErrorDenseContainer(
+        d1 = le_layers.LocalErrorDenseContainer(
             32, activation="relu",
-            use_gradient_barrier=use_gradient_barrier,
-            use_label_prediction_loss=use_label_prediction_loss,
-            use_similarity_loss=use_similarity_loss,
-            num_output_classes=output_dim,
-            label_prediction_activation=output_activation,
-            trainable=backbone_trainable
+            use_gradient_barrier=self.use_gradient_barrier,
+            use_label_prediction_loss=self.use_label_prediction_loss,
+            use_similarity_loss=self.use_similarity_loss,
+            num_output_classes=self.output_dim,
+            label_prediction_activation=self.output_activation,
+            trainable=self.backbone_trainable
         )
-        self.d2 = tf.keras.layers.Dense(output_dim, activation=output_activation)
+        d2 = tf.keras.layers.Dense(self.output_dim, activation=self.output_activation)
 
-        x = self.c1(inputs)
-        x = self.c2(x)
-        x = self.c3(x)
-        x = self.c4(x)
-        x = self.c5(x)
+        x = c1(inputs)
+        x = c2(x)
+        x = c3(x)
+        x = c4(x)
+        x = c5(x)
         x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = self.d1(x)
-        x = self.d2(x)
+        x = d1(x)
+        d2(x)
 
         self.local_error_model_factory = LocalErrorModelFactory(
             input_tensor=inputs,
-            hidden_layers=[self.c1, self.c2, self.c3, self.c4, self.c5, self.d1],
-            output_layer=self.d2
+            hidden_layers=[c1, c2, c3, c4, c5, d1],
+            output_layer=d2
         )
 
         self.local_error_model_factory.compile(
-            optimizer=optimizer, loss=output_loss, metrics=["acc"]
+            optimizer=self.optimizer, loss=self.output_loss, metrics=["acc"]
         )
 
     def fit_generator(self,
