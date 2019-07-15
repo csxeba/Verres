@@ -29,15 +29,17 @@ class LocalErrorModelFactory:
         self._training_model = None
         self._inference_model = None
 
-    def compile(self, optimizer, loss, metrics=None):
+    def compile(self, optimizer, loss, metrics=None, alpha=0.5):
         num_corr = len(self.correlation_outputs)
         num_pred = len(self.prediction_outputs)
 
         model = tf.keras.Model(self.input_tensor,
                                self.correlation_outputs + self.prediction_outputs + [self.output_layer.output])
+        loss_weights = [alpha]*num_corr + [1.-alpha]*num_pred + [1.]
         model.compile(
             optimizer, ["mse"]*num_corr + [loss]*num_pred + [loss],
-            metrics={self.output_layer.name: metric for metric in metrics}
+            metrics={self.output_layer.name: metric for metric in metrics},
+            loss_weights=loss_weights
         )
         self._training_model = model
         self._inference_model = tf.keras.Model(self.input_tensor, self.output_layer.output)

@@ -15,7 +15,8 @@ class LocalErrorCNN:
                  use_label_prediction_loss=True,
                  use_similarity_loss=True,
                  use_gradient_barrier=True,
-                 backbone_trainable=True):
+                 backbone_trainable=True,
+                 alpha=0.5):
 
         self.backbone_trainable = backbone_trainable
         self.use_gradient_barrier = use_gradient_barrier
@@ -27,6 +28,7 @@ class LocalErrorCNN:
         self.input_shape = input_shape
         self.output_dim = output_dim
         self.local_error_model_factory = None
+        self.alpha = alpha
 
     def build_experiment_default(self):
         inputs = tf.keras.Input(self.input_shape)
@@ -104,7 +106,7 @@ class LocalErrorCNN:
         )
 
         self.local_error_model_factory.compile(
-            optimizer=self.optimizer, loss=self.output_loss, metrics=["acc"]
+            optimizer=self.optimizer, loss=self.output_loss, metrics=["acc"], alpha=self.alpha
         )
 
     def fit_generator(self,
