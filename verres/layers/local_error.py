@@ -59,7 +59,7 @@ class LocalErrorBase:
         self.base_layer = self.base_layer_type(**self.base_layer_kwargs)
         trainable = self.base_layer_kwargs.get("trainable", True)
         if layertype == "conv2d":
-            self.global_pooling_layer = global_pooling.GlobalSTDPooling2D()
+            self.global_pooling_layer = tf.keras.layers.GlobalAveragePooling2D()
             self.flatten_layer = tf.keras.layers.Flatten()
 
         if self.batch_normalization:
