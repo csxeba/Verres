@@ -40,36 +40,74 @@ class LocalErrorCNN:
                         label_prediction_activation=self.output_activation,
                         trainable=self.backbone_trainable)
 
-        c1 = le_layers.LocalErrorConvContainer(
-            32, (5, 5), padding="same", activation="relu", strides=2, **llkwargs)
-        c2 = le_layers.LocalErrorConvContainer(
-            32, (3, 3), padding="same", activation="relu", **llkwargs)
-        c3 = le_layers.LocalErrorConvContainer(
-            64, (5, 5), padding="same", activation="relu", strides=2, **llkwargs)
-        c4 = le_layers.LocalErrorConvContainer(
-            64, (3, 3), padding="same", activation="relu", **llkwargs)
-        c5 = le_layers.LocalErrorConvContainer(
-            128, (5, 5), padding="same", activation="relu", strides=2, **llkwargs)
+        layers = [
+            le_layers.LocalErrorConvContainer(
+                32, (5, 5), padding="same", activation="relu", strides=2, **llkwargs),
+            le_layers.LocalErrorConvContainer(
+                32, (3, 3), padding="same", activation="relu", **llkwargs),
+            le_layers.LocalErrorConvContainer(
+                64, (5, 5), padding="same", activation="relu", strides=2, **llkwargs),
+            le_layers.LocalErrorConvContainer(
+                64, (3, 3), padding="same", activation="relu", **llkwargs),
+            le_layers.LocalErrorConvContainer(
+                128, (5, 5), padding="same", activation="relu", strides=2, **llkwargs),
+            tf.keras.layers.GlobalAveragePooling2D(),
+            le_layers.LocalErrorDenseContainer(
+                32, activation="relu", **llkwargs),
+            tf.keras.layers.Dense(self.output_dim, activation=self.output_activation)
+        ]
 
-        d1 = le_layers.LocalErrorDenseContainer(
-            32, activation="relu", **llkwargs)
-        d2 = tf.keras.layers.Dense(self.output_dim, activation=self.output_activation)
-
-        x = c1(inputs)
-        x = c2(x)
-        x = c3(x)
-        x = c4(x)
-        x = c5(x)
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = d1(x)
-        d2(x)
+        x = inputs
+        for layer in layers:
+            x = layer(x)
 
         self.local_error_model_factory = LocalErrorModelFactory(
             input_tensor=inputs,
-            hidden_layers=[c1, c2, c3, c4, c5, d1],
-            output_layer=d2
+            hidden_layers=layers[:-1],
+            output_layer=layers[-1]
         )
 
+        self.local_error_model_factory.compile(
+            optimizer=self.optimizer, loss=self.output_loss, metrics=["acc"], alpha=self.alpha
+        )
+
+    def build_vgg8b(self):
+        inputs = tf.keras.Input(self.input_shape)
+
+        llkwargs = dict(use_gradient_barrier=self.use_gradient_barrier,
+                        use_label_prediction_loss=self.use_label_prediction_loss,
+                        use_similarity_loss=self.use_similarity_loss,
+                        num_output_classes=self.output_dim,
+                        label_prediction_activation=self.output_activation,
+                        trainable=self.backbone_trainable)
+
+        layers = [
+            le_layers.LocalErrorConvContainer(
+                128, (3, 3), padding="same", activation="relu", **llkwargs),
+            le_layers.LocalErrorConvContainer(
+                256, (3, 3), padding="same", activation="relu", **llkwargs),
+            tf.keras.layers.MaxPool2D(),
+            le_layers.LocalErrorConvContainer(
+                256, (3, 3), padding="same", activation="relu", **llkwargs),
+            le_layers.LocalErrorConvContainer(
+                512, (3, 3), padding="same", activation="relu", **llkwargs),
+            tf.keras.layers.MaxPool2D(),
+            le_layers.LocalErrorConvContainer(
+                512, (3, 3), padding="same", activation="relu", **llkwargs),
+            tf.keras.layers.MaxPool2D(),
+            le_layers.LocalErrorConvContainer(
+                512, (3, 3), padding="same", activation="relu", **llkwargs),
+            tf.keras.layers.MaxPool2D(),
+            tf.keras.layers.Flatten(),
+            le_layers.LocalErrorDenseContainer(
+                1024, activation="relu", **llkwargs),
+            tf.keras.layers.Dense(self.output_dim, activation=self.output_activation)]
+
+        x = inputs
+        for layer in layers:
+            x = layer(x)
+
+        self.local_error_model_factory = LocalErrorModelFactory(inputs, layers[:-1], output_layer=layers[-1])
         self.local_error_model_factory.compile(
             optimizer=self.optimizer, loss=self.output_loss, metrics=["acc"], alpha=self.alpha
         )

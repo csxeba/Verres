@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from verres.layers import gradient_barrier, correlation, global_pooling
+from verres.layers import gradient_barrier, correlation
 
 
 class LocalErrorBase:
@@ -34,8 +34,8 @@ class LocalErrorBase:
         if use_label_prediction_loss:
             if self.num_output_classes is None or label_prediction_activation is None:
                 raise ValueError(
-                    "Please set the number of output classes and label prediction activation "
-                    "to use the intermediate label prediction loss."
+                    "Please set the num_output_classes and label_prediction_activation "
+                    "to be able use the intermediate label prediction loss."
                 )
 
         self.base_layer = None
