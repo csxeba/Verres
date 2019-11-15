@@ -89,3 +89,6 @@ class COCODoomSequence(tf.keras.utils.Sequence):
         if self._internal_interator is None:
             self._internal_interator = self.stream()
         return next(self._internal_interator)
+
+    def __call__(self, *args, **kwargs):
+        return self.__next__()
