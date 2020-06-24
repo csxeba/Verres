@@ -9,5 +9,16 @@ setup(
     license='MIT',
     author='Csxeba',
     author_email='csxeba@gmail.com',
-    description='Curiosity'
+    description='Curiosity',
+    install_requires=["opencv-python>=4.0",
+                      "numpy",
+                      "scipy",
+                      "matplotlib",
+                      "tensorflow>=2.0",
+                      "scikit-image",
+                      "scikit-learn"],
+    extras_require={"all": ["torch", "tfkerassurgeon"],
+                    "torch": ["torch"],
+                    "pruning": ["tfkerassurgeon"]}
+
 )

@@ -17,7 +17,7 @@ class TemperedSoftMax(Activation):
         super().__init__("softmax")
 
     def call(self, inputs):
-        return super().call(inputs / self.temperature)
+        return super().call(inputs / self.temperature, )
 
 
 class Distillary:

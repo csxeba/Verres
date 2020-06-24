@@ -86,7 +86,7 @@ def xperiment():
     # x = np.stack([x]*BATCH_SIZE, axis=0)[..., None]
     # x += noise
 
-    res = Reservoir(num_units=[1024], batch_size=BATCH_SIZE, wordsize=WORD_SIZE, r=0.0015)
+    res = Reservoir(num_units=[1024], batch_size=BATCH_SIZE, wordsize=WORD_SIZE, r=0.0017)
     res.drive_reservoir(x=x)
     means = np.mean(res.last_states_np, axis=-1)
 

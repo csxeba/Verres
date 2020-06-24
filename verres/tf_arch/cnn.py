@@ -4,7 +4,7 @@ import tensorflow as tf
 class CNN:
 
     def __init__(self, batch_norm=True):
-        self.model = None  # type: tf.keras.Model
+        self.model: tf.keras.Model = None
         self.batch_norm = batch_norm
 
     def basic_backbone(self, inputs):

@@ -1,27 +1,27 @@
 import os
-import pathlib
-import datetime
+
+from artifactorium import Artifactorium
 
 
-class Artifactory:
+class Artifactory(Artifactorium):
 
-    def __init__(self, root=None):
-        if root is None:
-            root = self._default_root()
-        self.root = pathlib.Path(root)
-        self.experiment_root = self.root/datetime.datetime.now().strftime("xp_%Y%m%d.%H%M%S")
-        self.checkpoint_root = self.experiment_root/"checkpoints"
-        self.tensorboard_root = self.experiment_root/"tensorboard"
-        for roots in [self.checkpoint_root, self.tensorboard_root]:
-            roots.mkdir(parents=True, exist_ok=True)
-        self.logfile_path = str(self.experiment_root/"training_logs.csv")
+    __slots__ = "checkpoints", "tensorboard", "logfile_path"
 
-    @staticmethod
-    def _default_root():
-        current = os.getcwd()
-        if "experiments" in current:
-            os.chdir("..")
-        return os.path.join(current, "artifactory")
+    def __init__(self, root="default", experiment_name=None):
+
+        if root == "default":
+            current = os.path.split(os.getcwd())[-1]
+            if current in ["experiments", "keepers"]:
+                os.chdir("..")
+            root = "artifactory"
+
+        super().__init__(root, experiment_name, "NOW")
+
+        self.register_path("checkpoints")
+        self.register_path("tensorboard")
+        self.register_path("logfile_path", "training_logs.csv", is_file=True)
+
+        print(f"[Artifactory] - Root set to {self.root}")
 
     def make_checkpoint_template(self, model_name=""):
         return os.path.join(self.checkpoint_root, "{}_chkp_{}".format(model_name, "{}"))
