@@ -47,16 +47,16 @@ class COCODoomSequence(tf.keras.utils.Sequence):
             x = self.loader.get_image(ID) / 255.
 
             if self.cfg.task == TASK.SEGMENTATION:
-                y = self.loader.get_segmentation_mask(ID)
+                y = self.loader.get_panoptic_masks(ID)
             elif self.cfg.task == TASK.DEPTH:
                 y = self.loader.get_depth_image(ID)
             elif self.cfg.task == TASK.DETECTION_TRAINING:
-                heatmap, refinement, wh, mask = self.loader.get_box_ground_truth(ID)
+                heatmap, refinement, wh, mask = self.loader.get_object_heatmap(ID)
                 x = [x, mask]
                 y = [heatmap, refinement*mask, wh*mask]
             elif self.cfg.task == TASK.DETECTION_INFERENCE:
-                heatmap, refinement, wh, mask = self.loader.get_box_ground_truth(ID)
-                y = [heatmap, refinement, wh]
+                heatmap, refinement, mask = self.loader.get_object_heatmap(ID)
+                y = [heatmap, refinement]
             else:
                 assert False
 

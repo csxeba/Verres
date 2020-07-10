@@ -66,19 +66,29 @@ class COCODoomLoader:
             raise RuntimeError(f"No image found @ {image_path}")
         return image
 
-    def get_segmentation_mask(self, image_id):
+    def get_panoptic_masks(self, image_id):
         meta = self.image_meta[image_id]
         image_shape = [meta["height"], meta["width"]]
-        mask = np.zeros(image_shape + [1])
+        segmentation_mask = np.zeros(image_shape + [1])
+        coord_template = np.stack(np.meshgrid(np.arange(image_shape[0]), np.arange(image_shape[1])), axis=-1)
+        instance_canvas = np.zeros_like(coord_template)
+
         for anno in self.index[image_id]:
             category = self.categories[anno["category_id"]]
             if category["name"] not in ENEMY_TYPES:
                 continue
+            box = np.array(anno["bbox"]) / self.cfg.stride
 
             class_idx = ENEMY_TYPES.index(category["name"])
+
             instance_mask = masking.get_mask(anno, image_shape)
-            mask[instance_mask] = class_idx+1
-        return mask
+
+            segmentation_mask[instance_mask] = class_idx+1
+
+            instance_center = box[:2] + box[2:] / 2
+            instance_canvas[instance_mask] = instance_center - coord_template[instance_mask]
+
+        return segmentation_mask, instance_canvas
 
     def get_depth_image(self, image_id):
         meta = self.image_meta[image_id]
@@ -86,15 +96,17 @@ class COCODoomLoader:
         depth_image = cv2.imread(depth_image_path)
         return depth_image
 
-    def get_box_ground_truth(self, image_id):
+    def get_object_heatmap(self, image_id):
         meta = self.image_meta[image_id]
         tensor_shape = [meta["height"] // self.cfg.stride, meta["width"] // self.cfg.stride]
         heatmap = np.zeros(tensor_shape + [len(ENEMY_TYPES)])
         refinements = np.zeros(tensor_shape + [2])
-        wh = np.zeros(tensor_shape + [2])
-        mask = np.zeros(tensor_shape + [1])
+        mask = np.zeros(tensor_shape + [2])
 
         hit = 0
+        _01 = [0, 1]
+        _10 = [1, 0]
+        _11 = [1, 1]
         for anno in self.index[image_id]:
             category = self.categories[anno["category_id"]]
             if category["name"] not in ENEMY_TYPES:
@@ -104,20 +116,22 @@ class COCODoomLoader:
             class_idx = ENEMY_TYPES.index(category["name"])
             box = np.array(anno["bbox"]) / self.cfg.stride
             centroid = box[:2] + box[2:] / 2
-            centroid_rounded = np.floor(centroid).astype(int)
-            refinement = centroid - centroid_rounded
+            centroid_floored = np.floor(centroid).astype(int)
 
-            heatmap[centroid_rounded[1], centroid_rounded[0], class_idx] = 1
-            refinements[centroid_rounded[1], centroid_rounded[0]] = refinement
-            wh[centroid_rounded[1], centroid_rounded[0]] = box[2:] / 2
-            mask[centroid_rounded[1], centroid_rounded[0]] = 1
+            augmented_coords = np.stack([
+                centroid_floored, centroid_floored + _01, centroid_floored + _10, centroid_floored + _11
+            ], axis=0)
+            refinement = centroid[None, :] - augmented_coords
 
-        mask = np.concatenate([mask]*2, axis=-1)
+            x, y = tuple(augmented_coords[:, 1]), tuple(augmented_coords[:, 0])
+
+            heatmap[augmented_coords[0, 1], augmented_coords[0, 0], class_idx] = 1
+            refinements[x, y] = refinement
+            mask[x, y] = 1, 1
 
         if hit:
-            kernel_size = 3
+            kernel_size = 5
             heatmap = cv2.GaussianBlur(heatmap, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_CONSTANT)
             heatmap /= heatmap.max()
-            # mask = filters.gaussian(mask, mode="constant", cval=0, multichannel=True)
 
-        return heatmap, refinements, wh, mask
+        return heatmap, refinements, mask

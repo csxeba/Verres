@@ -14,9 +14,7 @@ setup(
                       "numpy",
                       "scipy",
                       "matplotlib",
-                      "tensorflow>=2.0",
-                      "scikit-image",
-                      "scikit-learn"],
+                      "tensorflow>=2.2"],
     extras_require={"all": ["torch", "tfkerassurgeon"],
                     "torch": ["torch"],
                     "pruning": ["tfkerassurgeon"]}
