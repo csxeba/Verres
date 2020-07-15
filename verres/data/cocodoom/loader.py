@@ -70,23 +70,25 @@ class COCODoomLoader:
         meta = self.image_meta[image_id]
         image_shape = [meta["height"], meta["width"]]
         segmentation_mask = np.zeros(image_shape + [1])
-        coord_template = np.stack(np.meshgrid(np.arange(image_shape[0]), np.arange(image_shape[1])), axis=-1)
-        instance_canvas = np.zeros_like(coord_template)
+        coord_template = np.stack(
+            np.meshgrid(
+                np.arange(image_shape[1]),
+                np.arange(image_shape[0])),
+            axis=-1)
+        instance_canvas = np.zeros_like(coord_template, dtype="float32")
 
         for anno in self.index[image_id]:
             category = self.categories[anno["category_id"]]
             if category["name"] not in ENEMY_TYPES:
                 continue
-            box = np.array(anno["bbox"]) / self.cfg.stride
 
             class_idx = ENEMY_TYPES.index(category["name"])
 
             instance_mask = masking.get_mask(anno, image_shape)
+            coords = np.argwhere(instance_mask)  # type: np.ndarray
 
             segmentation_mask[instance_mask] = class_idx+1
-
-            instance_center = box[:2] + box[2:] / 2
-            instance_canvas[instance_mask] = instance_center - coord_template[instance_mask]
+            instance_canvas[instance_mask] = coords.mean(axis=0, keepdims=True) - coords
 
         return segmentation_mask, instance_canvas
 

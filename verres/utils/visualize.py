@@ -31,7 +31,7 @@ class COCOSegVisualizer:
             segmentation[indices[0], indices[1]] = self.COLORS[i]
         return segmentation
 
-    def colorify_mask(self, y):
+    def colorify_segmentation_mask(self, y):
         if y.ndim == 4:
             y = y[0]
         if y.shape[-1] == 1:
@@ -39,11 +39,28 @@ class COCOSegVisualizer:
         else:
             return self._colorify_sparse_mask(y)
 
-    def overlay_mask(self, x, y, alpha=0.3):
-        colored = self.colorify_mask(y)  # type: np.ma.MaskedArray
+    def overlay_segmentation_mask(self, x, y, alpha=0.3):
+        colored = self.colorify_segmentation_mask(y)  # type: np.ma.MaskedArray
         mask = colored > 0
         x[mask] = alpha * x[mask] + (1 - alpha) * colored[mask]
         return x
+
+    def overlay_instance_mask(self, image, mask, alpha=0.3):
+        angles = np.linalg.norm(mask, axis=-1, ord=1)
+        angles /= angles.max()
+        angles = (angles * 255).astype("uint8")
+        angles = cv2.cvtColor(angles, cv2.COLOR_GRAY2BGR)
+        angles = cv2.cvtColor(angles, cv2.COLOR_BGR2HSV)
+        image = alpha * image + (1 - alpha) * angles
+        return image.astype("uint8")
+
+    def overlay_vector_field(self, image, field, alpha=0.3):
+        result = image.copy()
+        for x, y in np.argwhere(np.linalg.norm(field, ord=1, axis=-1)):
+            dx, dy = field[x, y].astype(int)
+            canvas = cv2.arrowedLine(image, (y, x), (y+dy, x+dx), color=(0, 0, 255), thickness=1)
+            result = result * alpha + canvas * (1 - alpha)
+        return result.astype("uint8")
 
     def overlay_heatmap(self, x, y, alpha=0.3):
         canvas = x.copy()
@@ -71,16 +88,19 @@ class COCOSegVisualizer:
 
 class CV2Screen:
 
-    def __init__(self, window_name="CV2Screen", FPS=None):
+    def __init__(self, window_name="CV2Screen", FPS=None, scale=1.):
         self.name = window_name
         if FPS is None:
             FPS = 1000
         self.spf = 1000 // FPS
         self.online = False
+        self.scale = scale
 
     def blit(self, frame):
         if not self.online:
             self.online = True
+        if self.scale != 1:
+            frame = cv2.resize(frame, (0, 0), fx=self.scale, fy=self.scale, interpolation=cv2.INTER_CUBIC)
         cv2.imshow(self.name, frame)
         cv2.waitKey(self.spf)
 
