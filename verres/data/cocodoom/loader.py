@@ -90,7 +90,7 @@ class COCODoomLoader:
             segmentation_mask[instance_mask] = class_idx+1
             instance_canvas[instance_mask] = coords.mean(axis=0, keepdims=True) - coords
 
-        return segmentation_mask, instance_canvas
+        return [instance_canvas, segmentation_mask]
 
     def get_depth_image(self, image_id):
         meta = self.image_meta[image_id]
@@ -100,10 +100,9 @@ class COCODoomLoader:
 
     def get_object_heatmap(self, image_id):
         meta = self.image_meta[image_id]
-        tensor_shape = [meta["height"] // self.cfg.stride, meta["width"] // self.cfg.stride]
-        heatmap = np.zeros(tensor_shape + [len(ENEMY_TYPES)])
-        refinements = np.zeros(tensor_shape + [2])
-        mask = np.zeros(tensor_shape + [2])
+        tensor_shape = np.array([meta["height"], meta["width"]]) // self.cfg.stride
+        heatmap = np.zeros(list(tensor_shape) + [len(ENEMY_TYPES)])
+        refinements = np.zeros(list(tensor_shape) + [len(ENEMY_TYPES)*2])
 
         hit = 0
         _01 = [0, 1]
@@ -119,21 +118,26 @@ class COCODoomLoader:
             box = np.array(anno["bbox"]) / self.cfg.stride
             centroid = box[:2] + box[2:] / 2
             centroid_floored = np.floor(centroid).astype(int)
+            centroid_rounded = np.clip(np.round(centroid).astype(int), [0, 0], tensor_shape-1)
 
             augmented_coords = np.stack([
                 centroid_floored, centroid_floored + _01, centroid_floored + _10, centroid_floored + _11
             ], axis=0)
+            in_frame = np.all([augmented_coords >= 0, augmented_coords < tensor_shape[::-1][None, :]], axis=(0, 2))
+
+            augmented_coords = augmented_coords[in_frame]
+
             refinement = centroid[None, :] - augmented_coords
 
-            x, y = tuple(augmented_coords[:, 1]), tuple(augmented_coords[:, 0])
+            x, y = tuple(augmented_coords[:, 0]), tuple(augmented_coords[:, 1])
 
-            heatmap[augmented_coords[0, 1], augmented_coords[0, 0], class_idx] = 1
-            refinements[x, y] = refinement
-            mask[x, y] = 1, 1
+            heatmap[centroid_rounded[1], centroid_rounded[0], class_idx] = 1
+            refinements[y, x, class_idx] = refinement[:, 0]
+            refinements[y, x, class_idx+len(ENEMY_TYPES)] = refinement[:, 1]
 
         if hit:
             kernel_size = 5
             heatmap = cv2.GaussianBlur(heatmap, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_CONSTANT)
             heatmap /= heatmap.max()
 
-        return heatmap, refinements, mask
+        return heatmap, refinements

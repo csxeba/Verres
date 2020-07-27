@@ -1,9 +1,9 @@
 class TASK:
 
-    SEGMENTATION = "seg"
+    SEMSEG = "semseg"
+    PANSEG = "panseg"
     DEPTH = "depth"
-    DETECTION_INFERENCE = "det_inf"
-    DETECTION_TRAINING = "det_train"
+    DETECTION = "det_inf"
 
 
 class COCODoomLoaderConfig:
@@ -21,8 +21,8 @@ class COCODoomLoaderConfig:
 class COCODoomStreamConfig:
 
     def __init__(self,
-                 task=TASK.SEGMENTATION,
-                 batch_size=16,
+                 task,
+                 batch_size=10,
                  shuffle=True,
                  run_number=None,
                  level_number=None,

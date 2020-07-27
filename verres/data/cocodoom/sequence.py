@@ -26,46 +26,39 @@ class COCODoomSequence(tf.keras.utils.Sequence):
         return self.N // self.cfg.batch_size
 
     @staticmethod
-    def _configure_batch(xs, ys):
-        if isinstance(xs[0], list):
-            X = [np.array([x[i] for x in xs]) for i in range(len(xs[0]))]
-        else:
-            X = np.array(xs)
-        if isinstance(ys[0], list):
-            Y = [np.array([y[i] for y in ys]) for i in range(len(ys[0]))]
-        else:
-            Y = np.array(ys)
-        return X, Y
+    def _reconfigure_batch(batch: list):
+        elements = tuple(tf.convert_to_tensor(stack, dtype=tf.float32) for stack in zip(*batch))
+        return elements,
 
     def make_batch(self, IDs=None):
-        xs, ys = [], []
-
         if IDs is None:
             IDs = np.random.choice(self.ids, size=self.cfg.batch_size)
 
-        for ID in IDs:
-            x = self.loader.get_image(ID) / 255.
+        batch = []
 
-            if self.cfg.task == TASK.SEGMENTATION:
+        for ID in IDs:
+
+            features = [self.loader.get_image(ID) / 255.]
+
+            if self.cfg.task == TASK.SEMSEG:
                 y = self.loader.get_panoptic_masks(ID)
+                features.append(y[0])
+            elif self.cfg.task == TASK.PANSEG:
+                iseg, sseg = self.loader.get_panoptic_masks(ID)
+                heatmap, refinement = self.loader.get_object_heatmap(ID)
+                features += [heatmap, refinement, iseg, sseg]
             elif self.cfg.task == TASK.DEPTH:
                 y = self.loader.get_depth_image(ID)
-            elif self.cfg.task == TASK.DETECTION_TRAINING:
-                heatmap, refinement, wh, mask = self.loader.get_object_heatmap(ID)
-                x = [x, mask]
-                y = [heatmap, refinement*mask, wh*mask]
-            elif self.cfg.task == TASK.DETECTION_INFERENCE:
-                heatmap, refinement, mask = self.loader.get_object_heatmap(ID)
-                y = [heatmap, refinement]
+                features.append(y)
+            elif self.cfg.task == TASK.DETECTION:
+                heatmap, refinement = self.loader.get_object_heatmap(ID)
+                features += [heatmap, refinement]
             else:
                 assert False
 
-            xs.append(x)
-            ys.append(y)
+            batch.append(features)
 
-        batch = self._configure_batch(xs, ys)
-
-        return batch
+        return self._reconfigure_batch(batch)
 
     def stream(self):
         while 1:

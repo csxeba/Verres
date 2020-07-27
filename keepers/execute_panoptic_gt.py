@@ -21,6 +21,7 @@ for ID in loader.index:
     annos = loader.index[ID]
 
     img = loader.get_image(ID)
+    print(img.shape)
     seg_mask, inst_mask = loader.get_panoptic_masks(ID)
 
     fg = np.linalg.norm(inst_mask, ord=1, axis=-1) > 0
