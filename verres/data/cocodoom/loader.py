@@ -118,7 +118,7 @@ class COCODoomLoader:
             box = np.array(anno["bbox"]) / self.cfg.stride
             centroid = box[:2] + box[2:] / 2
             centroid_floored = np.floor(centroid).astype(int)
-            centroid_rounded = np.clip(np.round(centroid).astype(int), [0, 0], tensor_shape-1)
+            centroid_rounded = np.clip(np.round(centroid).astype(int), [0, 0], tensor_shape[::-1]-1)
 
             augmented_coords = np.stack([
                 centroid_floored, centroid_floored + _01, centroid_floored + _10, centroid_floored + _11
