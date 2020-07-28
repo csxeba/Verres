@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import tensorflow as tf
 
 from verres.data import cocodoom
@@ -8,15 +7,8 @@ from verres.tf_arch.panoptic import Segmentor
 from verres.artifactory import Artifactory
 
 
-def log_loss(epoch_no, step_no, total_steps, losses_dict):
-    logstr = [f"E {epoch_no:>4} - {step_no / total_steps:>7.4%}"]
-    for key, val in losses_dict.items():
-        logstr.append(f"{key}: {np.mean(val):.4f}")
-    print("\r",  " - ".join(logstr), end="")
-
-
 EPOCHS = 30
-BATCH_SIZE = 2
+BATCH_SIZE = 32
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
@@ -30,6 +22,19 @@ streamcfg = cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.PANSEG,
                                           shuffle=True,
                                           min_no_visible_objects=2)
 stream = cocodoom.COCODoomSequence(streamcfg, loader)
+
+val_stream = cocodoom.COCODoomSequence(
+    stream_config=cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.PANSEG,
+                                                batch_size=BATCH_SIZE,
+                                                shuffle=False,
+                                                min_no_visible_objects=0),
+    data_loader=cocodoom.COCODoomLoader(
+        config=cocodoom.COCODoomLoaderConfig(
+            data_json="/data/Datasets/cocodoom/map-val.json",
+            images_root="/data/Datasets/cocodoom"
+        )
+    )
+)
 
 artifactory = Artifactory.get_default("panseg")
 
@@ -45,4 +50,6 @@ model.compile(optimizer=tf.keras.optimizers.Adam(2e-5))
 
 model.fit(stream,
           epochs=EPOCHS,
-          steps_per_epoch=stream.steps_per_epoch())
+          steps_per_epoch=10,
+          validation_data=val_stream,
+          validation_steps=10)

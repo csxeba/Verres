@@ -107,4 +107,23 @@ class Segmentor(tf.keras.Model):
 
         acc = tf.reduce_mean(tf.keras.metrics.sparse_categorical_accuracy(sseg_gt, sseg))
 
-        return {"HMap": hmap_loss, "RReg": rreg_loss, "ISeg": iseg_loss, "SSeg": sseg_loss, "Acc": acc}
+        return {"HMap/train": hmap_loss, "RReg/train": rreg_loss, "ISeg/train": iseg_loss,
+                "SSeg/train": sseg_loss, "Acc/train": acc}
+
+    @tf.function
+    def test_step(self, data):
+        img, hmap_gt, rreg_gt, iseg_gt, sseg_gt = data[0]
+        rreg_mask = tf.cast(rreg_gt > 0, tf.float32)
+        iseg_mask = tf.cast(iseg_gt > 0, tf.float32)
+
+        hmap, rreg, iseg, sseg = self(img)
+
+        hmap_loss = vrsloss.mse(hmap_gt, hmap)
+        rreg_loss = vrsloss.mae(rreg_gt, rreg * rreg_mask)
+        iseg_loss = vrsloss.mae(iseg_gt, iseg * iseg_mask)
+        sseg_loss = vrsloss.mean_of_cxent_sparse_from_logits(sseg_gt, sseg)
+
+        acc = tf.reduce_mean(tf.keras.metrics.sparse_categorical_accuracy(sseg_gt, sseg))
+
+        return {"HMap/val": hmap_loss, "RReg/val": rreg_loss, "ISeg/val": iseg_loss,
+                "SSeg/val": sseg_loss, "Acc/val": acc}
