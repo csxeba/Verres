@@ -59,9 +59,9 @@ class Segmentor(tf.keras.Model):
         self.rreg = Head(width=64, num_outputs=num_classes*2)
         self.sseg = Head(width=8, num_outputs=num_classes+1)
         self.iseg = Head(width=8, num_outputs=2)
-        self.train_step = tf.Variable(0, dtype=tf.float32)
+        self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
         self.train_metric_keys = ["HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"]
-        self.train_metrics = {n: tf.Variable(0, dtype=tf.float32) for n in self.train_metric_keys}
+        self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
 
     def _make_backbone(self):
         resnet = tf.keras.applications.ResNet50(include_top=False, weights=None, input_shape=self.INPUT_SHAPE)
@@ -90,13 +90,13 @@ class Segmentor(tf.keras.Model):
         return hmap, rreg, iseg, sseg
 
     def _save_and_report_losses(self, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc):
-        self.train_metrics["HMap/train"] += hmap_loss
-        self.train_metrics["RReg/train"] += rreg_loss
-        self.train_metrics["ISeg/train"] += iseg_loss
-        self.train_metrics["SSeg/train"] += sseg_loss
-        self.train_metrics["Acc/train"] += acc
-        self.train_step += 1
-        return {n: self.train_metrics[n] / self.train_step for n in self.train_metric_keys}
+        self.train_metrics["HMap/train"].assign_add(hmap_loss)
+        self.train_metrics["RReg/train"].assign_add(rreg_loss)
+        self.train_metrics["ISeg/train"].assign_add(iseg_loss)
+        self.train_metrics["SSeg/train"].assign_add(sseg_loss)
+        self.train_metrics["Acc/train"].assign_add(acc)
+        self.train_steps.assign_add(1)
+        return {n: self.train_metrics[n] / self.train_steps for n in self.train_metric_keys}
 
     @tf.function
     def train_step(self, data):

@@ -63,7 +63,7 @@ callbacks = [
 ]
 
 model = Segmentor(num_classes=loader.num_classes)
-model.compile(optimizer=tf.keras.optimizers.Adam(2e-5))
+model.compile(optimizer=tf.keras.optimizers.Adam(2e-5 * 64 * 4))
 
 model.fit(train_ds.prefetch(10),
           epochs=EPOCHS * VIF,
