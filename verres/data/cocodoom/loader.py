@@ -34,7 +34,7 @@ class COCODoomLoader:
 
         print(f" [Verres.COCODoomLoader] - Num images :", len(data["images"]))
         print(f" [Verres.COCODoomLoader] - Num annos  :", len(data["annotations"]))
-        print(f" [Verres.COCODoomLoader] - Num classes:", self.num_classes+1)
+        print(f" [Verres.COCODoomLoader] - Num classes:", self.num_classes)
 
     @classmethod
     def default_train(cls):
@@ -101,8 +101,8 @@ class COCODoomLoader:
     def get_object_heatmap(self, image_id):
         meta = self.image_meta[image_id]
         tensor_shape = np.array([meta["height"], meta["width"]]) // self.cfg.stride
-        heatmap = np.zeros(list(tensor_shape) + [len(ENEMY_TYPES)])
-        refinements = np.zeros(list(tensor_shape) + [len(ENEMY_TYPES)*2])
+        heatmap = np.zeros(list(tensor_shape) + [self.num_classes])
+        refinements = np.zeros(list(tensor_shape) + [self.num_classes * 2])
 
         hit = 0
         _01 = [0, 1]
