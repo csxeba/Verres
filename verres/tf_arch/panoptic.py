@@ -28,7 +28,7 @@ class Head(tf.keras.Model):
 
     def __init__(self, width: int, num_outputs: int, activation: str = "leakyrelu"):
         super().__init__()
-        self.conv = tfl.Conv2D(width, kernel_size=1)
+        self.conv = tfl.Conv2D(width, kernel_size=3, padding="same")
         self.act = layer_utils.get_activation(activation, as_layer=True)
         self.out = tfl.Conv2D(num_outputs, kernel_size=1)
 
@@ -49,9 +49,8 @@ class Segmentor(tf.keras.Model):
         super().__init__()
         self.backbone = self._make_backbone()
         self.body8 = StageBody(width=64, num_blocks=5, skip_connect=True)
-        self.body4 = StageBody(width=32, num_blocks=5, skip_connect=True)
-        self.body2 = StageBody(width=16, num_blocks=5, skip_connect=True)
-        self.body1 = StageBody(width=8, num_blocks=3, skip_connect=True)
+        self.body4 = StageBody(width=32, num_blocks=1, skip_connect=True)
+        self.body2 = StageBody(width=16, num_blocks=1, skip_connect=True)
         self.upsc8_4 = block.VRSUpscale(num_stages=1, width_base=64, batch_normalize=True, activation="leakyrelu")
         self.upsc4_2 = block.VRSUpscale(num_stages=1, width_base=32, batch_normalize=True, activation="leakyrelu")
         self.upsc2_1 = block.VRSUpscale(num_stages=1, width_base=16, batch_normalize=True, activation="leakyrelu")
@@ -80,7 +79,6 @@ class Segmentor(tf.keras.Model):
         ftr2 = self.body2(ftr2, training=training, mask=mask)
 
         ftr1 = tf.concat([self.upsc2_1(ftr2, training=training, mask=mask), ftr1], axis=-1)
-        ftr1 = self.body1(ftr1, training=training, mask=mask)
 
         hmap = self.hmap(ftr8, training=training, mask=mask)
         rreg = self.rreg(ftr8, training=training, mask=mask)
