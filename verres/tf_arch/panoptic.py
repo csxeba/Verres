@@ -43,11 +43,11 @@ class Segmentor(tf.keras.Model):
 
     INPUT_SHAPE = (200, 320, 3)
     RESNET_FTR_STRIDES = [1, 2, 4, 8]
-    RESNET_FTR_LAYER_NAMES = reversed(["input_1", "conv1_relu", "conv2_block3_out", "conv3_block4_out"])
+    RESNET_FTR_LAYER_NAMES = reversed(["image", "conv1_relu", "conv2_block3_out", "conv3_block4_out"])
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, fixed_batch_size=None):
         super().__init__()
-        self.backbone = self._make_backbone()
+        self.backbone = self._make_backbone(fixed_batch_size)
         self.body8 = StageBody(width=64, num_blocks=5, skip_connect=True)
         self.body4 = StageBody(width=32, num_blocks=5, skip_connect=True)
         self.body2 = StageBody(width=16, num_blocks=5, skip_connect=True)
@@ -60,8 +60,9 @@ class Segmentor(tf.keras.Model):
         self.sseg = Head(width=8, num_outputs=num_classes+1)
         self.iseg = Head(width=8, num_outputs=2)
 
-    def _make_backbone(self):
-        resnet = tf.keras.applications.ResNet50(include_top=False, weights=None, input_shape=self.INPUT_SHAPE)
+    def _make_backbone(self, fixed_batch_size):
+        input_tensor = tf.keras.Input(self.INPUT_SHAPE, fixed_batch_size, name="image", dtype=tf.float32)
+        resnet = tf.keras.applications.ResNet50(include_top=False, weights=None, input_tensor=input_tensor)
         output_tensors = [resnet.get_layer(lyr).output for lyr in self.RESNET_FTR_LAYER_NAMES]
         return tf.keras.Model(inputs=resnet.input, outputs=output_tensors)
 
@@ -110,14 +111,13 @@ class Segmentor(tf.keras.Model):
         return {"HMap/train": hmap_loss, "RReg/train": rreg_loss, "ISeg/train": iseg_loss,
                 "SSeg/train": sseg_loss, "Acc/train": acc}
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def test_step(self, data):
         img, hmap_gt, rreg_gt, iseg_gt, sseg_gt = data[0]
         rreg_mask = tf.cast(rreg_gt > 0, tf.float32)
         iseg_mask = tf.cast(iseg_gt > 0, tf.float32)
 
         hmap, rreg, iseg, sseg = self(img)
-
         hmap_loss = vrsloss.mse(hmap_gt, hmap)
         rreg_loss = vrsloss.mae(rreg_gt, rreg * rreg_mask)
         iseg_loss = vrsloss.mae(iseg_gt, iseg * iseg_mask)

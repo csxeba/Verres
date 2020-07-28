@@ -6,9 +6,8 @@ from verres.data import cocodoom
 from verres.tf_arch.panoptic import Segmentor
 from verres.artifactory import Artifactory
 
-
 EPOCHS = 30
-BATCH_SIZE = 32
+BATCH_SIZE = 10
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
@@ -31,7 +30,8 @@ val_stream = cocodoom.COCODoomSequence(
     data_loader=cocodoom.COCODoomLoader(
         config=cocodoom.COCODoomLoaderConfig(
             data_json="/data/Datasets/cocodoom/map-val.json",
-            images_root="/data/Datasets/cocodoom"
+            images_root="/data/Datasets/cocodoom",
+            stride=8
         )
     )
 )
