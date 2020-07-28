@@ -32,9 +32,9 @@ class COCODoomLoader:
             self.index[anno["image_id"]].append(anno)
         self.num_classes = len(ENEMY_TYPES)
 
-        print(f"Num images :", len(data["images"]))
-        print(f"Num annos  :", len(data["annotations"]))
-        print(f"Num classes:", self.num_classes+1)
+        print(f" [Verres.COCODoomLoader] - Num images :", len(data["images"]))
+        print(f" [Verres.COCODoomLoader] - Num annos  :", len(data["annotations"]))
+        print(f" [Verres.COCODoomLoader] - Num classes:", self.num_classes+1)
 
     @classmethod
     def default_train(cls):

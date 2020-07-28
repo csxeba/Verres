@@ -100,12 +100,12 @@ class Segmentor(tf.keras.Model):
         with tf.GradientTape() as tape:
             hmap, rreg, iseg, sseg = self(img)
 
-            hmap_loss = vrsloss.sse(hmap_gt, hmap)
-            rreg_loss = vrsloss.sae(rreg_gt, rreg * rreg_mask)
-            iseg_loss = vrsloss.sae(iseg_gt, iseg * iseg_mask)
-            sseg_loss = vrsloss.sum_of_cxent_sparse_from_logits(sseg_gt, sseg)
+            hmap_loss = vrsloss.mse(hmap_gt, hmap)
+            rreg_loss = vrsloss.mae(rreg_gt, rreg * rreg_mask)
+            iseg_loss = vrsloss.mae(iseg_gt, iseg * iseg_mask)
+            sseg_loss = vrsloss.mean_of_cxent_sparse_from_logits(sseg_gt, sseg)
 
-            total_loss = hmap_loss * 64 + rreg_loss * 64 + iseg_loss + sseg_loss
+            total_loss = hmap_loss + rreg_loss + iseg_loss + sseg_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -147,7 +147,7 @@ callbacks = [
     tf.keras.callbacks.CSVLogger(artifactory.logfile_path, append=True)
 ]
 
-model = Segmentor(num_classes=loader.num_classes)
+model = Segmentor(num_classes=loader.num_classes+1)
 model.compile(optimizer=tf.keras.optimizers.Adam(2e-5))
 model.fit(stream,
           epochs=EPOCHS,

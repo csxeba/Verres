@@ -21,3 +21,19 @@ def sum_of_cxent_sparse_from_logits(y_true, y_pred):
     assert len(xent.shape) == 3
     xent = tf.reduce_sum(xent, axis=(1, 2))
     return tf.reduce_mean(xent)
+
+
+@tf.function
+def mse(y_true, y_pred):
+    return tf.reduce_mean(tf.square(y_true - y_pred))
+
+
+@tf.function
+def mae(y_true, y_pred):
+    return tf.reduce_mean(tf.abs(y_true - y_pred))
+
+
+@tf.function
+def mean_of_cxent_sparse_from_logits(y_true, y_pred):
+    xent = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True, axis=-1)
+    return tf.reduce_mean(xent)
