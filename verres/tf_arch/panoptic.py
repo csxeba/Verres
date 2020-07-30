@@ -28,7 +28,7 @@ class Head(tf.keras.Model):
 
     def __init__(self, width: int, num_outputs: int, activation: str = "leakyrelu"):
         super().__init__()
-        self.conv = tfl.Conv2D(width, kernel_size=1)
+        self.conv = tfl.Conv2D(width, kernel_size=3, padding="same")
         self.act = layer_utils.get_activation(activation, as_layer=True)
         self.out = tfl.Conv2D(num_outputs, kernel_size=1)
 
@@ -49,9 +49,8 @@ class Segmentor(tf.keras.Model):
         super().__init__()
         self.backbone = self._make_backbone(fixed_batch_size)
         self.body8 = StageBody(width=64, num_blocks=5, skip_connect=True)
-        self.body4 = StageBody(width=32, num_blocks=5, skip_connect=True)
-        self.body2 = StageBody(width=16, num_blocks=5, skip_connect=True)
-        self.body1 = StageBody(width=8, num_blocks=3, skip_connect=True)
+        self.body4 = StageBody(width=32, num_blocks=1, skip_connect=True)
+        self.body2 = StageBody(width=16, num_blocks=1, skip_connect=True)
         self.upsc8_4 = block.VRSUpscale(num_stages=1, width_base=64, batch_normalize=True, activation="leakyrelu")
         self.upsc4_2 = block.VRSUpscale(num_stages=1, width_base=32, batch_normalize=True, activation="leakyrelu")
         self.upsc2_1 = block.VRSUpscale(num_stages=1, width_base=16, batch_normalize=True, activation="leakyrelu")
@@ -59,6 +58,9 @@ class Segmentor(tf.keras.Model):
         self.rreg = Head(width=64, num_outputs=num_classes*2)
         self.sseg = Head(width=8, num_outputs=num_classes+1)
         self.iseg = Head(width=8, num_outputs=2)
+        self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
+        self.train_metric_keys = ["HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"]
+        self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
 
     def _make_backbone(self, fixed_batch_size):
         input_tensor = tf.keras.Input(self.INPUT_SHAPE, fixed_batch_size, name="image", dtype=tf.float32)
@@ -78,7 +80,6 @@ class Segmentor(tf.keras.Model):
         ftr2 = self.body2(ftr2, training=training, mask=mask)
 
         ftr1 = tf.concat([self.upsc2_1(ftr2, training=training, mask=mask), ftr1], axis=-1)
-        ftr1 = self.body1(ftr1, training=training, mask=mask)
 
         hmap = self.hmap(ftr8, training=training, mask=mask)
         rreg = self.rreg(ftr8, training=training, mask=mask)
@@ -86,6 +87,15 @@ class Segmentor(tf.keras.Model):
         sseg = self.sseg(ftr1, training=training, mask=mask)
 
         return hmap, rreg, iseg, sseg
+
+    def _save_and_report_losses(self, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc):
+        self.train_metrics["HMap/train"].assign_add(hmap_loss)
+        self.train_metrics["RReg/train"].assign_add(rreg_loss)
+        self.train_metrics["ISeg/train"].assign_add(iseg_loss)
+        self.train_metrics["SSeg/train"].assign_add(sseg_loss)
+        self.train_metrics["Acc/train"].assign_add(acc)
+        self.train_steps.assign_add(1)
+        return {n: self.train_metrics[n] / self.train_steps for n in self.train_metric_keys}
 
     @tf.function
     def train_step(self, data):
@@ -108,8 +118,7 @@ class Segmentor(tf.keras.Model):
 
         acc = tf.reduce_mean(tf.keras.metrics.sparse_categorical_accuracy(sseg_gt, sseg))
 
-        return {"HMap/train": hmap_loss, "RReg/train": rreg_loss, "ISeg/train": iseg_loss,
-                "SSeg/train": sseg_loss, "Acc/train": acc}
+        return self._save_and_report_losses(hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc)
 
     @tf.function(experimental_relax_shapes=True)
     def test_step(self, data):
