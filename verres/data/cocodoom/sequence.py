@@ -65,6 +65,8 @@ class COCODoomSequence(tf.keras.utils.Sequence):
             if self.cfg.shuffle:
                 np.random.shuffle(self.ids)
             for batch in (self.ids[start:start+self.cfg.batch_size] for start in range(0, self.N, self.cfg.batch_size)):
+                if len(batch) < self.cfg.batch_size:
+                    break
                 yield self.make_batch(batch)
 
     # Keras Sequence interface

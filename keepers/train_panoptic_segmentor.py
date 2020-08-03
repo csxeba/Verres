@@ -5,10 +5,14 @@ import tensorflow as tf
 from verres.data import cocodoom
 from verres.tf_arch.panoptic import Segmentor
 from verres.artifactory import Artifactory
+from verres.utils import keras_utils
 
 EPOCHS = 30
 BATCH_SIZE = 2
 VIF = 4
+BACKBONE = "MobileNet"
+FEATURE_LAYER_NAMES = ["input_1", "conv_pw_1_relu", "conv_pw_3_relu", "conv_pw_5_relu"]
+FEATURE_STRIDES = [1, 2, 4, 8]
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
@@ -56,17 +60,25 @@ val_ds = tf.data.Dataset.from_generator(lambda: val_stream,
 artifactory = Artifactory.get_default(experiment_name="panseg")
 
 callbacks = [
-    tf.keras.callbacks.ModelCheckpoint(os.path.join(artifactory.tensorboard, "latest.h5"),
+    tf.keras.callbacks.ModelCheckpoint(os.path.join(artifactory.checkpoints, "latest.h5"),
                                        save_freq=1, save_weights_only=True),
-    tf.keras.callbacks.TensorBoard(artifactory.tensorboard),
-    tf.keras.callbacks.CSVLogger(artifactory.logfile_path, append=True)
+    tf.keras.callbacks.TensorBoard(artifactory.tensorboard)
 ]
 
-model = Segmentor(num_classes=loader.num_classes)
-model.compile(optimizer=tf.keras.optimizers.Adam(2e-5 * 64 * 4))
+backbone = keras_utils.ApplicationCatalogue().make_model(BACKBONE,
+                                                         include_top=False,
+                                                         input_shape=(200, 320, 3),
+                                                         fixed_batch_size=BATCH_SIZE,
+                                                         build_model=False)
+model = Segmentor(num_classes=loader.num_classes,
+                  backbone=backbone,
+                  feature_layer_names=FEATURE_LAYER_NAMES)
+keras_utils.inject_regularizer(model, kernel_regularizer=tf.keras.regularizers.l2(5e-4))
+model.compile(optimizer=tf.keras.optimizers.Adam(2e-4))
 
 model.fit(train_ds.prefetch(10),
           epochs=EPOCHS * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
           validation_data=val_ds.prefetch(10),
-          validation_steps=val_stream.steps_per_epoch())
+          validation_steps=val_stream.steps_per_epoch(),
+          callbacks=callbacks)

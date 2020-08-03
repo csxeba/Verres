@@ -1,3 +1,5 @@
+from typing import List
+
 import tensorflow as tf
 from tensorflow.keras import layers as tfl
 
@@ -14,7 +16,7 @@ class StageBody(tf.keras.Model):
                                                  activation="leakyrelu") for _ in range(num_blocks)]
         self.skip_connect = skip_connect
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def call(self, inputs, training=None, mask=None):
         x = inputs
         for layer in self.layer_objects:
@@ -32,22 +34,17 @@ class Head(tf.keras.Model):
         self.act = layer_utils.get_activation(activation, as_layer=True)
         self.out = tfl.Conv2D(num_outputs, kernel_size=1)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def call(self, inputs, training=None, mask=None):
         x = self.conv(inputs)
         x = self.act(x)
         return self.out(x)
 
 
-class Segmentor(tf.keras.Model):
+class Detector(tf.keras.Model):
 
-    INPUT_SHAPE = (200, 320, 3)
-    RESNET_FTR_STRIDES = [1, 2, 4, 8]
-    RESNET_FTR_LAYER_NAMES = reversed(["image", "conv1_relu", "conv2_block3_out", "conv3_block4_out"])
-
-    def __init__(self, num_classes, fixed_batch_size=None):
+    def __init__(self, num_classes: int):
         super().__init__()
-        self.backbone = self._make_backbone(fixed_batch_size)
         self.body8 = StageBody(width=64, num_blocks=5, skip_connect=True)
         self.body4 = StageBody(width=32, num_blocks=1, skip_connect=True)
         self.body2 = StageBody(width=16, num_blocks=1, skip_connect=True)
@@ -58,19 +55,12 @@ class Segmentor(tf.keras.Model):
         self.rreg = Head(width=64, num_outputs=num_classes*2)
         self.sseg = Head(width=8, num_outputs=num_classes+1)
         self.iseg = Head(width=8, num_outputs=2)
-        self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
-        self.train_metric_keys = ["HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"]
-        self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
 
-    def _make_backbone(self, fixed_batch_size):
-        input_tensor = tf.keras.Input(self.INPUT_SHAPE, fixed_batch_size, name="image", dtype=tf.float32)
-        resnet = tf.keras.applications.ResNet50(include_top=False, weights=None, input_tensor=input_tensor)
-        output_tensors = [resnet.get_layer(lyr).output for lyr in self.RESNET_FTR_LAYER_NAMES]
-        return tf.keras.Model(inputs=resnet.input, outputs=output_tensors)
-
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def call(self, inputs, training=None, mask=None):
-        ftr8, ftr4, ftr2, ftr1 = self.backbone(inputs, training=training, mask=mask)
+
+        ftr1, ftr2, ftr4, ftr8 = inputs
+
         ftr8 = self.body8(ftr8, training=training, mask=mask)
 
         ftr4 = tf.concat([self.upsc8_4(ftr8, training=training, mask=mask), ftr4], axis=-1)
@@ -88,7 +78,33 @@ class Segmentor(tf.keras.Model):
 
         return hmap, rreg, iseg, sseg
 
-    def _save_and_report_losses(self, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc):
+
+class Segmentor(tf.keras.Model):
+
+    def __init__(self,
+                 num_classes: int,
+                 backbone: tf.keras.Model,
+                 feature_layer_names: List[str]):
+
+        super().__init__()
+        self.backbone = self._wrap_backbone(backbone, feature_layer_names)
+        self.detector = Detector(num_classes)
+        self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
+        self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"]
+        self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
+
+    def _wrap_backbone(self, base_model, feature_layer_names):
+        output_tensors = [base_model.get_layer(layer).output for layer in feature_layer_names]
+        return tf.keras.Model(inputs=base_model.input, outputs=output_tensors)
+
+    @tf.function
+    def call(self, inputs, training=None, mask=None):
+        ftr1, ftr2, ftr4, ftr8 = self.backbone(inputs, training=training, mask=mask)
+        hmap, rreg, iseg, sseg = self.detector([ftr1, ftr2, ftr4, ftr8])
+        return hmap, rreg, iseg, sseg
+
+    def _save_and_report_losses(self, total_loss, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc):
+        self.train_metrics["loss/train"].assign_add(total_loss)
         self.train_metrics["HMap/train"].assign_add(hmap_loss)
         self.train_metrics["RReg/train"].assign_add(rreg_loss)
         self.train_metrics["ISeg/train"].assign_add(iseg_loss)
@@ -110,17 +126,18 @@ class Segmentor(tf.keras.Model):
             rreg_loss = vrsloss.mae(rreg_gt, rreg * rreg_mask)
             iseg_loss = vrsloss.mae(iseg_gt, iseg * iseg_mask)
             sseg_loss = vrsloss.mean_of_cxent_sparse_from_logits(sseg_gt, sseg)
+            l2 = tf.reduce_sum(self.losses)
 
-            total_loss = hmap_loss + rreg_loss + iseg_loss + sseg_loss
+            total_loss = hmap_loss + rreg_loss + iseg_loss + sseg_loss + l2
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
 
         acc = tf.reduce_mean(tf.keras.metrics.sparse_categorical_accuracy(sseg_gt, sseg))
 
-        return self._save_and_report_losses(hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc)
+        return self._save_and_report_losses(total_loss, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def test_step(self, data):
         img, hmap_gt, rreg_gt, iseg_gt, sseg_gt = data[0]
         rreg_mask = tf.cast(rreg_gt > 0, tf.float32)

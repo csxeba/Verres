@@ -14,7 +14,9 @@ setup(
                       "numpy",
                       "scipy",
                       "matplotlib",
-                      "tensorflow>=2.2"],
+                      "tensorflow>=2.2",
+                      "IPython",
+                      "tqdm"],
     extras_require={"all": ["torch", "tfkerassurgeon"],
                     "torch": ["torch"],
                     "pruning": ["tfkerassurgeon"]}
