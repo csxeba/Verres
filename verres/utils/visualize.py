@@ -4,7 +4,7 @@ import cv2
 from . import colors as c
 
 
-class COCOSegVisualizer:
+class Visualizer:
 
     ENEMY_TYPES = [
         "POSSESSED", "SHOTGUY", "VILE", "UNDEAD", "FATSO", "CHAINGUY", "TROOP", "SERGEANT", "HEAD", "BRUISER",

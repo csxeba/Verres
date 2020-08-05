@@ -12,7 +12,7 @@ loader = cocodoom.COCODoomLoader(
     )
 )
 
-vis = visualize.COCOSegVisualizer(n_classes=loader.num_classes)
+vis = visualize.Visualizer(n_classes=loader.num_classes)
 screen = visualize.CV2Screen(FPS=25, scale=4)
 
 for ID in loader.index:

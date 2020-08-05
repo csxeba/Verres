@@ -1,103 +1,98 @@
 import tensorflow as tf
+from tensorflow.keras import layers as tfl
 
-from ..utils import losses
-
-
-def _block(x0, num_filters, depth, pool):
-    if pool:
-        x0 = tf.keras.layers.MaxPool2D()(x0)
-    x0 = tf.keras.layers.Conv2D(num_filters, 1, padding="valid")(x0)
-    x = tf.keras.layers.BatchNormalization()(x0)
-    x = tf.keras.layers.ReLU()(x)
-    for d in range(depth):
-        x = tf.keras.layers.Conv2D(num_filters, 3, padding="same")(x0)
-        x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.ReLU()(x)
-    if depth > 1:
-        x = tf.keras.layers.Add()([x0, x])
-    return x
+from ..layers import block, peakfind
+from ..utils import layer_utils
 
 
-def _pool(x):
-    return tf.keras.layers.MaxPool2D()(x)
+class StageBody(tf.keras.Model):
+
+    def __init__(self, width, num_blocks=5, skip_connect=True):
+        super().__init__()
+        self.layer_objects = [block.VRSConvBlock(width, depth=3, skip_connect=True, batch_normalize=True,
+                                                 activation="leakyrelu") for _ in range(num_blocks)]
+        self.skip_connect = skip_connect
+
+    @tf.function
+    def call(self, inputs, training=None, mask=None):
+        x = inputs
+        for layer in self.layer_objects:
+            x = layer(x, training=training, mask=mask)
+        if self.skip_connect:
+            x = tf.concat([inputs, x], axis=3)
+        return x
 
 
-def _head(x, num_output_classes, postfix=""):
-    heatmap_output = tf.keras.layers.Conv2D(num_output_classes, kernel_size=5, padding="same", activation="sigmoid",
-                                            name=f"Heatmaps{postfix}")(x)
-    refinement_output = tf.keras.layers.Conv2D(2, kernel_size=5, padding="same",
-                                               name=f"Refinements{postfix}")(x)
-    boxparam_output = tf.keras.layers.Conv2D(2, kernel_size=5, padding="same",
-                                             name=f"BoxParams{postfix}")(x)
-    return [heatmap_output, refinement_output, boxparam_output]
+class Head(tf.keras.Model):
+
+    def __init__(self, width: int, num_outputs: int, activation: str = "leakyrelu"):
+        super().__init__()
+        self.conv = tfl.Conv2D(width, kernel_size=3, padding="same")
+        self.act = layer_utils.get_activation(activation, as_layer=True)
+        self.out = tfl.Conv2D(num_outputs, kernel_size=1)
+
+    @tf.function
+    def call(self, inputs, training=None, mask=None):
+        x = self.conv(inputs)
+        x = self.act(x)
+        return self.out(x)
 
 
-def _mask(refinement_output, boxparam_output, mask, postfix=""):
-    masked_refinement = tf.keras.layers.Lambda(lambda xx: xx[0] * xx[1],
-                                               name=f"M_refine{postfix}")([refinement_output, mask])
-    masked_boxparam = tf.keras.layers.Lambda(lambda xx: xx[0] * xx[1],
-                                             name=f"M_boxparm{postfix}")([boxparam_output, mask])
-    return [masked_refinement, masked_boxparam]
+class Panoptic(tf.keras.Model):
+
+    def __init__(self, num_classes: int):
+        super().__init__()
+        self.body8 = StageBody(width=64, num_blocks=5, skip_connect=True)
+        self.body4 = StageBody(width=32, num_blocks=1, skip_connect=True)
+        self.body2 = StageBody(width=16, num_blocks=1, skip_connect=True)
+        self.upsc8_4 = block.VRSUpscale(num_stages=1, width_base=64, batch_normalize=True, activation="leakyrelu")
+        self.upsc4_2 = block.VRSUpscale(num_stages=1, width_base=32, batch_normalize=True, activation="leakyrelu")
+        self.upsc2_1 = block.VRSUpscale(num_stages=1, width_base=16, batch_normalize=True, activation="leakyrelu")
+        self.hmap = Head(width=64, num_outputs=num_classes)
+        self.rreg = Head(width=64, num_outputs=num_classes * 2)
+        self.sseg = Head(width=8, num_outputs=num_classes + 1)
+        self.iseg = Head(width=8, num_outputs=2)
+
+    @tf.function
+    def call(self, inputs, training=None, mask=None):
+
+        ftr1, ftr2, ftr4, ftr8 = inputs
+
+        ftr8 = self.body8(ftr8, training=training, mask=mask)
+
+        ftr4 = tf.concat([self.upsc8_4(ftr8, training=training, mask=mask), ftr4], axis=-1)
+        ftr4 = self.body4(ftr4, training=training, mask=mask)
+
+        ftr2 = tf.concat([self.upsc4_2(ftr4, training=training, mask=mask), ftr2], axis=-1)
+        ftr2 = self.body2(ftr2, training=training, mask=mask)
+
+        ftr1 = tf.concat([self.upsc2_1(ftr2, training=training, mask=mask), ftr1], axis=-1)
+
+        hmap = self.hmap(ftr8, training=training, mask=mask)
+        rreg = self.rreg(ftr8, training=training, mask=mask)
+        iseg = self.iseg(ftr1, training=training, mask=mask)
+        sseg = self.sseg(ftr1, training=training, mask=mask)
+
+        return hmap, rreg, iseg, sseg
 
 
-class COCODoomDetector:
+class OD(tf.keras.Model):
 
-    def __init__(self, input_shape: tuple="cocodoom", num_output_classes=18, block_depth=1, block_widening=1):
+    def __init__(self, num_classes: int, stride: int):
+        super().__init__()
+        self.body_centroid = StageBody(width=128, num_blocks=5, skip_connect=True)
+        self.body_box = StageBody(width=128, num_blocks=5, skip_connect=True)
+        self.hmap_head = Head(128, num_outputs=num_classes, activation="leakyrelu")
+        self.rreg_head = Head(128, num_outputs=num_classes, activation="leakyrelu")
+        self.boxx_head = Head(128, num_outputs=2, activation="leakyrelu")
+        self.peak_finder = peakfind.Peakfinder()
+        self.stride = stride
 
-        if input_shape == "cocodoom":
-            input_shape = (None, 200, 320, 3)
-        if len(input_shape) == 3:
-            input_shape = (None,) + input_shape
-
-        inputs = tf.keras.layers.Input(batch_shape=input_shape, name="images")
-
-        x = _block(inputs, 8*block_widening, block_depth, 0)  # 200 320
-        x = _block(x, 16*block_widening, block_depth, 1)  # 100 160
-        x = _block(x, 32*block_widening, block_depth, 1)  # 50 80
-        x = _block(x, 64*block_widening, block_depth, 1)  # 25 40
-
-        mask = tf.keras.Input(batch_shape=tf.keras.backend.int_shape(x)[:3] + (2,))
-
-        heatmap_output, *other_outputs = _head(x, num_output_classes)
-
-        masked_outputs = _mask(*other_outputs, mask)
-
-        self.learner = tf.keras.Model(inputs=[inputs, mask],
-                                      outputs=[heatmap_output] + masked_outputs, name="Learner")
-        self.predictor = tf.keras.Model(inputs=inputs,
-                                        outputs=[heatmap_output] + other_outputs, name="Predictor")
-
-        self.stride = 8
-
-    def compile_default(self, lrate=2e-5):
-        self.learner.compile(optimizer=tf.keras.optimizers.Adam(lrate),
-                             loss=[losses.sse] + [losses.sae]*2,
-                             loss_weights=[1, 0.1, 1])
-
-    def train(self,
-              training_stream,
-              validation_stream,
-              epochs,
-              verbose=1,
-              callbacks=None,
-              continue_checkpoint=None,
-              workers=1,
-              use_multiprocessing=False,
-              initial_epoch=0):
-
-        if continue_checkpoint:
-            print(" [Verres] Loading checkpoint weights")
-            self.learner.load_weights(continue_checkpoint)
-
-        self.learner.fit_generator(
-            training_stream,
-            steps_per_epoch=training_stream.steps_per_epoch,
-            epochs=epochs,
-            verbose=verbose,
-            callbacks=callbacks,
-            validation_data=validation_stream,
-            validation_steps=validation_stream.steps_per_epoch,
-            workers=workers,
-            use_multiprocessing=use_multiprocessing,
-            initial_epoch=initial_epoch
-        )
+    def call(self, inputs, training=None, mask=None):
+        x = self.body_centroid(inputs)
+        hmap = self.hmap_head(x)
+        rreg = self.rreg_head(x)
+        x = tf.concat([inputs, hmap, rreg], axis=-1)
+        x = self.body_box(x)
+        boxx = self.boxx_head(x)
+        return hmap, rreg, boxx

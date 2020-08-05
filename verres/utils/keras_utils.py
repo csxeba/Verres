@@ -54,7 +54,8 @@ class ApplicationCatalogue:
                    include_top: bool = False,
                    input_shape: tuple = None,
                    fixed_batch_size: int = None,
-                   build_model: bool = True) -> tf.keras.Model:
+                   build_model: bool = True,
+                   weights: Union[None, str] = None) -> tf.keras.Model:
 
         if model_name not in self.applications:
             raise ValueError(f"{model_name} is not in the catalogue of applications.")
@@ -65,7 +66,7 @@ class ApplicationCatalogue:
         input_tensor = tf.keras.Input(input_shape, fixed_batch_size, dtype=tf.float32)
 
         model = getattr(tf.keras.applications, model_name)(include_top=include_top,
-                                                           weights=None,
+                                                           weights=weights,
                                                            input_tensor=input_tensor)
         if build_model:
             input_tensor = tf.zeros((1,) + input_shape, dtype=tf.float32)

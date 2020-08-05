@@ -54,7 +54,7 @@ class VRSUpscale(tf.keras.Model):
         width = width_base
         for _ in range(num_stages):
             self.layer_objects.append(VRSConvolution(width_base, activation, batch_normalize))
-            self.layer_objects.append(tfl.UpSampling2D())
+            self.layer_objects.append(tfl.UpSampling2D(interpolation="bilinear"))
             width //= 2
 
     @tf.function(experimental_relax_shapes=True)
