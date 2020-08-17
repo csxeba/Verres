@@ -103,7 +103,7 @@ class COCODoomLoader:
     def get_object_heatmap(self, image_id):
         meta = self.image_meta[image_id]
         tensor_shape = np.array([meta["height"], meta["width"]]) // self.cfg.stride
-        heatmap = np.zeros(list(tensor_shape) + [self.num_classes])
+        heatmap = np.zeros(list(tensor_shape) + [self.num_classes], dtype="float32")
 
         hit = 0
         for anno in self.index[image_id]:
@@ -154,7 +154,7 @@ class COCODoomLoader:
             augmented_coords = augmented_coords[in_frame]
             augmented_locations = np.concatenate([
                 np.full((len(augmented_coords), 1), batch_idx, dtype=augmented_coords.dtype),
-                augmented_coords,
+                augmented_coords[:, ::-1],
                 np.full((len(augmented_coords), 1), class_idx, dtype=augmented_coords.dtype)
             ], axis=1)
             augmented_values = centroid[None, :] - augmented_coords
@@ -165,9 +165,9 @@ class COCODoomLoader:
             bbox.append(augmented_boxes)
 
         self.cache_id = image_id
-        self.cache["locations"] = np.concatenate(locations)
-        self.cache["values"] = np.concatenate(values)
-        self.cache["bbox"] = np.concatenate(bbox)
+        self.cache["locations"] = np.concatenate(locations).astype(int)
+        self.cache["values"] = np.concatenate(values).astype("float32")
+        self.cache["bbox"] = np.concatenate(bbox).astype("float32")
 
     def get_refinements(self, image_id, batch_idx):
         self._get_regression_base(image_id, batch_idx)

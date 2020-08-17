@@ -38,8 +38,6 @@ class ApplicationCatalogue:
         self.application_init_file_path = os.path.join(tf.keras.applications.__path__[0], "__init__.py")
         self.applications = []
         self._populate_catalogue()
-        print("Built tf.keras application catalogue with the following applications available:")
-        print("", "\n ".join(self.applications))
 
     def _populate_catalogue(self):
         with open(self.application_init_file_path) as handle:

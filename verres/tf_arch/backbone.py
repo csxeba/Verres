@@ -21,7 +21,7 @@ class ApplicationBackbone(tf.keras.Model):
                  fixed_batch_size=None):
 
         super().__init__()
-        self.base_model = keras_utils.ApplicationCatalogue().make_model(
+        base_model = keras_utils.ApplicationCatalogue().make_model(
             name,
             include_top=False,
             input_shape=input_shape,
@@ -29,10 +29,10 @@ class ApplicationBackbone(tf.keras.Model):
             build_model=False)
         self.feature_specs = feature_specs
 
-        outputs = [self.base_model.get_layer(spec.layer_name).output for spec in feature_specs]
+        outputs = [base_model.get_layer(spec.layer_name).output for spec in feature_specs]
 
-        self.wrapped_model = tf.keras.Model(inputs=self.base_model.input, outputs=outputs)
+        self.wrapped_model = tf.keras.Model(inputs=base_model.input, outputs=outputs)
 
     @tf.function
     def call(self, x, training=None, mask=None):
-        return self.wrapped_model(x)
+        return self.wrapped_model(x, training, mask)

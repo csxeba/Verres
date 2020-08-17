@@ -46,7 +46,7 @@ class COCODoomSequence(tf.keras.utils.Sequence):
 
         for i, ID in enumerate(IDs):
 
-            features = [self.loader.get_image(ID) / 255.]
+            features = [self.loader.get_image(ID).astype("float32") / 255.]
 
             if self.cfg.task == TASK.SEMSEG:
                 y = self.loader.get_panoptic_masks(ID)
@@ -61,8 +61,9 @@ class COCODoomSequence(tf.keras.utils.Sequence):
                 features.append(y)
             elif self.cfg.task == TASK.DETECTION:
                 heatmap = self.loader.get_object_heatmap(ID)
-                locations, refinements = self.loader.get_refinements(ID, i)
-                features += [heatmap, locations, refinements]
+                locations, rreg_values = self.loader.get_refinements(ID, i)
+                _, boxx_values = self.loader.get_bbox(ID, i)
+                features += [heatmap, locations, rreg_values, boxx_values]
             else:
                 assert False
 

@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers as tfl
 
-from ..layers import block, peakfind
+from ..layers import block
 from ..utils import layer_utils
 
 
@@ -83,9 +83,8 @@ class OD(tf.keras.Model):
         self.body_centroid = StageBody(width=128, num_blocks=5, skip_connect=True)
         self.body_box = StageBody(width=128, num_blocks=5, skip_connect=True)
         self.hmap_head = Head(128, num_outputs=num_classes, activation="leakyrelu")
-        self.rreg_head = Head(128, num_outputs=num_classes, activation="leakyrelu")
-        self.boxx_head = Head(128, num_outputs=2, activation="leakyrelu")
-        self.peak_finder = peakfind.Peakfinder()
+        self.rreg_head = Head(128, num_outputs=num_classes*2, activation="leakyrelu")
+        self.boxx_head = Head(128, num_outputs=num_classes*2, activation="leakyrelu")
         self.stride = stride
 
     def call(self, inputs, training=None, mask=None):

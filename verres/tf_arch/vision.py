@@ -93,13 +93,13 @@ class ObjectDetector(tf.keras.Model):
         self.backbone = backbone
         self.detector = detector.OD(num_classes, stride)
         self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
-        self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"]
+        self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "BBox/train"]
         self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
 
     def call(self, inputs, training=None, mask=None):
         features = self.backbone(inputs)
-        hmap, boxx = self.detector(features)
-        return hmap, boxx
+        hmap, rreg, boxx = self.detector(features)
+        return hmap, rreg, boxx
 
     def detect(self, inputs):
         hmap, rreg, bbox = self(inputs)
@@ -127,25 +127,22 @@ class ObjectDetector(tf.keras.Model):
         self.train_steps.assign_add(1)
         return {n: self.train_metrics[n] / self.train_steps for n in self.train_metric_keys}
 
+    @tf.function(experimental_relax_shapes=True)
     def train_step(self, data):
         image, hmap_gt, locations, rreg_values, boxx_values = data[0]
         with tf.GradientTape() as tape:
             hmap, rreg, boxx = self(image)
 
             hmap_loss = L.sse(hmap_gt, hmap)
+            rreg_loss = L.sparse_vector_field_sae(rreg_values, rreg, locations)
+            boxx_loss = L.sparse_vector_field_sae(boxx_values, boxx, locations)
 
-            rreg_pred = tf.gather_nd(rreg, locations)
-            rreg_loss = L.sae(rreg_values, rreg_pred)
-
-            bbox_pred = tf.gather_nd(boxx, locations)
-            bbox_loss = L.sae(bbox_pred, boxx_values)
-
-            total_loss = hmap_loss + rreg_loss * 10 + bbox_loss
+            total_loss = hmap_loss + rreg_loss * 10 + boxx_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
 
-        return self._save_and_report_losses(total_loss, hmap_loss, rreg_loss, bbox_loss)
+        return self._save_and_report_losses(total_loss, hmap_loss, rreg_loss, boxx_loss)
 
     def test_step(self, data):
         image, hmap_gt, rreg_gt, boxx_gt = data[0]

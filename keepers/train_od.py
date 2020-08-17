@@ -6,10 +6,9 @@ from verres.data import cocodoom
 from verres.tf_arch.backbone import ApplicationBackbone, FeatureSpec
 from verres.tf_arch.vision import ObjectDetector
 from verres.artifactory import Artifactory
-from verres.utils import keras_utils
 
 EPOCHS = 120
-BATCH_SIZE = 10
+BATCH_SIZE = 2
 VIF = 4
 BACKBONE = "MobileNet"
 FEATURE_LAYER_NAMES = ["conv_pw_5_relu"]
@@ -29,20 +28,8 @@ streamcfg = cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.DETECTION,
                                           min_no_visible_objects=2)
 stream = cocodoom.COCODoomSequence(streamcfg, loader)
 
-output_types = tuple(tf.float32 for _ in range(5)),
-output_shapes = (
-    (BATCH_SIZE, 200, 320, 3),
-    (BATCH_SIZE, 25, 40, loader.num_classes),
-    (BATCH_SIZE, 25, 40, loader.num_classes*2),
-    (BATCH_SIZE, 25, 40, 2),
-),
-
-train_ds = tf.data.Dataset.from_generator(lambda: stream,
-                                          output_types=output_types,
-                                          output_shapes=output_shapes)
-
 val_stream = cocodoom.COCODoomSequence(
-    stream_config=cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.PANSEG,
+    stream_config=cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.DETECTION,
                                                 batch_size=BATCH_SIZE,
                                                 shuffle=True,
                                                 min_no_visible_objects=0),
@@ -54,9 +41,6 @@ val_stream = cocodoom.COCODoomSequence(
         )
     )
 )
-val_ds = tf.data.Dataset.from_generator(lambda: val_stream,
-                                        output_types=output_types,
-                                        output_shapes=output_shapes)
 
 artifactory = Artifactory.get_default(experiment_name="panseg")
 
@@ -72,13 +56,17 @@ backbone = ApplicationBackbone(BACKBONE,
                                fixed_batch_size=BATCH_SIZE)
 model = ObjectDetector(num_classes=loader.num_classes,
                        backbone=backbone,
-                       stride=)
-keras_utils.inject_regularizer(model, kernel_regularizer=tf.keras.regularizers.l2(5e-4))
+                       stride=FEATURE_STRIDES[-1])
+
+# keras_utils.inject_regularizer(model, kernel_regularizer=tf.keras.regularizers.l2(5e-4))
 model.compile(optimizer=tf.keras.optimizers.Adam(2e-4))
 
-model.fit(train_ds.prefetch(10),
+# for data in stream:
+#     model.train_step(data)
+
+model.fit(stream,
           epochs=EPOCHS * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
-          validation_data=val_ds.prefetch(10),
+          validation_data=val_stream,
           validation_steps=val_stream.steps_per_epoch() // VIF,
           callbacks=callbacks)
