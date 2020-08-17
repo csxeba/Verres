@@ -31,6 +31,8 @@ class COCODoomLoader:
                 continue
             self.index[anno["image_id"]].append(anno)
         self.num_classes = len(ENEMY_TYPES)
+        self.cache = {}
+        self.cache_id = -1
 
         print(f" [Verres.COCODoomLoader] - Num images :", len(data["images"]))
         print(f" [Verres.COCODoomLoader] - Num annos  :", len(data["annotations"]))
@@ -102,12 +104,8 @@ class COCODoomLoader:
         meta = self.image_meta[image_id]
         tensor_shape = np.array([meta["height"], meta["width"]]) // self.cfg.stride
         heatmap = np.zeros(list(tensor_shape) + [self.num_classes])
-        refinements = np.zeros(list(tensor_shape) + [self.num_classes * 2])
 
         hit = 0
-        _01 = [0, 1]
-        _10 = [1, 0]
-        _11 = [1, 1]
         for anno in self.index[image_id]:
             category = self.categories[anno["category_id"]]
             if category["name"] not in ENEMY_TYPES:
@@ -117,27 +115,60 @@ class COCODoomLoader:
             class_idx = ENEMY_TYPES.index(category["name"])
             box = np.array(anno["bbox"]) / self.cfg.stride
             centroid = box[:2] + box[2:] / 2
-            centroid_floored = np.floor(centroid).astype(int)
             centroid_rounded = np.clip(np.round(centroid).astype(int), [0, 0], tensor_shape[::-1]-1)
-
-            augmented_coords = np.stack([
-                centroid_floored, centroid_floored + _01, centroid_floored + _10, centroid_floored + _11
-            ], axis=0)
-            in_frame = np.all([augmented_coords >= 0, augmented_coords < tensor_shape[::-1][None, :]], axis=(0, 2))
-
-            augmented_coords = augmented_coords[in_frame]
-
-            refinement = centroid[None, :] - augmented_coords
-
-            x, y = tuple(augmented_coords[:, 0]), tuple(augmented_coords[:, 1])
-
             heatmap[centroid_rounded[1], centroid_rounded[0], class_idx] = 1
-            refinements[y, x, class_idx] = refinement[:, 0]
-            refinements[y, x, class_idx+len(ENEMY_TYPES)] = refinement[:, 1]
 
         if hit:
             kernel_size = 5
             heatmap = cv2.GaussianBlur(heatmap, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_CONSTANT)
             heatmap /= heatmap.max()
 
-        return heatmap, refinements
+        return heatmap
+
+    def _get_regression_base(self, image_id, batch_idx):
+        if image_id == self.cache_id:
+            return
+
+        meta = self.image_meta[image_id]
+        tensor_shape = np.array([meta["height"], meta["width"]]) // self.cfg.stride
+        _01 = [0, 1]
+        _10 = [1, 0]
+        locations = []
+        values = []
+        bbox = []
+        for anno in self.index[image_id]:
+            category = self.categories[anno["category_id"]]
+            if category["name"] not in ENEMY_TYPES:
+                continue
+
+            class_idx = ENEMY_TYPES.index(category["name"])
+            box = np.array(anno["bbox"]) / self.cfg.stride
+            centroid = box[:2] + box[2:] / 2
+            centroid_floored = np.floor(centroid).astype(int)
+            augmented_coords = np.stack([
+                centroid_floored, centroid_floored + _01, centroid_floored + _10, centroid_floored + 1
+            ], axis=0)
+            in_frame = np.all([augmented_coords >= 0, augmented_coords < tensor_shape[::-1][None, :]], axis=(0, 2))
+            augmented_coords = augmented_coords[in_frame]
+            locations.append(
+                np.concatenate([
+                    np.full((len(augmented_coords), 1), batch_idx, dtype=augmented_coords.dtype),
+                    augmented_coords,
+                    np.full((len(augmented_coords), 1), class_idx, dtype=augmented_coords.dtype)
+                ], axis=1)
+            )
+            values.append(centroid[None, :] - augmented_coords)
+            bbox.append(np.stack([box[2:]]*4, axis=0))
+
+        self.cache_id = image_id
+        self.cache["locations"] = np.concatenate(locations)
+        self.cache["values"] = np.concatenate(values)
+        self.cache["bbox"] = np.concatenate(bbox)
+
+    def get_refinements(self, image_id, batch_idx):
+        self._get_regression_base(image_id, batch_idx)
+        return self.cache["locations"], self.cache["values"]
+
+    def get_bbox(self, image_id, batch_idx):
+        self._get_regression_base(image_id, batch_idx)
+        return self.cache["locations"], self.cache["bbox"]

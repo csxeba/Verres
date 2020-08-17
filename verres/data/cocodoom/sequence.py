@@ -27,16 +27,24 @@ class COCODoomSequence(tf.keras.utils.Sequence):
 
     @staticmethod
     def _reconfigure_batch(batch: list):
-        elements = tuple(tf.convert_to_tensor(stack, dtype=tf.float32) for stack in zip(*batch))
+        elements = []
+        # elements = tuple(tf.convert_to_tensor(stack, dtype=tf.float32) for stack in zip(*batch))
+        for stack in zip(*batch):
+            if stack[0].ndim > 2:
+                elements.append(tf.convert_to_tensor(stack))
+            else:
+                elements.append(tf.concat(stack, axis=0))
+
         return elements,
 
     def make_batch(self, IDs=None):
+
         if IDs is None:
             IDs = np.random.choice(self.ids, size=self.cfg.batch_size)
 
         batch = []
 
-        for ID in IDs:
+        for i, ID in enumerate(IDs):
 
             features = [self.loader.get_image(ID) / 255.]
 
@@ -45,14 +53,16 @@ class COCODoomSequence(tf.keras.utils.Sequence):
                 features.append(y[0])
             elif self.cfg.task == TASK.PANSEG:
                 iseg, sseg = self.loader.get_panoptic_masks(ID)
-                heatmap, refinement = self.loader.get_object_heatmap(ID)
-                features += [heatmap, refinement, iseg, sseg]
+                heatmap = self.loader.get_object_heatmap(ID)
+                locations, refinements = self.loader.get_refinements(ID, i)
+                features += [heatmap, locations, refinements, iseg, sseg]
             elif self.cfg.task == TASK.DEPTH:
                 y = self.loader.get_depth_image(ID)
                 features.append(y)
             elif self.cfg.task == TASK.DETECTION:
-                heatmap, refinement = self.loader.get_object_heatmap(ID)
-                features += [heatmap, refinement]
+                heatmap = self.loader.get_object_heatmap(ID)
+                locations, refinements = self.loader.get_refinements(ID, i)
+                features += [heatmap, locations, refinements]
             else:
                 assert False
 

@@ -128,12 +128,18 @@ class ObjectDetector(tf.keras.Model):
         return {n: self.train_metrics[n] / self.train_steps for n in self.train_metric_keys}
 
     def train_step(self, data):
-        image, hmap_gt, rreg_gt, boxx_gt = data[0]
+        image, hmap_gt, locations, rreg_values, boxx_values = data[0]
         with tf.GradientTape() as tape:
             hmap, rreg, boxx = self(image)
+
             hmap_loss = L.sse(hmap_gt, hmap)
-            rreg_loss = L.sae(rreg_gt, rreg * tf.cast(rreg_gt > 0, tf.float32))
-            bbox_loss = L.sae(boxx_gt, boxx * tf.cast(boxx_gt > 0, tf.float32))
+
+            rreg_pred = tf.gather_nd(rreg, locations)
+            rreg_loss = L.sae(rreg_values, rreg_pred)
+
+            bbox_pred = tf.gather_nd(boxx, locations)
+            bbox_loss = L.sae(bbox_pred, boxx_values)
+
             total_loss = hmap_loss + rreg_loss * 10 + bbox_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)

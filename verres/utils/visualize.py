@@ -72,17 +72,18 @@ class Visualizer:
         canvas[mask] = alpha * x[mask] + (1 - alpha) * heatmap[mask]
         return canvas
 
-    def overlay_box(self, image: np.ndarray, box: np.ndarray):
-        pt1 = tuple(map(int, box[:2]))
-        pt2 = tuple(map(int, box[:2] + box[2:4]))
+    def overlay_box(self, image: np.ndarray, box: np.ndarray, stride):
+        half_wh = (box[2:4] / 2) * stride
+        pt1 = tuple(map(int, box[:2] * stride - half_wh))
+        pt2 = tuple(map(int, box[:2] * stride + half_wh))
         c = int(box[-1])
         canvas = np.copy(image)
         canvas = cv2.rectangle(canvas, pt1, pt2, self.COLORS[c], thickness=3)
         return canvas
 
-    def overlay_boxes(self, image: np.ndarray, boxes: np.ndarray):
+    def overlay_boxes(self, image: np.ndarray, boxes: np.ndarray, stride: int = 1):
         for box in boxes:
-            image = self.overlay_box(image, box)
+            image = self.overlay_box(image, box, stride)
         return image
 
 
