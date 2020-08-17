@@ -8,7 +8,7 @@ from verres.tf_arch.vision import ObjectDetector
 from verres.artifactory import Artifactory
 
 EPOCHS = 120
-BATCH_SIZE = 2
+BATCH_SIZE = 12
 VIF = 4
 BACKBONE = "MobileNet"
 FEATURE_LAYER_NAMES = ["conv_pw_5_relu"]
