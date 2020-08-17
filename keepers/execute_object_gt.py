@@ -5,14 +5,14 @@ from verres.utils import visualize
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
-        data_json="/data/Datasets/cocodoom/map-train.json",
+        data_json="/data/Datasets/cocodoom/map-full-val.json",
         images_root="/data/Datasets/cocodoom",
         stride=4
     )
 )
 
 vis = visualize.Visualizer(n_classes=loader.num_classes)
-screen = visualize.CV2Screen(FPS=5, scale=4)
+screen = visualize.CV2Screen(FPS=25, scale=4)
 
 for ID in loader.index:
 

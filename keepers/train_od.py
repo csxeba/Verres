@@ -3,7 +3,8 @@ import os
 import tensorflow as tf
 
 from verres.data import cocodoom
-from verres.tf_arch.vision import PanopticSegmentor
+from verres.tf_arch.backbone import ApplicationBackbone, FeatureSpec
+from verres.tf_arch.vision import ObjectDetector
 from verres.artifactory import Artifactory
 from verres.utils import keras_utils
 
@@ -13,6 +14,7 @@ VIF = 4
 BACKBONE = "MobileNet"
 FEATURE_LAYER_NAMES = ["conv_pw_5_relu"]
 FEATURE_STRIDES = [8]
+feature_specs = [FeatureSpec(name, stride) for name, stride in zip(FEATURE_LAYER_NAMES, FEATURE_STRIDES)]
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
@@ -64,14 +66,13 @@ callbacks = [
     tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0)
 ]
 
-backbone = keras_utils.ApplicationCatalogue().make_model(BACKBONE,
-                                                         include_top=False,
-                                                         input_shape=(200, 320, 3),
-                                                         fixed_batch_size=BATCH_SIZE,
-                                                         build_model=False)
-model = PanopticSegmentor(num_classes=loader.num_classes,
-                          backbone=backbone,
-                          feature_layer_names=FEATURE_LAYER_NAMES)
+backbone = ApplicationBackbone(BACKBONE,
+                               feature_specs=feature_specs,
+                               input_shape=(200, 320, 3),
+                               fixed_batch_size=BATCH_SIZE)
+model = ObjectDetector(num_classes=loader.num_classes,
+                       backbone=backbone,
+                       stride=)
 keras_utils.inject_regularizer(model, kernel_regularizer=tf.keras.regularizers.l2(5e-4))
 model.compile(optimizer=tf.keras.optimizers.Adam(2e-4))
 

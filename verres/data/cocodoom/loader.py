@@ -144,21 +144,25 @@ class COCODoomLoader:
             class_idx = ENEMY_TYPES.index(category["name"])
             box = np.array(anno["bbox"]) / self.cfg.stride
             centroid = box[:2] + box[2:] / 2
+
             centroid_floored = np.floor(centroid).astype(int)
             augmented_coords = np.stack([
                 centroid_floored, centroid_floored + _01, centroid_floored + _10, centroid_floored + 1
             ], axis=0)
+
             in_frame = np.all([augmented_coords >= 0, augmented_coords < tensor_shape[::-1][None, :]], axis=(0, 2))
             augmented_coords = augmented_coords[in_frame]
-            locations.append(
-                np.concatenate([
-                    np.full((len(augmented_coords), 1), batch_idx, dtype=augmented_coords.dtype),
-                    augmented_coords,
-                    np.full((len(augmented_coords), 1), class_idx, dtype=augmented_coords.dtype)
-                ], axis=1)
-            )
-            values.append(centroid[None, :] - augmented_coords)
-            bbox.append(np.stack([box[2:]]*4, axis=0))
+            augmented_locations = np.concatenate([
+                np.full((len(augmented_coords), 1), batch_idx, dtype=augmented_coords.dtype),
+                augmented_coords,
+                np.full((len(augmented_coords), 1), class_idx, dtype=augmented_coords.dtype)
+            ], axis=1)
+            augmented_values = centroid[None, :] - augmented_coords
+            augmented_boxes = np.stack([box[2:]]*4, axis=0)[in_frame]
+
+            locations.append(augmented_locations)
+            values.append(augmented_values)
+            bbox.append(augmented_boxes)
 
         self.cache_id = image_id
         self.cache["locations"] = np.concatenate(locations)
