@@ -32,7 +32,7 @@ val_stream = cocodoom.COCODoomSequence(
     stream_config=cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.DETECTION,
                                                 batch_size=BATCH_SIZE,
                                                 shuffle=True,
-                                                min_no_visible_objects=0),
+                                                min_no_visible_objects=2),
     data_loader=cocodoom.COCODoomLoader(
         config=cocodoom.COCODoomLoaderConfig(
             data_json="/data/Datasets/cocodoom/map-val.json",

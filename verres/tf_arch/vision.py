@@ -145,10 +145,10 @@ class ObjectDetector(tf.keras.Model):
         return self._save_and_report_losses(total_loss, hmap_loss, rreg_loss, boxx_loss)
 
     def test_step(self, data):
-        image, hmap_gt, rreg_gt, boxx_gt = data[0]
+        image, hmap_gt, locations, rreg_values, boxx_values = data[0]
         hmap, rreg, boxx = self(image)
         hmap_loss = L.sse(hmap_gt, hmap)
-        rreg_loss = L.sae(rreg_gt, rreg * tf.cast(rreg_gt > 0, tf.float32))
-        bbox_loss = L.sae(boxx_gt, boxx * tf.cast(boxx_gt > 0, tf.float32))
+        rreg_loss = L.sparse_vector_field_sae(rreg_values, rreg, locations)
+        boxx_loss = L.sparse_vector_field_sae(boxx_values, boxx, locations)
 
         return {"HMap/val": hmap_loss, "RReg/val": rreg_loss, "BBox/val": bbox_loss}
