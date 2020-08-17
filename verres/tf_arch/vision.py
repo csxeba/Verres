@@ -151,4 +151,4 @@ class ObjectDetector(tf.keras.Model):
         rreg_loss = L.sparse_vector_field_sae(rreg_values, rreg, locations)
         boxx_loss = L.sparse_vector_field_sae(boxx_values, boxx, locations)
 
-        return {"HMap/val": hmap_loss, "RReg/val": rreg_loss, "BBox/val": bbox_loss}
+        return {"HMap/val": hmap_loss, "RReg/val": rreg_loss, "BBox/val": boxx_loss}
