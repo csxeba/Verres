@@ -59,9 +59,9 @@ def generate_enemy_dataset(root="/data/Datasets/cocodoom"):
             print(" [Verres] - Non-existent annotation file:", file_path)
             continue
         target_file = "enemy-" + file
-        if os.path.exists(target_file):
+        target_path = os.path.join(root, target_file)
+        if os.path.exists(target_path):
             print(" [Verres] - Target file already exists:", target_path)
             continue
-        target_path = os.path.join(root, target_file)
         print(f" [Verres] {file} -> {target_file}")
         convert(file_path, target_path)

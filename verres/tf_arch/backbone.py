@@ -20,7 +20,8 @@ class ApplicationBackbone(tf.keras.Model):
                  name: str,
                  feature_specs: List[FeatureSpec],
                  input_shape=None,
-                 fixed_batch_size=None):
+                 fixed_batch_size=None,
+                 weights=None):
 
         super().__init__()
         base_model = keras_utils.ApplicationCatalogue().make_model(
@@ -28,7 +29,8 @@ class ApplicationBackbone(tf.keras.Model):
             include_top=False,
             input_shape=input_shape,
             fixed_batch_size=fixed_batch_size,
-            build_model=False)
+            build_model=False,
+            weights=weights)
         self.feature_specs = feature_specs
 
         outputs = [base_model.get_layer(spec.layer_name).output for spec in feature_specs]

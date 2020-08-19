@@ -46,7 +46,8 @@ callbacks = [
 backbone = ApplicationBackbone(BACKBONE,
                                feature_specs=feature_specs,
                                input_shape=(200, 320, 3),
-                               fixed_batch_size=None)
+                               fixed_batch_size=None,
+                               weights="imagenet")
 model = ObjectDetector(num_classes=loader.num_classes,
                        backbone=backbone,
                        stride=FEATURE_STRIDES[-1],
