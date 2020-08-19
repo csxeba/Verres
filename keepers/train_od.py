@@ -1,11 +1,12 @@
-import os
-
 import tensorflow as tf
 
 from verres.data import cocodoom
 from verres.tf_arch.backbone import ApplicationBackbone, FeatureSpec
 from verres.tf_arch.vision import ObjectDetector
 from verres.artifactory import Artifactory
+from verres.utils import keras_callbacks as vcb, cocodoom_utils
+
+cocodoom_utils.generate_enemy_dataset()
 
 EPOCHS = 120
 BATCH_SIZE = 12
@@ -28,45 +29,36 @@ streamcfg = cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.DETECTION,
                                           min_no_visible_objects=2)
 stream = cocodoom.COCODoomSequence(streamcfg, loader)
 
-val_stream = cocodoom.COCODoomSequence(
-    stream_config=cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.DETECTION,
-                                                batch_size=BATCH_SIZE,
-                                                shuffle=True,
-                                                min_no_visible_objects=2),
-    data_loader=cocodoom.COCODoomLoader(
-        config=cocodoom.COCODoomLoaderConfig(
-            data_json="/data/Datasets/cocodoom/map-val.json",
-            images_root="/data/Datasets/cocodoom",
-            stride=8,
-        )
-    )
-)
+val_loader = cocodoom.COCODoomLoader(
+    config=cocodoom.COCODoomLoaderConfig(
+        data_json="/data/Datasets/cocodoom/enemy-map-val.json",
+        images_root="/data/Datasets/cocodoom",
+        stride=FEATURE_STRIDES[-1]))
 
-artifactory = Artifactory.get_default(experiment_name="panseg")
+artifactory = Artifactory.get_default(experiment_name="od", add_now=False)
+latest_checkpoint = artifactory.root / "latest.h5"
 
 callbacks = [
-    tf.keras.callbacks.ModelCheckpoint(os.path.join(artifactory.checkpoints, "latest.h5"),
-                                       save_freq=1, save_weights_only=True),
-    tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0)
-]
+    vcb.ObjectMAP(val_loader, artifactory, checkpoint_best=True),
+    tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0),
+    tf.keras.callbacks.ModelCheckpoint(str(latest_checkpoint), save_weights_only=True)]
 
 backbone = ApplicationBackbone(BACKBONE,
                                feature_specs=feature_specs,
                                input_shape=(200, 320, 3),
-                               fixed_batch_size=BATCH_SIZE)
+                               fixed_batch_size=None)
 model = ObjectDetector(num_classes=loader.num_classes,
                        backbone=backbone,
-                       stride=FEATURE_STRIDES[-1])
-
+                       stride=FEATURE_STRIDES[-1],
+                       weights="models/MobileNet-OD.h5")
 # keras_utils.inject_regularizer(model, kernel_regularizer=tf.keras.regularizers.l2(5e-4))
-model.compile(optimizer=tf.keras.optimizers.Adam(2e-4))
+model.compile(optimizer=tf.keras.optimizers.Adam(0))
 
-# for data in stream:
-#     model.train_step(data)
+if latest_checkpoint.exists():
+    print(f" [Verres] - Continuing previous training...")
+    model.load_weights(str(latest_checkpoint))
 
 model.fit(stream,
           epochs=EPOCHS * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
-          validation_data=val_stream,
-          validation_steps=val_stream.steps_per_epoch() // VIF,
           callbacks=callbacks)

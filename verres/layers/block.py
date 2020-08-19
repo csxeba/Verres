@@ -11,11 +11,12 @@ class VRSConvolution(tf.keras.Model):
     def __init__(self,
                  width: int,
                  activation: str = None,
-                 batch_normalize: bool = True):
+                 batch_normalize: bool = True,
+                 kernel_size: int = 3):
 
         super().__init__()
 
-        self.layer_objects = [tfl.Conv2D(width, kernel_size=3, padding="same")]
+        self.layer_objects = [tfl.Conv2D(width, kernel_size=kernel_size, padding="same")]
         if batch_normalize:
             self.layer_objects.append(tfl.BatchNormalization())
         self.layer_objects.append(layer_utils.get_activation(activation, as_layer=True))

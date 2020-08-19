@@ -87,7 +87,9 @@ class ObjectDetector(tf.keras.Model):
     def __init__(self,
                  backbone: tf.keras.Model,
                  num_classes: int,
-                 stride: int):
+                 stride: int,
+                 weights: str = None,
+                 peak_nms: float = 0.1):
 
         super().__init__()
         self.backbone = backbone
@@ -95,29 +97,46 @@ class ObjectDetector(tf.keras.Model):
         self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
         self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "BBox/train"]
         self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
+        self.peak_nms = peak_nms
+        self.stride = stride
+        if weights is not None:
+            self.build((None, stride, stride, 3))
+            self.load_weights(weights)
 
     def call(self, inputs, training=None, mask=None):
         features = self.backbone(inputs)
         hmap, rreg, boxx = self.detector(features)
         return hmap, rreg, boxx
 
-    def detect(self, inputs):
-        hmap, rreg, bbox = self(inputs)
+    def postprocess(self, hmap, rreg, bbox):
+        hmap_max = tf.nn.max_pool2d(hmap, (3, 3), strides=(1, 1), padding="SAME")
 
-        peaks, scores = self.peak_finder(hmap)
+        peak = hmap_max[0] == hmap[0]
+        over_nms = hmap[0] > self.peak_nms
+        peak = tf.logical_and(peak, over_nms)
+        peaks = tf.where(peak)
+        scores = tf.gather_nd(hmap[0], peaks)
 
         refinements = tf.stack([
-            tf.gather(rreg[..., ::2], peaks),
-            tf.gather(rreg[..., 1::2], peaks)], axis=-1)
+            tf.gather_nd(rreg[0, ..., 0::2], peaks),
+            tf.gather_nd(rreg[0, ..., 1::2], peaks)], axis=-1)
 
         box_params = tf.stack([
-            tf.gather(bbox[..., 0], bbox[:, :3]),
-            tf.gather(bbox[..., 1], bbox[:, :3])], axis=-1)
+            tf.gather_nd(bbox[0, ..., 0], peaks[:, :2]),
+            tf.gather_nd(bbox[0, ..., 1], peaks[:, :2])], axis=-1)
 
-        refined_centroids = (peaks + refinements) * self.stride
-        refined_box_params = box_params * self.stride
+        refined_centroids = (tf.cast(peaks[:, :2], tf.float32) + refinements) * self.stride
+        centroids = tf.cast(tf.round(refined_centroids[:, ::-1]), tf.int64)
+        box_params = box_params * self.stride
+        types = peaks[:, 2]
 
-        return refined_centroids, refined_box_params, scores
+        return centroids, box_params, types, scores
+
+    @tf.function
+    def detect(self, inputs):
+        hmap, rreg, bbox = self(inputs)
+        centroids, whs, types, scores = self.postprocess(hmap, rreg, bbox)
+        return centroids, whs, types, scores
 
     def _save_and_report_losses(self, total_loss, hmap_loss, rreg_loss, bbox_loss):
         self.train_metrics["loss/train"].assign_add(total_loss)

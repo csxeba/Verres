@@ -28,7 +28,6 @@ class COCODoomSequence(tf.keras.utils.Sequence):
     @staticmethod
     def _reconfigure_batch(batch: list):
         elements = []
-        # elements = tuple(tf.convert_to_tensor(stack, dtype=tf.float32) for stack in zip(*batch))
         for stack in zip(*batch):
             if stack[0].ndim > 2:
                 elements.append(tf.convert_to_tensor(stack))
@@ -64,6 +63,8 @@ class COCODoomSequence(tf.keras.utils.Sequence):
                 locations, rreg_values = self.loader.get_refinements(ID, i)
                 _, boxx_values = self.loader.get_bbox(ID, i)
                 features += [heatmap, locations, rreg_values, boxx_values]
+            elif self.cfg.task == TASK.INFERENCE:
+                pass
             else:
                 assert False
 
@@ -95,6 +96,3 @@ class COCODoomSequence(tf.keras.utils.Sequence):
         if self._internal_interator is None:
             self._internal_interator = self.stream()
         return next(self._internal_interator)
-
-    def __call__(self, *args, **kwargs):
-        return self.__next__()

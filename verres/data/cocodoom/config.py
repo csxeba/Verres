@@ -3,7 +3,8 @@ class TASK:
     SEMSEG = "semseg"
     PANSEG = "panseg"
     DEPTH = "depth"
-    DETECTION = "det_inf"
+    DETECTION = "detection"
+    INFERENCE = "inference"
 
 
 class COCODoomLoaderConfig:
