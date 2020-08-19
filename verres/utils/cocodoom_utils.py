@@ -32,7 +32,7 @@ def apply_filters(meta_iterator,
     return filter_by_objects(filter_by_path(meta_iterator, config), config, loader)
 
 
-def generate_enemy_dataset(root="/data/Dataset/cocodoom"):
+def generate_enemy_dataset(root="/data/Datasets/cocodoom"):
 
     ENEMY_TYPES = [
         "POSSESSED", "SHOTGUY", "VILE", "UNDEAD", "FATSO", "CHAINGUY", "TROOP", "SERGEANT", "HEAD", "BRUISER",
@@ -56,9 +56,12 @@ def generate_enemy_dataset(root="/data/Dataset/cocodoom"):
     for file in files:
         file_path = os.path.join(root, file)
         if not os.path.exists(file_path):
-            print(" [Verres] - Non-existent annotation file:", file)
+            print(" [Verres] - Non-existent annotation file:", file_path)
             continue
         target_file = "enemy-" + file
+        if os.path.exists(target_file):
+            print(" [Verres] - Target file already exists:", target_path)
+            continue
         target_path = os.path.join(root, target_file)
         print(f" [Verres] {file} -> {target_file}")
         convert(file_path, target_path)

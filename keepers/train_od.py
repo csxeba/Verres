@@ -35,7 +35,7 @@ val_loader = cocodoom.COCODoomLoader(
         images_root="/data/Datasets/cocodoom",
         stride=FEATURE_STRIDES[-1]))
 
-artifactory = Artifactory.get_default(experiment_name="od", add_now=False)
+artifactory = Artifactory(root="/drive/My Drive/artifactory", experiment_name="od", add_now=False)
 latest_checkpoint = artifactory.root / "latest.h5"
 
 callbacks = [
