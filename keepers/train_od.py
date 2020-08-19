@@ -9,7 +9,7 @@ from verres.utils import keras_callbacks as vcb, cocodoom_utils
 cocodoom_utils.generate_enemy_dataset()
 
 EPOCHS = 120
-BATCH_SIZE = 12
+BATCH_SIZE = 32
 VIF = 4
 BACKBONE = "MobileNet"
 FEATURE_LAYER_NAMES = ["conv_pw_5_relu"]
@@ -52,7 +52,7 @@ model = ObjectDetector(num_classes=loader.num_classes,
                        stride=FEATURE_STRIDES[-1],
                        weights="models/MobileNet-OD.h5")
 # keras_utils.inject_regularizer(model, kernel_regularizer=tf.keras.regularizers.l2(5e-4))
-model.compile(optimizer=tf.keras.optimizers.Adam(0))
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 
 if latest_checkpoint.exists():
     print(f" [Verres] - Continuing previous training...")

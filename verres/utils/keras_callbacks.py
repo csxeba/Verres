@@ -30,7 +30,7 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         if self.checkpoint_best:
             if mAP > self.last_map:
                 checkpoint_path = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
-                self.model.save_weights(checkpoint_path)
+                self.model.save_weights(checkpoint_path, overwrite=True)
                 self.last_map = mAP
                 self.last_chkp = checkpoint_path
         logs = logs or {}
