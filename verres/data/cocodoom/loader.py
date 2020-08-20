@@ -1,11 +1,12 @@
 import json
 import os
 from collections import defaultdict
+from typing import Union
 
 import numpy as np
 import cv2
 
-from verres.utils import masking
+from verres.utils import masking, transform
 from .config import COCODoomLoaderConfig
 
 ENEMY_TYPES = [
@@ -15,6 +16,8 @@ ENEMY_TYPES = [
 
 
 class COCODoomLoader:
+
+    IMAGE_SHAPE = (200, 320, 3)
 
     def __init__(self, config: COCODoomLoaderConfig):
 
@@ -33,6 +36,13 @@ class COCODoomLoader:
         self.num_classes = len(ENEMY_TYPES)
         self.cache = {}
         self.cache_id = -1
+        self.model_input_shape = config.input_shape or self.IMAGE_SHAPE
+        self.warper: Union[transform.Warper, None] = None
+        if config.input_shape is not None:
+            self.warper = transform.Warper(original_shape=np.array(self.IMAGE_SHAPE),
+                                           target_shape=config.input_shape)
+        self.model_output_shape = (self.model_input_shape[0] // config.stride,
+                                   self.model_input_shape[1] // config.stride)
 
         print(f" [Verres.COCODoomLoader] - Num images :", len(data["images"]))
         print(f" [Verres.COCODoomLoader] - Num annos  :", len(data["annotations"]))
@@ -66,12 +76,13 @@ class COCODoomLoader:
         image = cv2.imread(image_path)
         if image is None:
             raise RuntimeError(f"No image found @ {image_path}")
+        if self.warper is not None:
+            image = self.warper.warp_image(image)
         return image
 
     def get_panoptic_masks(self, image_id):
-        meta = self.image_meta[image_id]
-        image_shape = [meta["height"], meta["width"]]
-        segmentation_mask = np.zeros(image_shape + [1])
+        image_shape = self.model_input_shape[:2] + (1,)
+        segmentation_mask = np.zeros(image_shape, dtype="float32")
         coord_template = np.stack(
             np.meshgrid(
                 np.arange(image_shape[1]),
@@ -101,9 +112,8 @@ class COCODoomLoader:
         return depth_image
 
     def get_object_heatmap(self, image_id):
-        meta = self.image_meta[image_id]
-        tensor_shape = np.array([meta["height"], meta["width"]]) // self.cfg.stride
-        heatmap = np.zeros(list(tensor_shape) + [self.num_classes], dtype="float32")
+        tensor_shape = np.array(self.model_output_shape + (self.num_classes,))
+        heatmap = np.zeros(tensor_shape, dtype="float32")
 
         hit = 0
         for anno in self.index[image_id]:
@@ -114,8 +124,10 @@ class COCODoomLoader:
             hit = 1
             class_idx = ENEMY_TYPES.index(category["name"])
             box = np.array(anno["bbox"]) / self.cfg.stride
+            if self.warper is not None:
+                box = self.warper.warp_box(box)
             centroid = box[:2] + box[2:] / 2
-            centroid_rounded = np.clip(np.round(centroid).astype(int), [0, 0], tensor_shape[::-1]-1)
+            centroid_rounded = np.clip(np.round(centroid).astype(int), [0, 0], tensor_shape[:2][::-1]-1)
             heatmap[centroid_rounded[1], centroid_rounded[0], class_idx] = 1
 
         if hit:
@@ -129,8 +141,7 @@ class COCODoomLoader:
         if image_id == self.cache_id:
             return
 
-        meta = self.image_meta[image_id]
-        tensor_shape = np.array([meta["height"], meta["width"]]) // self.cfg.stride
+        tensor_shape = np.array(self.model_output_shape)
         _01 = [0, 1]
         _10 = [1, 0]
         locations = []
@@ -143,6 +154,8 @@ class COCODoomLoader:
 
             class_idx = ENEMY_TYPES.index(category["name"])
             box = np.array(anno["bbox"]) / self.cfg.stride
+            if self.warper is not None:
+                box = self.warper.warp_box(box)
             centroid = box[:2] + box[2:] / 2
 
             centroid_floored = np.floor(centroid).astype(int)
@@ -154,7 +167,7 @@ class COCODoomLoader:
             augmented_coords = augmented_coords[in_frame]
             augmented_locations = np.concatenate([
                 np.full((len(augmented_coords), 1), batch_idx, dtype=augmented_coords.dtype),
-                augmented_coords[:, ::-1],
+                augmented_coords,
                 np.full((len(augmented_coords), 1), class_idx, dtype=augmented_coords.dtype)
             ], axis=1)
             augmented_values = centroid[None, :] - augmented_coords

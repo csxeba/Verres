@@ -29,7 +29,7 @@ class Head(tf.keras.Model):
         super().__init__()
         self.conv = tfl.Conv2D(width, kernel_size=3, padding="same")
         self.act = layer_utils.get_activation(activation, as_layer=True)
-        self.out = tfl.Conv2D(num_outputs, kernel_size=1)
+        self.out = tfl.Conv2D(num_outputs, kernel_size=3, padding="same")
 
     @tf.function
     def call(self, inputs, training=None, mask=None):
@@ -80,19 +80,19 @@ class OD(tf.keras.Model):
 
     def __init__(self, num_classes: int, stride: int):
         super().__init__()
-        self.body_centroid = StageBody(width=128, num_blocks=5, skip_connect=True)
-        self.body_box = StageBody(width=128, num_blocks=5, skip_connect=True)
-        self.hmap_head = Head(128, num_outputs=num_classes, activation="leakyrelu")
-        self.rreg_head = Head(128, num_outputs=num_classes*2, activation="leakyrelu")
-        self.boxx_head = Head(128, num_outputs=num_classes*2, activation="leakyrelu")
+        self.body_centroid = StageBody(width=32, num_blocks=5, skip_connect=True)
+        self.body_box = StageBody(width=32, num_blocks=5, skip_connect=True)
+        self.hmap_head = Head(32, num_outputs=num_classes, activation="leakyrelu")
+        self.rreg_head = Head(32, num_outputs=num_classes*2, activation="leakyrelu")
+        self.boxx_head = Head(32, num_outputs=num_classes*2, activation="leakyrelu")
         self.stride = stride
 
     def call(self, inputs, training=None, mask=None):
-        features = inputs[0]
-        x = self.body_centroid(features)
+        centroid_features, box_features = inputs
+        x = self.body_centroid(centroid_features)
         hmap = self.hmap_head(x)
         rreg = self.rreg_head(x)
-        x = tf.concat([features, hmap, rreg], axis=-1)
+        x = tf.concat([box_features, hmap, rreg], axis=-1)
         x = self.body_box(x)
         boxx = self.boxx_head(x)
         return hmap, rreg, boxx

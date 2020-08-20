@@ -1,3 +1,6 @@
+from typing import Tuple
+
+
 class TASK:
 
     SEMSEG = "semseg"
@@ -10,24 +13,26 @@ class TASK:
 class COCODoomLoaderConfig:
 
     def __init__(self,
-                 data_json,
-                 images_root,
-                 stride=None):
+                 data_json: str,
+                 images_root: str,
+                 stride: int = None,
+                 input_shape: Tuple[int, int, int] = None):
 
         self.data_json = data_json
         self.images_root = images_root
         self.stride = stride
+        self.input_shape = input_shape
 
 
 class COCODoomStreamConfig:
 
     def __init__(self,
-                 task,
-                 batch_size=10,
-                 shuffle=True,
-                 run_number=None,
-                 level_number=None,
-                 min_no_visible_objects=0):
+                 task: str,
+                 batch_size: int = 10,
+                 shuffle: bool = True,
+                 run_number: int = None,
+                 level_number: int = None,
+                 min_no_visible_objects: int = 0):
 
         self.task = task
         self.batch_size = batch_size
@@ -35,4 +40,3 @@ class COCODoomStreamConfig:
         self.run_number = run_number
         self.shuffle = shuffle
         self.min_no_visible_objects = min_no_visible_objects
-

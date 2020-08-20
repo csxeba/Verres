@@ -3,16 +3,19 @@ import numpy as np
 from verres.data import cocodoom
 from verres.utils import visualize
 
+STRIDE = 8
+
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
         data_json="/data/Datasets/cocodoom/map-full-val.json",
         images_root="/data/Datasets/cocodoom",
-        stride=4
+        stride=STRIDE,
+        input_shape=(224, 224, 3)
     )
 )
 
 vis = visualize.Visualizer(n_classes=loader.num_classes)
-screen = visualize.CV2Screen(fps=25, scale=4)
+screen = visualize.CV2Screen(fps=25, scale=2)
 
 for ID in loader.index:
 
@@ -23,7 +26,7 @@ for ID in loader.index:
     print(img.shape)
     locations, bboxes = loader.get_bbox(ID, batch_idx=0)
 
-    boxes = np.concatenate([locations[:, 1:3] * 4, bboxes * 4, locations[..., -1:]], axis=1)
+    boxes = np.concatenate([locations[:, 1:3] * STRIDE, bboxes * STRIDE, locations[..., -1:]], axis=1)
     boxes = boxes[::4]
 
     canvas = vis.overlay_boxes(img, boxes.astype(int))

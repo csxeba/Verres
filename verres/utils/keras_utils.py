@@ -65,6 +65,7 @@ class ApplicationCatalogue:
 
         model = getattr(tf.keras.applications, model_name)(include_top=include_top,
                                                            weights=weights,
+                                                           input_shape=input_shape,
                                                            input_tensor=input_tensor)
         if build_model:
             input_tensor = tf.zeros((1,) + input_shape, dtype=tf.float32)

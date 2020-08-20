@@ -2,7 +2,7 @@ from typing import List
 
 import tensorflow as tf
 
-from . import detector
+from . import detector, backbone as _backbone
 from ..operation import losses as L
 
 
@@ -85,7 +85,7 @@ class PanopticSegmentor(tf.keras.Model):
 class ObjectDetector(tf.keras.Model):
 
     def __init__(self,
-                 backbone: tf.keras.Model,
+                 backbone: _backbone.ApplicationBackbone,
                  num_classes: int,
                  stride: int,
                  weights: str = None,
@@ -93,6 +93,11 @@ class ObjectDetector(tf.keras.Model):
 
         super().__init__()
         self.backbone = backbone
+        if len(backbone.feature_specs) != 2:
+            print(" [Verres.OD] - Single backbone mode is active.")
+            self.single_backbone_mode = True
+        else:
+            self.single_backbone_mode = False
         self.detector = detector.OD(num_classes, stride)
         self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
         self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "BBox/train"]
@@ -105,6 +110,8 @@ class ObjectDetector(tf.keras.Model):
 
     def call(self, inputs, training=None, mask=None):
         features = self.backbone(inputs)
+        if self.single_backbone_mode:
+            features = [features[0], features[0]]
         hmap, rreg, boxx = self.detector(features)
         return hmap, rreg, boxx
 
@@ -150,6 +157,7 @@ class ObjectDetector(tf.keras.Model):
     @tf.function(experimental_relax_shapes=True)
     def train_step(self, data):
         image, hmap_gt, locations, rreg_values, boxx_values = data[0]
+        locations = tf.concat([locations[:, 0:1], locations[:, 2:3], locations[:, 1:2], locations[:, 3:4]], axis=1)
         with tf.GradientTape() as tape:
             hmap, rreg, boxx = self(image)
 
@@ -157,7 +165,7 @@ class ObjectDetector(tf.keras.Model):
             rreg_loss = L.sparse_vector_field_sae(rreg_values, rreg, locations)
             boxx_loss = L.sparse_vector_field_sae(boxx_values, boxx, locations)
 
-            total_loss = hmap_loss + rreg_loss * 10 + boxx_loss
+            total_loss = hmap_loss + rreg_loss + boxx_loss + hmap_loss * rreg_loss * boxx_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
