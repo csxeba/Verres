@@ -75,22 +75,22 @@ class ApplicationCatalogue:
 
 
 def measure_forward_fps(model: tf.keras.Model,
-                        input_tensor_shape: Tuple[int, int, int] = None,
+                        input_tensor: tf.Tensor,
                         repeats: int = 100,
                         verbose: int = 1):
 
-    input_tensor = tf.zeros((1,) + input_tensor_shape, dtype=tf.float32)
-    input_iterator = (input_tensor for _ in range(repeats+1))
-
     if verbose:
         print(f" [*] Measuring {model.__class__.__name__} FPS...")
-        input_iterator = tqdm.tqdm(input_iterator, initial=1, total=repeats, file=sys.stdout)
 
     times = []
-    for tensor in input_iterator:
+    for i in range(repeats+1):
         start = time.time()
-        model(tensor)
+        model(input_tensor)
         times.append(time.time() - start)
+        if verbose:
+            print(f"\rProgress: {(i + 1) / 101:>7.2%}", end="")
+    if verbose:
+        print()
 
     mean_time = tf.reduce_mean(times[1:]).numpy()
     if verbose:
@@ -102,27 +102,19 @@ def measure_forward_fps(model: tf.keras.Model,
 
 
 def measure_backwards_fps(model: tf.keras.Model,
-                          input_tensor_shape: Tuple[int, int, int],
-                          output_tensor_shape: Tuple[int],
-                          batch_size: int = 1,
+                          data: Tuple[Tuple[tf.Tensor]],
                           repeats: int = 100,
                           verbose: int = 1):
 
-    model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.),
-                  loss=lambda y_true, y_pred: tf.reduce_sum(y_pred))
-
-    input_tensor = tf.zeros((batch_size,) + input_tensor_shape, dtype=tf.float32)
-    gt_tensor = tf.zeros((batch_size,) + output_tensor_shape, dtype=tf.float32)
-    tensor_stream = ((input_tensor, gt_tensor) for _ in range(repeats+1))
-
-    if verbose:
-        tensor_stream = tqdm.tqdm(tensor_stream, initial=1, total=repeats, file=sys.stdout)
-
     times = []
-    for x, y in tensor_stream:
+    for i in range(repeats+1):
         start = time.time()
-        model.train_on_batch(x, y)
+        model.train_step(data)
         times.append(time.time() - start)
+        if verbose:
+            print(f"\rProgress: {(i + 1) / 101:>7.2%}", end="")
+    if verbose:
+        print()
 
     mean_time = tf.reduce_mean(times[1:]).numpy()
     if verbose:

@@ -34,7 +34,7 @@ class COCODoomSequence(tf.keras.utils.Sequence):
             else:
                 elements.append(tf.concat(stack, axis=0))
 
-        return elements,
+        return tuple(elements),
 
     def make_batch(self, IDs=None):
 
@@ -45,7 +45,7 @@ class COCODoomSequence(tf.keras.utils.Sequence):
 
         for i, ID in enumerate(IDs):
 
-            features = [self.loader.get_image(ID).astype("float32") / 127.5 - 1.]
+            features = [self.loader.get_image(ID).astype("float32") / 255.]
 
             if self.cfg.task == TASK.SEMSEG:
                 y = self.loader.get_panoptic_masks(ID)

@@ -9,7 +9,7 @@ cocodoom_utils.generate_enemy_dataset()
 
 EPOCHS = 120
 BATCH_SIZE = 10
-VIF = 2
+VIF = 1
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
@@ -24,6 +24,19 @@ streamcfg = cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.DETECTION,
                                           shuffle=True,
                                           min_no_visible_objects=2)
 stream = cocodoom.COCODoomSequence(streamcfg, loader)
+
+output_types = (tf.float32, tf.float32, tf.int64, tf.float32, tf.float32),
+output_shapes = ((None, 200, 320, 3),
+                 (None, 25, 40, loader.num_classes),
+                 (None, 4),
+                 (None, 2),
+                 (None, 2)),
+
+dataset = tf.data.Dataset.from_generator(
+    lambda: stream,
+    output_types=output_types,
+    output_shapes=output_shapes
+)
 
 val_loader = cocodoom.COCODoomLoader(
     config=cocodoom.COCODoomLoaderConfig(
@@ -50,7 +63,7 @@ model = vision.ObjectDetector(num_classes=loader.num_classes,
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 model.train_step(next(stream))
 
-model.fit(stream,
+model.fit(dataset.prefetch(10),
           epochs=EPOCHS * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
           callbacks=callbacks)
