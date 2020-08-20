@@ -10,37 +10,47 @@ from pycocotools.cocoeval import COCOeval
 
 from .loader import COCODoomLoader, ENEMY_TYPES
 import verres as vrs
+from verres.utils import profiling
 
 
 def run(loader: COCODoomLoader, model, detection_file="default", verbose=1):
     detections = []
     category_index = {cat["name"]: cat for cat in loader.categories.values()}
 
-    if verbose:
-        print()
-        iter_me = tqdm.tqdm(loader.image_meta.items(),
-                            desc=" [Verres] - COCO eval progress",
-                            total=len(loader.image_meta),
-                            initial=1,
-                            file=sys.stdout)
-    else:
-        iter_me = loader.image_meta.items()
+    data_time = []
+    model_time = []
+    postproc_time = []
+    timer = profiling.Timer()
+    for i, (ID, meta) in enumerate(loader.image_meta.items(), start=1):
 
-    for i, (ID, meta) in enumerate(iter_me, start=1):
-        image = loader.get_image(ID)
-        image = tf.convert_to_tensor(image, dtype=tf.float32) / 255.
-        detection = model.detect(image[None, ...])
-        for centroid, wh, type, score in zip(*detection):
-            x0y0 = centroid.numpy() - wh.numpy() / 2.
-            bbox = list(map(float, list(x0y0) + list(wh)))
-            type_name = ENEMY_TYPES[int(type)]
-            category = category_index.get(type_name, None)
-            if category is None:
-                continue
-            detections.append({"bbox": bbox,
-                               "category_id": category["id"],
-                               "image_id": meta["id"],
-                               "score": float(score)})
+        with timer:
+            image = loader.get_image(ID)
+            image = tf.convert_to_tensor(image, dtype=tf.float32) / 255.
+        data_time.append(timer.result)
+        with timer:
+            detection = model.detect(image[None, ...])
+            detection = tuple(map(lambda t: t[-128:].numpy(), detection))
+        model_time.append(timer.result)
+
+        with timer:
+            for centroid, wh, type, score in zip(*detection):
+                x0y0 = centroid - wh / 2.
+                bbox = list(map(float, list(x0y0) + list(wh)))
+                type_name = ENEMY_TYPES[int(type)]
+                category = category_index.get(type_name, None)
+                if category is None:
+                    continue
+                detections.append({"bbox": bbox,
+                                   "category_id": category["id"],
+                                   "image_id": meta["id"],
+                                   "score": float(score)})
+        postproc_time.append(timer.result)
+        print("\r [Verres] - COCO eval "
+              f"P: {i/len(loader.image_meta):>7.2%} "
+              f"DTime: {np.mean(data_time[-10:]):.4f} "
+              f"MTime: {np.mean(model_time[-10:]):.4f} "
+              f"PTime: {np.mean(postproc_time[-10:]):.4f}", end="")
+    print()
 
     if len(detections) == 0:
         print(" [Verres] - No detections were generated.")

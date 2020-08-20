@@ -27,7 +27,6 @@ backbone = ApplicationBackbone(BACKBONE,
                                fixed_batch_size=BATCH_SIZE)
 model = ObjectDetector(num_classes=loader.num_classes,
                        backbone=backbone,
-                       stride=FEATURE_STRIDES[-1],
-                       weights="models/MobileNet-OD.h5")
+                       stride=FEATURE_STRIDES[-1])
 
 evaluation.run(loader, model, detection_file="MobileNet-OD-detections.json")
