@@ -27,7 +27,7 @@ class Artifactory(Artifactorium):
         self.register_path("detections")
         self.register_path("logfile_path", "training_logs.csv", is_file=True)
 
-        print(f"[Artifactory] - Root set to {self.root}")
+        print(f" [Verres.Artifactory] - Root set to {self.root}")
 
         if self.__class__.default_instance is None:
             self.__class__.default_instance = self

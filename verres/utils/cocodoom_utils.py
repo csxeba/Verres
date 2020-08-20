@@ -1,9 +1,26 @@
-import json
 import os
-
-import cv2
-
+import json
 from verres.data import cocodoom
+
+
+def fetch(to_root: str = "/data/Datasets", full=False):
+    from urllib import request
+    import tarfile
+
+    URL = "http://www.robots.ox.ac.uk/~vgg/share/cocodoom-v1.0.tar.gz"
+    if full:
+        URL = "http://www.robots.ox.ac.uk/~vgg/share/cocodoom-full-v1.0.tar.gz"
+
+    os.makedirs(to_root, exist_ok=True)
+    filename = os.path.split(URL)[-1]
+    output_path = os.path.join(to_root, filename)
+    request.urlretrieve(URL, output_path)
+
+    cwd = os.getcwd()
+
+    os.chdir(to_root)
+    tarfile.open(output_path).extractall()
+    os.chdir(cwd)
 
 
 def filter_by_path(meta_iterator, config: cocodoom.COCODoomStreamConfig):
