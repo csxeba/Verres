@@ -13,7 +13,7 @@ class StageBody(tf.keras.Model):
                                                  activation="leakyrelu") for _ in range(num_blocks)]
         self.skip_connect = skip_connect
 
-    @tf.function
+    # @tf.function
     def call(self, inputs, training=None, mask=None):
         x = inputs
         for layer in self.layer_objects:
@@ -88,10 +88,11 @@ class OD(tf.keras.Model):
         self.stride = stride
 
     def call(self, inputs, training=None, mask=None):
-        x = self.body_centroid(inputs)
+        features = inputs[0]
+        x = self.body_centroid(features)
         hmap = self.hmap_head(x)
         rreg = self.rreg_head(x)
-        x = tf.concat([inputs, hmap, rreg], axis=-1)
+        x = tf.concat([features, hmap, rreg], axis=-1)
         x = self.body_box(x)
         boxx = self.boxx_head(x)
         return hmap, rreg, boxx

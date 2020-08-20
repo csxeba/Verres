@@ -100,7 +100,7 @@ class ObjectDetector(tf.keras.Model):
         self.peak_nms = peak_nms
         self.stride = stride
         if weights is not None:
-            self.build((None, stride, stride, 3))
+            self.build((None, None, None, 3))
             self.load_weights(weights)
 
     def call(self, inputs, training=None, mask=None):
@@ -135,6 +135,7 @@ class ObjectDetector(tf.keras.Model):
     @tf.function
     def detect(self, inputs):
         hmap, rreg, bbox = self(inputs)
+        hmap = tf.nn.sigmoid(hmap)
         centroids, whs, types, scores = self.postprocess(hmap, rreg, bbox)
         return centroids, whs, types, scores
 

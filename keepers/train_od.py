@@ -1,20 +1,21 @@
 import tensorflow as tf
 
 from verres.data import cocodoom
-from verres.tf_arch.backbone import ApplicationBackbone, FeatureSpec
-from verres.tf_arch.vision import ObjectDetector
+from verres.tf_arch import backbone, vision
 from verres.artifactory import Artifactory
 from verres.utils import keras_callbacks as vcb, cocodoom_utils
 
 cocodoom_utils.generate_enemy_dataset()
 
 EPOCHS = 120
-BATCH_SIZE = 32
-VIF = 4
+BATCH_SIZE = 10
+VIF = 2
 BACKBONE = "MobileNet"
 FEATURE_LAYER_NAMES = ["conv_pw_5_relu"]
 FEATURE_STRIDES = [8]
-feature_specs = [FeatureSpec(name, stride) for name, stride in zip(FEATURE_LAYER_NAMES, FEATURE_STRIDES)]
+BACKBONE_WEIGHTS = "imagenet"
+feature_specs = [backbone.FeatureSpec(name, stride)
+                 for name, stride in zip(FEATURE_LAYER_NAMES, FEATURE_STRIDES)]
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
@@ -35,7 +36,8 @@ val_loader = cocodoom.COCODoomLoader(
         images_root="/data/Datasets/cocodoom",
         stride=FEATURE_STRIDES[-1]))
 
-artifactory = Artifactory(root="/drive/My Drive/artifactory", experiment_name="od", add_now=False)
+# artifactory = Artifactory(root="/drive/My Drive/artifactory", experiment_name="od", add_now=False)
+artifactory = Artifactory.get_default(experiment_name="od", add_now=False)
 latest_checkpoint = artifactory.root / "latest.h5"
 
 callbacks = [
@@ -43,23 +45,22 @@ callbacks = [
     tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0),
     tf.keras.callbacks.ModelCheckpoint(str(latest_checkpoint), save_weights_only=True)]
 
-backbone = ApplicationBackbone(BACKBONE,
-                               feature_specs=feature_specs,
-                               input_shape=(200, 320, 3),
-                               fixed_batch_size=None,
-                               weights="imagenet")
-model = ObjectDetector(num_classes=loader.num_classes,
-                       backbone=backbone,
-                       stride=FEATURE_STRIDES[-1],
-                       weights="models/MobileNet-OD.h5")
+backbone = backbone.SideTunedBackbone(BACKBONE,
+                                      feature_specs=feature_specs,
+                                      input_shape=(None, None, 3),
+                                      fixed_batch_size=None,
+                                      weights=BACKBONE_WEIGHTS)
+
+model = vision.ObjectDetector(num_classes=loader.num_classes,
+                              backbone=backbone,
+                              stride=FEATURE_STRIDES[-1])
 # keras_utils.inject_regularizer(model, kernel_regularizer=tf.keras.regularizers.l2(5e-4))
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
-
-if latest_checkpoint.exists():
-    print(f" [Verres] - Continuing previous training...")
-    model.load_weights(str(latest_checkpoint))
+model.train_step(next(stream))
 
 model.fit(stream,
           epochs=EPOCHS * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
-          callbacks=callbacks)
+          callbacks=callbacks,
+          workers=4,
+          use_multiprocessing=True)

@@ -12,16 +12,17 @@ class VRSConvolution(tf.keras.Model):
                  width: int,
                  activation: str = None,
                  batch_normalize: bool = True,
-                 kernel_size: int = 3):
+                 kernel_size: int = 3,
+                 initializer: str = "he_uniform"):
 
         super().__init__()
 
-        self.layer_objects = [tfl.Conv2D(width, kernel_size=kernel_size, padding="same")]
+        self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer)]
         if batch_normalize:
             self.layer_objects.append(tfl.BatchNormalization())
         self.layer_objects.append(layer_utils.get_activation(activation, as_layer=True))
 
-    @tf.function(experimental_relax_shapes=True)
+    # @tf.function(experimental_relax_shapes=True)
     def call(self, x, training=None, mask=None):
         for layer in self.layer_objects:
             x = layer(x)
@@ -35,7 +36,7 @@ class VRSConvBlock(tf.keras.Model):
         self.layer_objects = [VRSConvolution(width, activation, batch_normalize) for _ in range(depth)]
         self.skip_connect = skip_connect
 
-    @tf.function(experimental_relax_shapes=True)
+    # @tf.function(experimental_relax_shapes=True)
     def call(self, inputs, training=None, mask=None):
         x = inputs
         for layer in self.layer_objects:
