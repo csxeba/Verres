@@ -165,7 +165,7 @@ class ObjectDetector(tf.keras.Model):
             rreg_loss = L.sparse_vector_field_sae(rreg_values, rreg, locations)
             boxx_loss = L.sparse_vector_field_sae(boxx_values, boxx, locations)
 
-            total_loss = hmap_loss + rreg_loss + boxx_loss + hmap_loss * rreg_loss * boxx_loss
+            total_loss = hmap_loss + rreg_loss * 10 + boxx_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
