@@ -30,4 +30,4 @@ for ID in loader.index:
     boxes = boxes[::4]
 
     canvas = vis.overlay_boxes(img, boxes.astype(int))
-    screen.blit(canvas)
+    screen.write(canvas)

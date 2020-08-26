@@ -55,15 +55,15 @@ callbacks = [
     tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0),
     tf.keras.callbacks.LambdaCallback(on_epoch_end=lambda *args, **kwargs: model.reset_metrics())]
 
-backbone = vrsbackbone.SmallFCNN(width_base=16)
+feature_specs = [vrsbackbone.FeatureSpec("conv_pw_5_relu", working_stride=8)]
+backbone = vrsbackbone.ApplicationBackbone("MobileNet", feature_specs, weights="ImageNet")
 
 model = vision.ObjectDetector(num_classes=loader.num_classes,
                               backbone=backbone,
                               stride=8)
 
-model.compile(optimizer=tf.keras.optimizers.Adam(3e-4))
+model.compile(optimizer=tf.keras.optimizers.Adam(2e-4))
 model.train_step(next(stream))
-
 
 model.fit(dataset.prefetch(10),
           epochs=EPOCHS * VIF,

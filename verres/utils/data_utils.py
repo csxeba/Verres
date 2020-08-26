@@ -1,5 +1,8 @@
 from collections import defaultdict
 
+import numpy as np
+import cv2
+
 
 def ignore_categories(data, frequency_threshold=0.01, ignored_ids=None, ignored_names=()):
     category_index = {cat["id"]: cat for cat in data["categories"]}

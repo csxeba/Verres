@@ -70,7 +70,7 @@ class COCODoomLoader:
     def N(self):
         return len(self.index)
 
-    def get_image(self, image_id):
+    def get_image(self, image_id, preprocess=False):
         meta = self.image_meta[image_id]
         image_path = os.path.join(self.cfg.images_root, meta["file_name"])
         image = cv2.imread(image_path)
@@ -78,6 +78,8 @@ class COCODoomLoader:
             raise RuntimeError(f"No image found @ {image_path}")
         if self.warper is not None:
             image = self.warper.warp_image(image)
+        if preprocess:
+            image = np.float32(image / 255.)
         return image
 
     def get_panoptic_masks(self, image_id):

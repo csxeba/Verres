@@ -2,11 +2,11 @@ from typing import List
 
 import tensorflow as tf
 
-from . import FeatureSpec
+from . import FeatureSpec, VRSBackbone
 from verres.utils import keras_utils
 
 
-class ApplicationBackbone(tf.keras.Model):
+class ApplicationBackbone(VRSBackbone):
 
     def __init__(self,
                  name: str,
@@ -15,7 +15,8 @@ class ApplicationBackbone(tf.keras.Model):
                  fixed_batch_size=None,
                  weights=None):
 
-        super().__init__()
+        super().__init__(feature_specs)
+
         base_model = keras_utils.ApplicationCatalogue().make_model(
             name,
             include_top=False,
@@ -24,7 +25,6 @@ class ApplicationBackbone(tf.keras.Model):
             build_model=False,
             weights=weights)
 
-        self.feature_specs: List[FeatureSpec] = feature_specs
         outputs = [base_model.get_layer(spec.layer_name).output for spec in feature_specs]
         self.wrapped_model = tf.keras.Model(inputs=base_model.input, outputs=outputs)
         for spec, shape in zip(self.feature_specs, self.get_output_shapes()):
@@ -50,5 +50,3 @@ class ApplicationBackbone(tf.keras.Model):
         if len(self.feature_specs) == 1:
             result = [result]
         return result
-
-

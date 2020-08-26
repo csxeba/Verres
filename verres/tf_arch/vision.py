@@ -64,28 +64,11 @@ class PanopticSegmentor(tf.keras.Model):
 
         return self._save_and_report_losses(total_loss, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc)
 
-    @tf.function
-    def test_step(self, data):
-        img, hmap_gt, rreg_gt, iseg_gt, sseg_gt = data[0]
-        rreg_mask = tf.cast(rreg_gt > 0, tf.float32)
-        iseg_mask = tf.cast(iseg_gt > 0, tf.float32)
-
-        hmap, rreg, iseg, sseg = self(img)
-        hmap_loss = L.mse(hmap_gt, hmap)
-        rreg_loss = L.mae(rreg_gt, rreg * rreg_mask)
-        iseg_loss = L.mae(iseg_gt, iseg * iseg_mask)
-        sseg_loss = L.mean_of_cxent_sparse_from_logits(sseg_gt, sseg)
-
-        acc = tf.reduce_mean(tf.keras.metrics.sparse_categorical_accuracy(sseg_gt, sseg))
-
-        return {"HMap/val": hmap_loss, "RReg/val": rreg_loss, "ISeg/val": iseg_loss,
-                "SSeg/val": sseg_loss, "Acc/val": acc}
-
 
 class ObjectDetector(tf.keras.Model):
 
     def __init__(self,
-                 backbone: _backbone.ApplicationBackbone,
+                 backbone: _backbone.VRSBackbone,
                  num_classes: int,
                  stride: int,
                  weights: str = None,
@@ -108,6 +91,11 @@ class ObjectDetector(tf.keras.Model):
             self.build((None, None, None, 3))
             self.load_weights(weights)
 
+    def reset_metrics(self):
+        for metric in self.train_metrics.values():
+            metric.assign(0.)
+        self.train_steps.assign(0)
+
     def call(self, inputs, training=None, mask=None):
         features = self.backbone(inputs)
         if self.single_backbone_mode:
@@ -125,8 +113,8 @@ class ObjectDetector(tf.keras.Model):
         scores = tf.gather_nd(hmap[0], peaks)
 
         refinements = tf.stack([
-            tf.gather_nd(rreg[0, ..., 0::2], peaks),
-            tf.gather_nd(rreg[0, ..., 1::2], peaks)], axis=-1)
+            tf.gather_nd(rreg[0, ..., 1::2], peaks),
+            tf.gather_nd(rreg[0, ..., 0::2], peaks)], axis=-1)
 
         box_params = tf.stack([
             tf.gather_nd(bbox[0, ..., 0], peaks[:, :2]),
@@ -142,7 +130,6 @@ class ObjectDetector(tf.keras.Model):
     @tf.function
     def detect(self, inputs):
         hmap, rreg, bbox = self(inputs)
-        hmap = tf.nn.sigmoid(hmap)
         centroids, whs, types, scores = self.postprocess(hmap, rreg, bbox)
         return centroids, whs, types, scores
 

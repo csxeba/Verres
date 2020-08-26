@@ -18,3 +18,9 @@ class Warper:
 
     def warp_image(self, image):
         return cv2.resize(image, (0, 0), fx=float(self.scales[0]), fy=float(self.scales[1]))
+
+
+def load_and_preprocess_image(path):
+    img = cv2.imread(path)
+    img = img.astype("float32") / np.float32(255.)
+    return img

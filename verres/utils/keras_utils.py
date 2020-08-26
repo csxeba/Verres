@@ -1,10 +1,8 @@
 import os
-import sys
 import time
 from typing import Tuple, List, Union
 
 import tensorflow as tf
-import tqdm
 
 
 def get_default_keras_callbacks(artifactory, checkpoint_template=None):

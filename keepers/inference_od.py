@@ -1,32 +1,33 @@
-from typing import List
-
-import tqdm
+import pathlib
 
 from verres.data import cocodoom
-from verres.tf_arch.backbone import ApplicationBackbone, FeatureSpec
-from verres.tf_arch.vision import ObjectDetector
-from verres.data.cocodoom import evaluation
+from verres.tf_arch import backbone as vrsbackbone, vision
+from verres.data.cocodoom import inference, evaluation
 
-BATCH_SIZE = 1
-BACKBONE = "MobileNet"
-FEATURE_LAYER_NAMES: List[str] = ["conv_pw_5_relu"]
-FEATURE_STRIDES: List[int] = [8]
-feature_specs = [FeatureSpec(name, stride) for name, stride in zip(FEATURE_LAYER_NAMES, FEATURE_STRIDES)]
+p: pathlib.Path
+WEIGHTS = str(sorted(pathlib.Path("artifactory/od_sched/checkpoints").glob("*"),
+                     key=lambda p: int(p.parts[-1].split("_")[2]))[-1])
+print(" [Verres] - Weights will be loaded from", WEIGHTS)
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
         data_json="/data/Datasets/cocodoom/enemy-map-val.json",
         images_root="/data/Datasets/cocodoom",
-        stride=FEATURE_STRIDES[-1]
+        stride=8
     )
 )
 
-backbone = ApplicationBackbone(BACKBONE,
-                               feature_specs=feature_specs,
-                               input_shape=(None, None, 3),
-                               fixed_batch_size=BATCH_SIZE)
-model = ObjectDetector(num_classes=loader.num_classes,
-                       backbone=backbone,
-                       stride=FEATURE_STRIDES[-1])
+backbone = vrsbackbone.SmallFCNN(width_base=16)
 
-evaluation.run(loader, model, detection_file="MobileNet-OD-detections.json")
+model = vision.ObjectDetector(num_classes=loader.num_classes,
+                              backbone=backbone,
+                              stride=8,
+                              weights=WEIGHTS,
+                              peak_nms=0.3)
+
+# inference.run_od(loader, model, mode=inference.Mode.DETECTION, to_screen=False,
+#                  output_file="MicroNet-COCODoom-OD-sched.avi", stop_after=30*120)
+
+# inference.run_od(loader, model, mode=inference.Mode.DETECTION, to_screen=True)
+
+evaluation.run(loader, model, detection_file="MicroNet-COCODoom-OD-sched.json")
