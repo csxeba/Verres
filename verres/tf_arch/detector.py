@@ -25,11 +25,11 @@ class StageBody(tf.keras.Model):
 
 class Head(tf.keras.Model):
 
-    def __init__(self, width: int, num_outputs: int, activation: str = "leakyrelu"):
+    def __init__(self, width: int, num_outputs: int, activation: str = "leakyrelu", output_init=None):
         super().__init__()
         self.conv = tfl.Conv2D(width, kernel_size=3, padding="same")
         self.act = layer_utils.get_activation(activation, as_layer=True)
-        self.out = tfl.Conv2D(num_outputs, kernel_size=3, padding="same")
+        self.out = tfl.Conv2D(num_outputs, kernel_size=3, padding="same", kernel_initializer=output_init)
 
     @tf.function
     def call(self, inputs, training=None, mask=None):

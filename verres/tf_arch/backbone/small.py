@@ -1,5 +1,3 @@
-from typing import Union, Literal
-
 from tensorflow.keras import layers as tfl
 
 from . import FeatureSpec, VRSBackbone
@@ -9,7 +7,7 @@ class SmallFCNN(VRSBackbone):
 
     def __init__(self,
                  width_base: int = 16,
-                 stride: Union[Literal[4], Literal[8]] = 8):
+                 stride: int = 8):
 
         feature_specs = [{4: FeatureSpec("block3_conv2", working_stride=4),
                           8: FeatureSpec("block4_conv1", working_stride=8)}[stride]]

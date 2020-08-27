@@ -46,7 +46,7 @@ val_loader = cocodoom.COCODoomLoader(
         input_shape=None))
 
 # artifactory = Artifactory(root="/drive/My Drive/artifactory", experiment_name="od", add_now=False)
-artifactory = Artifactory.get_default(experiment_name="od_sched", add_now=False)
+artifactory = Artifactory.get_default(experiment_name="mobilenet_od", add_now=False)
 latest_checkpoint = artifactory.root / "latest.h5"
 
 callbacks = [
@@ -56,7 +56,7 @@ callbacks = [
     tf.keras.callbacks.LambdaCallback(on_epoch_end=lambda *args, **kwargs: model.reset_metrics())]
 
 feature_specs = [vrsbackbone.FeatureSpec("conv_pw_5_relu", working_stride=8)]
-backbone = vrsbackbone.ApplicationBackbone("MobileNet", feature_specs, weights="ImageNet")
+backbone = vrsbackbone.ApplicationBackbone("MobileNet", feature_specs, weights="imagenet")
 
 model = vision.ObjectDetector(num_classes=loader.num_classes,
                               backbone=backbone,
