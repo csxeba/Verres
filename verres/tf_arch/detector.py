@@ -1,3 +1,6 @@
+import math
+from typing import List
+
 import tensorflow as tf
 from tensorflow.keras import layers as tfl
 
@@ -45,9 +48,9 @@ class Panoptic(tf.keras.Model):
         self.body8 = StageBody(width=64, num_blocks=5, skip_connect=True)
         self.body4 = StageBody(width=32, num_blocks=1, skip_connect=True)
         self.body2 = StageBody(width=16, num_blocks=1, skip_connect=True)
-        self.upsc8_4 = block.VRSUpscale(num_stages=1, width_base=64, batch_normalize=True, activation="leakyrelu")
-        self.upsc4_2 = block.VRSUpscale(num_stages=1, width_base=32, batch_normalize=True, activation="leakyrelu")
-        self.upsc2_1 = block.VRSUpscale(num_stages=1, width_base=16, batch_normalize=True, activation="leakyrelu")
+        self.upsc8_4 = block.VRSUpscaleBlock(num_stages=1, width_base=64, batch_normalize=True, activation="leakyrelu")
+        self.upsc4_2 = block.VRSUpscaleBlock(num_stages=1, width_base=32, batch_normalize=True, activation="leakyrelu")
+        self.upsc2_1 = block.VRSUpscaleBlock(num_stages=1, width_base=16, batch_normalize=True, activation="leakyrelu")
         self.hmap = Head(width=64, num_outputs=num_classes)
         self.rreg = Head(width=64, num_outputs=num_classes * 2)
         self.sseg = Head(width=8, num_outputs=num_classes + 1)

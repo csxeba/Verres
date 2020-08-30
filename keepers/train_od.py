@@ -10,12 +10,13 @@ cocodoom_utils.generate_enemy_dataset()
 EPOCHS = 120
 BATCH_SIZE = 8
 VIF = 2
+STRIDE = 8
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
         data_json="/data/Datasets/cocodoom/map-train.json",
         images_root="/data/Datasets/cocodoom",
-        stride=8,
+        stride=STRIDE,
         input_shape=None
     )
 )
@@ -42,11 +43,11 @@ val_loader = cocodoom.COCODoomLoader(
     config=cocodoom.COCODoomLoaderConfig(
         data_json="/data/Datasets/cocodoom/enemy-map-val.json",
         images_root="/data/Datasets/cocodoom",
-        stride=8,
+        stride=STRIDE,
         input_shape=None))
 
 # artifactory = Artifactory(root="/drive/My Drive/artifactory", experiment_name="od", add_now=False)
-artifactory = Artifactory.get_default(experiment_name="od_sched", add_now=False)
+artifactory = Artifactory.get_default(experiment_name="od_small_mr_2s", add_now=True)
 latest_checkpoint = artifactory.root / "latest.h5"
 
 callbacks = [
@@ -55,15 +56,16 @@ callbacks = [
     tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0),
     tf.keras.callbacks.LambdaCallback(on_epoch_end=lambda *args, **kwargs: model.reset_metrics())]
 
-backbone = vrsbackbone.SmallFCNN(width_base=16)
+backbone = vrsbackbone.SmallFCNN(width_base=16, strides=(2, 4, 8))
+fusion = vrsbackbone.FeatureFuser(backbone, final_stride=8, base_width=8, final_width=32)
 
 model = vision.ObjectDetector(num_classes=loader.num_classes,
-                              backbone=backbone,
-                              stride=8)
+                              backbone=fusion,
+                              stride=STRIDE,
+                              refinementent_stages=3)
 
-model.compile(optimizer=tf.keras.optimizers.Adam(3e-4))
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 model.train_step(next(stream))
-
 
 model.fit(dataset.prefetch(10),
           epochs=EPOCHS * VIF,

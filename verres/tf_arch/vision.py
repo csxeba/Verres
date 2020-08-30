@@ -1,5 +1,3 @@
-from typing import List
-
 import tensorflow as tf
 
 from . import detector, backbone as _backbone
@@ -10,19 +8,14 @@ class PanopticSegmentor(tf.keras.Model):
 
     def __init__(self,
                  num_classes: int,
-                 backbone: tf.keras.Model,
-                 feature_layer_names: List[str]):
+                 backbone: tf.keras.Model):
 
         super().__init__()
-        self.backbone = self._wrap_backbone(backbone, feature_layer_names)
+        self.backbone = backbone
         self.detector = detector.Panoptic(num_classes)
         self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
         self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"]
         self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
-
-    def _wrap_backbone(self, base_model, feature_layer_names):
-        output_tensors = [base_model.get_layer(layer).output for layer in feature_layer_names]
-        return tf.keras.Model(inputs=base_model.input, outputs=output_tensors)
 
     @tf.function
     def call(self, inputs, training=None, mask=None):
@@ -42,20 +35,18 @@ class PanopticSegmentor(tf.keras.Model):
 
     @tf.function
     def train_step(self, data):
-        img, hmap_gt, rreg_gt, iseg_gt, sseg_gt = data[0]
-        rreg_mask = tf.cast(rreg_gt > 0, tf.float32)
+        img, hmap_gt, locations, rreg_sparse, iseg_gt, sseg_gt = data[0]
         iseg_mask = tf.cast(iseg_gt > 0, tf.float32)
 
         with tf.GradientTape() as tape:
             hmap, rreg, iseg, sseg = self(img)
 
             hmap_loss = L.mse(hmap_gt, hmap)
-            rreg_loss = L.mae(rreg_gt, rreg * rreg_mask)
+            rreg_loss = L.sparse_vector_field_sae(rreg_sparse, rreg, locations)
             iseg_loss = L.mae(iseg_gt, iseg * iseg_mask)
             sseg_loss = L.mean_of_cxent_sparse_from_logits(sseg_gt, sseg)
-            l2 = tf.reduce_sum(self.losses)
 
-            total_loss = hmap_loss + rreg_loss + iseg_loss + sseg_loss + l2
+            total_loss = hmap_loss + rreg_loss + iseg_loss + sseg_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -71,6 +62,7 @@ class ObjectDetector(tf.keras.Model):
                  backbone: _backbone.VRSBackbone,
                  num_classes: int,
                  stride: int,
+                 refinementent_stages: int = 1,
                  weights: str = None,
                  peak_nms: float = 0.1):
 
@@ -81,7 +73,7 @@ class ObjectDetector(tf.keras.Model):
             self.single_backbone_mode = True
         else:
             self.single_backbone_mode = False
-        self.detector = detector.OD(num_classes, stride)
+        self.detectors = [detector.OD(num_classes, stride) for _ in range(refinementent_stages)]
         self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
         self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "BBox/train"]
         self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
@@ -97,13 +89,20 @@ class ObjectDetector(tf.keras.Model):
         self.train_steps.assign(0)
 
     def call(self, inputs, training=None, mask=None):
+        outputs = []
         features = self.backbone(inputs)
         if self.single_backbone_mode:
             features = [features[0], features[0]]
-        hmap, rreg, boxx = self.detector(features)
-        return hmap, rreg, boxx
+        hmap_features, boxx_features = features
+        for detector in self.detectors:
+            hmap, rreg, boxx = detector(features)
+            outputs.extend([hmap, rreg, boxx])
+            features = [tf.concat([hmap_features, hmap], axis=-1),
+                        tf.concat([boxx_features, hmap], axis=-1)]
+        return outputs
 
-    def postprocess(self, hmap, rreg, bbox):
+    def postprocess(self, outputs):
+        hmap, rreg, bbox = outputs[-3:]
         hmap_max = tf.nn.max_pool2d(hmap, (3, 3), strides=(1, 1), padding="SAME")
 
         peak = hmap_max[0] == hmap[0]
@@ -129,8 +128,8 @@ class ObjectDetector(tf.keras.Model):
 
     @tf.function
     def detect(self, inputs):
-        hmap, rreg, bbox = self(inputs)
-        centroids, whs, types, scores = self.postprocess(hmap, rreg, bbox)
+        outputs = self(inputs, training=False)
+        centroids, whs, types, scores = self.postprocess(outputs)
         return centroids, whs, types, scores
 
     def _save_and_report_losses(self, total_loss, hmap_loss, rreg_loss, bbox_loss):
@@ -146,13 +145,16 @@ class ObjectDetector(tf.keras.Model):
         image, hmap_gt, locations, rreg_values, boxx_values = data[0]
         locations = tf.concat([locations[:, 0:1], locations[:, 2:3], locations[:, 1:2], locations[:, 3:4]], axis=1)
         with tf.GradientTape() as tape:
-            hmap, rreg, boxx = self(image)
+            outputs = self(image)
+            total_loss = 0.
+            for i in range(0, len(self.detectors)*3, 3):
+                hmap, rreg, boxx = outputs[i:i+3]
 
-            hmap_loss = L.sse(hmap_gt, hmap)
-            rreg_loss = L.sparse_vector_field_sae(rreg_values, rreg, locations)
-            boxx_loss = L.sparse_vector_field_sae(boxx_values, boxx, locations)
+                hmap_loss = L.sse(hmap_gt, hmap)
+                rreg_loss = L.sparse_vector_field_sae(rreg_values, rreg, locations)
+                boxx_loss = L.sparse_vector_field_sae(boxx_values, boxx, locations)
 
-            total_loss = hmap_loss + rreg_loss * 10 + boxx_loss
+                total_loss = total_loss + hmap_loss + rreg_loss * 10 + boxx_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))

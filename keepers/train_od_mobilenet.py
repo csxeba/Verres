@@ -56,7 +56,7 @@ callbacks = [
     tf.keras.callbacks.LambdaCallback(on_epoch_end=lambda *args, **kwargs: model.reset_metrics())]
 
 feature_specs = [vrsbackbone.FeatureSpec("conv_pw_5_relu", working_stride=8)]
-backbone = vrsbackbone.ApplicationBackbone("MobileNet", feature_specs, weights="imagenet")
+backbone = vrsbackbone.SideTunedBackbone("MobileNet", feature_specs, weights="imagenet")
 
 model = vision.ObjectDetector(num_classes=loader.num_classes,
                               backbone=backbone,

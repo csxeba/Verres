@@ -16,3 +16,4 @@ class VRSBackbone(tf.keras.Model):
     def __init__(self, feature_specs: List[FeatureSpec]):
         super().__init__()
         self.feature_specs: List[FeatureSpec] = feature_specs or None
+        self.single_feature_mode = len(feature_specs) == 1

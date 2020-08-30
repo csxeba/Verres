@@ -36,7 +36,7 @@ def filter_by_path(meta_iterator, config: cocodoom.COCODoomStreamConfig):
 def filter_by_objects(meta_iterator,
                       config: cocodoom.COCODoomStreamConfig,
                       loader: cocodoom.COCODoomLoader):
-    if config.min_no_visible_objects > 1:
+    if config.min_no_visible_objects > 0:
         meta_iterator = (meta for meta in meta_iterator if
                          len(loader.index[meta["id"]]) >= config.min_no_visible_objects)
     return meta_iterator

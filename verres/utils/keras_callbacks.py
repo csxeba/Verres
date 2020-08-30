@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 
 import numpy as np
@@ -84,6 +85,8 @@ class ObjectMAP(tf.keras.callbacks.Callback):
             if mAP > self.last_map:
                 checkpoint_path = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
                 self.model.save_weights(checkpoint_path, overwrite=True)
+                if os.path.exists(self.last_chkp):
+                    os.remove(self.last_chkp)
                 self.last_map = mAP
                 self.last_chkp = checkpoint_path
         logs = logs or {}
