@@ -80,7 +80,7 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.checkpoint_best = checkpoint_best
 
     def on_epoch_end(self, epoch, logs=None):
-        result = evaluation.run(loader=self.loader, model=self.model, detection_file=self.detection_tmp.format(epoch=epoch+1))
+        result = evaluation.run_detection(loader=self.loader, model=self.model, detection_file=self.detection_tmp.format(epoch=epoch + 1))
         mAP = result[0]
         if self.checkpoint_best:
             if mAP > self.last_map:

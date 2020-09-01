@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import tensorflow as tf
 
 from . import detector, backbone as _backbone
@@ -37,6 +39,8 @@ class PanopticSegmentor(tf.keras.Model):
     def train_step(self, data):
         img, hmap_gt, locations, rreg_sparse, iseg_gt, sseg_gt = data[0]
         iseg_mask = tf.cast(iseg_gt > 0, tf.float32)
+        locations = tf.stack([locations[:, 0], locations[:, 2], locations[:, 1], locations[:, 3]],
+                             axis=1)
 
         with tf.GradientTape() as tape:
             hmap, rreg, iseg, sseg = self(img)
@@ -158,5 +162,83 @@ class ObjectDetector(tf.keras.Model):
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+
+        return self._save_and_report_losses(total_loss, hmap_loss, rreg_loss, boxx_loss)
+
+
+class PriorizedObjectDetector(ObjectDetector):
+
+    def __init__(self,
+                 backbone: _backbone.VRSBackbone,
+                 num_classes: int,
+                 stride: int,
+                 training_tensor_shape: Tuple[int, int, int, int],
+                 refinementent_stages: int = 1,
+                 weights: str = None,
+                 peak_nms: float = 0.1):
+
+        super().__init__(backbone, num_classes, stride, refinementent_stages, weights, peak_nms)
+        self.training_tensor_shape = training_tensor_shape
+
+    def call_detection(self, past_images):
+        features = self.backbone(past_images)
+        if self.single_backbone_mode:
+            features = [features[0], features[0]]
+        hmap_features, boxx_features = features
+
+        time_priors = []
+        for past_detector in self.detectors[0::2]:
+            hmap, rreg, boxx = past_detector(features)
+            time_priors.extend([hmap, rreg, boxx])
+            features = [tf.concat([hmap_features, hmap], axis=-1),
+                        tf.concat([boxx_features, boxx], axis=-1)]
+        return time_priors
+
+    def call_priorized_detection(self, present_images, time_priors):
+        features = self.backbone(present_images)
+        if self.single_backbone_mode:
+            features = [features[0], features[0]]
+
+        past_hmap = time_priors[-3]
+        past_boxx = time_priors[-1]
+        features = [tf.concat([features[0], past_hmap], axis=-1),
+                    tf.concat([features[1], past_boxx], axis=-1)]
+        hmap_features, boxx_features = features
+
+        outputs = []
+        for present_detector in self.detectors[1::2]:
+            hmap, rreg, boxx = present_detector(features)
+            outputs.extend([hmap, rreg, boxx])
+            features = [tf.concat([hmap_features, hmap], axis=-1),
+                        tf.concat([boxx_features, boxx], axis=-1)]
+        return outputs
+
+    def call(self, inputs, training=None, mask=None):
+        time_priors = self.call_detection(inputs[0::2])
+        outputs = self.call_priorized_detection(inputs[1::2], time_priors)
+        return outputs
+
+    def train_step(self, data):
+        (past_image, past_hmap_gt, past_locations, past_rreg_values, past_boxx_values,
+         present_image, present_hmap_gt, present_locations, present_rreg_values, present_boxx_values) = data
+
+        with tf.GradientTape() as tape:
+            past_hmap_pred, past_rreg_pred, past_boxx_pred = self.call_detection(
+                past_image)
+            present_hmap_pred, present_rreg_pred, present_boxx_pred = self.call_priorized_detection(
+                present_image, [past_hmap_pred, past_rreg_pred, past_boxx_pred])
+
+            hmap_loss = L.sse(past_hmap_gt, past_hmap_pred) + L.sse(present_hmap_gt, present_hmap_pred)
+            rreg_loss = (
+                L.sparse_vector_field_sae(past_rreg_values, past_rreg_pred, past_locations) +
+                L.sparse_vector_field_sae(present_rreg_values, present_rreg_pred, present_locations))
+            boxx_loss = (
+                L.sparse_vector_field_sae(past_boxx_values, past_boxx_pred, past_locations) +
+                L.sparse_vector_field_sae(present_boxx_values, present_boxx_pred, present_locations))
+
+            total_loss = hmap_loss + rreg_loss * 10 + boxx_loss
+
+        gradients = tape.gradient(total_loss, self.trainable_weights)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_weights))
 
         return self._save_and_report_losses(total_loss, hmap_loss, rreg_loss, boxx_loss)

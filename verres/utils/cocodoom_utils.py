@@ -1,5 +1,8 @@
 import os
 import json
+
+import tensorflow as tf
+
 from verres.data import cocodoom
 
 
@@ -82,3 +85,11 @@ def generate_enemy_dataset(root="/data/Datasets/cocodoom"):
             continue
         print(f" [Verres] {file} -> {target_file}")
         convert(file_path, target_path)
+
+
+def deconstruct_path(file_name: str):
+    run_str, map_str, frame_str = file_name.split("/")
+    run_no = int(run_str.split("run")[-1])
+    map_no = int(map_str.split("map")[-1])
+    frame_no = int(frame_str.split(".")[0])
+    return run_no, map_no, frame_no

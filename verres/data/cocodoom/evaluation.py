@@ -13,7 +13,7 @@ import verres as vrs
 from verres.utils import profiling
 
 
-def run(loader: COCODoomLoader, model, detection_file="default", verbose=1):
+def run_detection(loader: COCODoomLoader, model, detection_file="default"):
     detections = []
     category_index = {cat["name"]: cat for cat in loader.categories.values()}
 

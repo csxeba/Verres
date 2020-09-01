@@ -99,7 +99,7 @@ class COCODoomLoader:
 
             class_idx = ENEMY_TYPES.index(category["name"])
 
-            instance_mask = masking.get_mask(anno, image_shape)
+            instance_mask = np.squeeze(masking.get_mask(anno, image_shape))
             coords = np.argwhere(instance_mask)  # type: np.ndarray
 
             segmentation_mask[instance_mask] = class_idx+1

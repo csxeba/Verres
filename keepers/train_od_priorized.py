@@ -12,9 +12,17 @@ BATCH_SIZE = 8
 VIF = 2
 STRIDE = 8
 
-loader = cocodoom.COCODoomLoader(
+base_loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
         data_json="/data/Datasets/cocodoom/map-train.json",
+        images_root="/data/Datasets/cocodoom",
+        stride=STRIDE,
+        input_shape=None
+    )
+)
+full_loader = cocodoom.COCODoomLoader(
+    cocodoom.COCODoomLoaderConfig(
+        data_json="/data/Datasets/cocodoom/map-full-train.json",
         images_root="/data/Datasets/cocodoom",
         stride=STRIDE,
         input_shape=None
@@ -24,19 +32,13 @@ streamcfg = cocodoom.COCODoomStreamConfig(task=cocodoom.TASK.DETECTION,
                                           batch_size=BATCH_SIZE,
                                           shuffle=True,
                                           min_no_visible_objects=2)
-stream = cocodoom.COCODoomSequence(streamcfg, loader)
+stream = cocodoom.COCODoomTimeSequence(streamcfg, base_loader, full_loader)
 
-output_types = (tf.float32, tf.float32, tf.int64, tf.float32, tf.float32),
-output_shapes = ((None, 200, 320, 3),
-                 (None, 25, 40, loader.num_classes),
-                 (None, 4),
-                 (None, 2),
-                 (None, 2)),
+output_types = tuple([tf.float32, tf.float32, tf.int64, tf.float32, tf.float32]*2),
 
 dataset = tf.data.Dataset.from_generator(
     lambda: stream,
     output_types=output_types,
-    output_shapes=output_shapes
 )
 
 val_loader = cocodoom.COCODoomLoader(
@@ -59,7 +61,7 @@ callbacks = [
 backbone = vrsbackbone.SmallFCNN(width_base=16, strides=(2, 4, 8))
 fusion = vrsbackbone.FeatureFuser(backbone, final_stride=8, base_width=8, final_width=64)
 
-model = vision.ObjectDetector(num_classes=loader.num_classes,
+model = vision.ObjectDetector(num_classes=base_loader.num_classes,
                               backbone=fusion,
                               stride=STRIDE,
                               refinementent_stages=2)
