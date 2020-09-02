@@ -25,6 +25,10 @@ class PanopticSegmentor(tf.keras.Model):
         hmap, rreg, iseg, sseg = self.detector([ftr1, ftr2, ftr4, ftr8])
         return hmap, rreg, iseg, sseg
 
+    def as_detection(self, inputs):
+        hmap, rreg, iseg, sseg = self(inputs)
+        centroids =
+
     def _save_and_report_losses(self, total_loss, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc):
         self.train_metrics["loss/train"].assign_add(total_loss)
         self.train_metrics["HMap/train"].assign_add(hmap_loss)

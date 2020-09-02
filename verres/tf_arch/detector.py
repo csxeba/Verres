@@ -46,7 +46,7 @@ class Panoptic(tf.keras.Model):
     def __init__(self, num_classes: int):
         super().__init__()
         self.body8 = StageBody(width=64, num_blocks=5, skip_connect=True)
-        self.body4 = StageBody(width=32, num_blocks=1, skip_connect=True)
+        self.body4 = StageBody(width=32, num_blocks=3, skip_connect=True)
         self.body2 = StageBody(width=16, num_blocks=1, skip_connect=True)
         self.upsc8_4 = block.VRSUpscaleBlock(num_stages=1, width_base=64, batch_normalize=True, activation="leakyrelu")
         self.upsc4_2 = block.VRSUpscaleBlock(num_stages=1, width_base=32, batch_normalize=True, activation="leakyrelu")
@@ -58,6 +58,7 @@ class Panoptic(tf.keras.Model):
 
     @tf.function
     def call(self, inputs, training=None, mask=None):
+
 
         ftr1, ftr2, ftr4, ftr8 = inputs
 
