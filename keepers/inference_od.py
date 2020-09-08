@@ -27,8 +27,8 @@ model = vision.ObjectDetector(num_classes=loader.num_classes,
                               peak_nms=0.1,
                               weights=WEIGHTS)
 
-inference.run_od(loader, model, mode=inference.Mode.DETECTION, to_screen=False,
-                 output_file="MicroNet-COCODoom-OD-mr.avi", stop_after=30*120)
+inference.run(loader, model, mode=inference.Mode.DETECTION, to_screen=False,
+              output_file="MicroNet-COCODoom-OD-mr.avi", stop_after=30*120)
 
 # inference.run_od(loader, model, mode=inference.Mode.RAW_HEATMAP, to_screen=True)
 

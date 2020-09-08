@@ -1,4 +1,5 @@
 import os
+from typing import Union
 
 import tensorflow as tf
 
@@ -32,8 +33,26 @@ class PredictionVisualizer:
             self.device.write(canvas)
         return canvas
 
-    def draw_raw_box(self, image, model_output, alpha=1, write: bool = True):
+    def draw_raw_box(self, image, model_output, alpha=1., write: bool = True):
         canvas = self.visualizer.overlay_box_tensor(image, model_output[2], alpha)
+        if write:
+            self.device.write(canvas)
+        return canvas
+
+    def draw_semantic_segmentation(self, image, model_output, alpha=0.3, write: bool = True):
+        canvas = self.visualizer.overlay_segmentation_mask(image, model_output[3], alpha=alpha)
+        if write:
+            self.device.write(canvas)
+        return canvas
+
+    def draw_instance_segmentation(self, image, model_output, alpha=0.3, write: bool = True):
+        canvas = self.visualizer.overlay_instance_mask(image, model_output[2], alpha)
+        if write:
+            self.device.write(canvas)
+        return canvas
+
+    def draw_panoptic_segmentation(self, image, model_output, alpha=0.3, write: bool = True):
+        canvas = self.visualizer.overlay_panoptic(image, model_output[2], model_output[3], alpha)
         if write:
             self.device.write(canvas)
         return canvas
@@ -51,15 +70,18 @@ class Mode:
     DETECTION = "detection"
     RAW_HEATMAP = "raw_heatmap"
     RAW_BOX = "raw_box"
+    SEMANTIC = "semantic"
+    INSTANCE = "instance"
+    PANOPTIC = "panoptic"
 
 
-def run_od(loader: COCODoomLoader,
-           model: vision.ObjectDetector,
-           mode: str = Mode.DETECTION,
-           to_screen: bool = True,
-           output_file: str = None,
-           stop_after: int = None,
-           alpha: float = 0.5):
+def run(loader: COCODoomLoader,
+        model: Union[vision.ObjectDetector, vision.PanopticSegmentor],
+        mode: str = Mode.DETECTION,
+        to_screen: bool = True,
+        output_file: str = None,
+        stop_after: int = None,
+        alpha: float = 0.5):
 
     @tf.function
     def preprocess(image_path):
@@ -71,7 +93,7 @@ def run_od(loader: COCODoomLoader,
     image_paths = [os.path.join(loader.cfg.images_root, meta["file_name"])
                    for meta in sorted(loader.image_meta.values(), key=lambda m: m["id"])]
     dataset = tf.data.Dataset.from_tensor_slices(image_paths)
-    dataset = dataset.map(preprocess, num_parallel_calls=3)
+    dataset = dataset.map(preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset = dataset.prefetch(10)
 
     total = len(image_paths)
@@ -93,6 +115,12 @@ def run_od(loader: COCODoomLoader,
                     vis.draw_raw_heatmap(tensor, output, alpha, write=True)
                 elif mode == Mode.RAW_BOX:
                     vis.draw_raw_box(tensor, output, alpha, write=True)
+                elif mode == Mode.SEMANTIC:
+                    vis.draw_semantic_segmentation(tensor, output, alpha, write=True)
+                elif mode == Mode.INSTANCE:
+                    vis.draw_instance_segmentation(tensor, output, alpha, write=True)
+                elif mode == Mode.PANOPTIC:
+                    vis.draw_panoptic_segmentation(tensor, output, alpha, write=True)
                 else:
                     raise NotImplementedError(f"Mode `{mode}` is not implemented!")
 

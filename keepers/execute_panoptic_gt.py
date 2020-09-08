@@ -12,7 +12,7 @@ loader = cocodoom.COCODoomLoader(
     )
 )
 
-vis = visualize.Visualizer(n_classes=loader.num_classes)
+vis = visualize.Visualizer()
 screen = visualize.CV2Screen(fps=25, scale=4)
 
 for ID in loader.index:
@@ -24,7 +24,7 @@ for ID in loader.index:
     print(img.shape)
     seg_mask, inst_mask = loader.get_panoptic_masks(ID)
 
-    fg = np.linalg.norm(inst_mask, ord=1, axis=-1) > 0
+    fg = seg_mask > 0
 
     XY = np.argwhere(fg)
     # XY = XY[::4]

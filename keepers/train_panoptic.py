@@ -41,8 +41,8 @@ train_ds = tf.data.Dataset.from_generator(lambda: stream,
                                           output_types=output_types,
                                           output_shapes=output_shapes)
 
-# artifactory = Artifactory("/drive/My Drive/artifactory", experiment_name="panseg", add_now=True)
-artifactory = Artifactory.get_default(experiment_name="panseg", add_now=True)
+artifactory = Artifactory("/drive/My Drive/artifactory", experiment_name="panseg", add_now=True)
+# artifactory = Artifactory.get_default(experiment_name="panseg", add_now=True)
 
 callbacks = [
     tf.keras.callbacks.ModelCheckpoint(os.path.join(artifactory.checkpoints, "latest.h5"),
@@ -55,7 +55,7 @@ model = vision.PanopticSegmentor(
     num_classes=loader.num_classes,
     backbone=backbone)
 
-model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-4 / 3))
 
 model.fit(train_ds.prefetch(10),
           epochs=EPOCHS * VIF,

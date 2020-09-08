@@ -8,6 +8,7 @@ import cv2
 
 from . import colors as c
 from . import box as boxutil
+from ..operation import tensor_ops
 
 
 class Visualizer:
@@ -23,52 +24,63 @@ class Visualizer:
 
     n_classes = len(ENEMY_TYPES)
 
+    BG = np.zeros((200, 320, 2), dtype="uint8")
+
     @staticmethod
     def deprocess_image(image):
-        if isinstance(image, tf.Tensor):
-            image = image.numpy()
-        if image.ndim == 4:
-            image = image[0]
+        image = tensor_ops.untensorize(image)
         image = image * 255.
         image = np.clip(image, 0, 255).astype("uint8")
         return image
 
-    def _colorify_sparse_mask(self, y):
-        segmentation = np.zeros(y.shape[:2] + (3,), dtype="uint8")
-        for i in range(1, self.n_classes):
-            segmentation[y[..., i] > 0.5] = self.COLORS[i]
-        return segmentation
-
     def _colorify_dense_mask(self, y):
+        return self._colorify_sparse_mask(y)
+
+    def _colorify_sparse_mask(self, y):
         segmentation = np.zeros(y.shape[:2] + (3,), dtype="uint8")
         for i in range(1, self.n_classes):
             indices = np.where(y == i)
             segmentation[indices[0], indices[1]] = self.COLORS[i]
         return segmentation
 
-    def colorify_segmentation_mask(self, y):
-        if y.ndim == 4:
-            y = y[0]
-        if y.shape[-1] == 1:
-            return self._colorify_dense_mask(y)
-        else:
-            return self._colorify_sparse_mask(y)
+    def overlay_segmentation_mask(self, image, semantic_mask, alpha=0.3):
+        semantic_mask = tensor_ops.untensorize(semantic_mask)
+        if semantic_mask.shape[-1] > 1:
+            semantic_mask = np.argmax(semantic_mask, axis=-1)
 
-    def overlay_segmentation_mask(self, x, y, alpha=0.3):
-        colored = self.colorify_segmentation_mask(y)
-        mask = colored > 0
-        x[mask] = alpha * x[mask] + (1 - alpha) * colored[mask]
-        return x
+        image = self.deprocess_image(image)
 
-    @staticmethod
-    def overlay_instance_mask(image, mask, alpha=0.3):
-        angles = np.linalg.norm(mask, axis=-1, ord=1)
-        angles /= np.max(angles)
-        angles = (angles * 255).astype("uint8")
-        angles = cv2.cvtColor(angles, cv2.COLOR_GRAY2BGR)
-        angles = cv2.cvtColor(angles, cv2.COLOR_BGR2HSV)
-        image = alpha * image + (1 - alpha) * angles
+        for i in range(1, self.n_classes):
+            x, y = np.where(semantic_mask == i)
+            image[x, y] = self.COLORS[i] * alpha + image[x, y] * (1 - alpha)
+
+        return image
+
+    def overlay_instance_mask(self, image, mask, alpha=0.3):
+        image = self.deprocess_image(image)
+        if isinstance(mask, tf.Tensor):
+            mask = mask.numpy()
+        if mask.ndim == 4:
+            mask = mask[0]
+
+        data_present = np.any(mask > 0, axis=-1)
+
+        norms = np.linalg.norm(mask, axis=-1, ord=2)
+        norms /= max(np.max(norms), 1)
+        norms *= 255
+        norms = np.clip(norms, 0, 255).astype("uint8")
+
+        image[..., 2][data_present] = (1 - alpha) * image[..., 2][data_present] + alpha * norms[data_present]
         return image.astype("uint8")
+
+    def overlay_panoptic(self, image, iseg, sseg, alpha=0.3):
+        iseg, sseg = map(tensor_ops.untensorize, [iseg, sseg])
+        if sseg.shape[-1] > 1:
+            sseg = np.argmax(sseg, axis=-1)
+        if sseg.ndim == 2:
+            sseg = sseg[..., None]
+        iseg_masked = iseg * sseg > 0
+        return self.overlay_instance_mask(image, iseg_masked, alpha)
 
     @staticmethod
     def overlay_vector_field(image, field, alpha=0.3):
@@ -80,10 +92,7 @@ class Visualizer:
         return result.astype("uint8")
 
     def overlay_box_tensor(self, image, bbox, alpha=0.3):
-        if isinstance(bbox, tf.Tensor):
-            bbox = bbox.numpy()
-        if bbox.ndim == 4:
-            bbox = bbox[0]
+        bbox = tensor_ops.untensorize(bbox)
 
         if len(image.shape) == 4:
             w = image.shape[1]
@@ -102,10 +111,7 @@ class Visualizer:
 
     def overlay_heatmap(self, image, hmap, alpha=0.3):
         image = self.deprocess_image(image)
-        if isinstance(hmap, tf.Tensor):
-            hmap = hmap.numpy()
-        if hmap.ndim == 4:
-            hmap = hmap[0]
+        hmap = tensor_ops.untensorize(hmap)
 
         canvas = image.copy()
         heatmap = np.max(hmap, axis=-1)
@@ -132,7 +138,6 @@ class Visualizer:
 
     def overlay_boxes(self, image, boxes: np.ndarray, stride: int = 1, alpha=0.4):
         image = self.deprocess_image(image)
-        result = image.copy()
         for box in boxes:
             image = self.overlay_box(image, box, stride, alpha=alpha)
         return image
