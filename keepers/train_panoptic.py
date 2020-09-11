@@ -41,12 +41,20 @@ train_ds = tf.data.Dataset.from_generator(lambda: stream,
                                           output_types=output_types,
                                           output_shapes=output_shapes)
 
-artifactory = Artifactory("/drive/My Drive/artifactory", experiment_name="panseg", add_now=True)
-# artifactory = Artifactory.get_default(experiment_name="panseg", add_now=True)
+# artifactory = Artifactory("/drive/My Drive/artifactory", experiment_name="panseg", add_now=True)
+artifactory = Artifactory.get_default(experiment_name="panseg", add_now=True)
+
+
+def schedule(epoch, lr):
+    if (epoch+1) // VIF in {30, 90, 120}:
+        lr = lr / 3
+    return lr
+
 
 callbacks = [
     tf.keras.callbacks.ModelCheckpoint(os.path.join(artifactory.checkpoints, "latest.h5"),
                                        save_freq=1, save_weights_only=True),
+    tf.keras.callbacks.LearningRateScheduler(schedule, verbose=1),
     tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0)
 ]
 
@@ -55,9 +63,10 @@ model = vision.PanopticSegmentor(
     num_classes=loader.num_classes,
     backbone=backbone)
 
-model.compile(optimizer=tf.keras.optimizers.Adam(1e-4 / 3))
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 
 model.fit(train_ds.prefetch(10),
           epochs=EPOCHS * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
-          callbacks=callbacks)
+          callbacks=callbacks,
+          initial_epoch=20)

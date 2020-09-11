@@ -36,6 +36,32 @@ class COCODoomSequence(tf.keras.utils.Sequence):
 
         return tuple(elements),
 
+    def make_sample(self, ID, batch_index: int):
+        features = [self.loader.get_image(ID).astype("float32") / 255.]
+
+        if self.cfg.task == TASK.SEMSEG:
+            y = self.loader.get_panoptic_masks(ID)
+            features.append(y[1])
+        elif self.cfg.task == TASK.PANSEG:
+            iseg, sseg = self.loader.get_panoptic_masks(ID)
+            heatmap = self.loader.get_object_heatmap(ID)
+            locations, refinements = self.loader.get_refinements(ID, batch_index)
+            features += [heatmap, locations, refinements, iseg, sseg]
+        elif self.cfg.task == TASK.DEPTH:
+            y = self.loader.get_depth_image(ID)
+            features.append(y)
+        elif self.cfg.task == TASK.DETECTION:
+            heatmap = self.loader.get_object_heatmap(ID)
+            locations, rreg_values = self.loader.get_refinements(ID, batch_index)
+            _, boxx_values = self.loader.get_bbox(ID, batch_index)
+            features += [heatmap, locations, rreg_values, boxx_values]
+        elif self.cfg.task == TASK.INFERENCE:
+            pass
+        else:
+            assert False
+
+        return features
+
     def make_batch(self, IDs=None):
 
         if IDs is None:
@@ -44,30 +70,7 @@ class COCODoomSequence(tf.keras.utils.Sequence):
         batch = []
 
         for i, ID in enumerate(IDs):
-
-            features = [self.loader.get_image(ID).astype("float32") / 255.]
-
-            if self.cfg.task == TASK.SEMSEG:
-                y = self.loader.get_panoptic_masks(ID)
-                features.append(y[0])
-            elif self.cfg.task == TASK.PANSEG:
-                iseg, sseg = self.loader.get_panoptic_masks(ID)
-                heatmap = self.loader.get_object_heatmap(ID)
-                locations, refinements = self.loader.get_refinements(ID, i)
-                features += [heatmap, locations, refinements, iseg, sseg]
-            elif self.cfg.task == TASK.DEPTH:
-                y = self.loader.get_depth_image(ID)
-                features.append(y)
-            elif self.cfg.task == TASK.DETECTION:
-                heatmap = self.loader.get_object_heatmap(ID)
-                locations, rreg_values = self.loader.get_refinements(ID, i)
-                _, boxx_values = self.loader.get_bbox(ID, i)
-                features += [heatmap, locations, rreg_values, boxx_values]
-            elif self.cfg.task == TASK.INFERENCE:
-                pass
-            else:
-                assert False
-
+            features = self.make_sample(ID, batch_index=i)
             batch.append(features)
 
         return self._reconfigure_batch(batch)

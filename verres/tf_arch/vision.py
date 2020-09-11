@@ -22,17 +22,20 @@ class PanopticSegmentor(tf.keras.Model):
                  backbone: _backbone.VRSBackbone,
                  peak_nms: float = 0.3,
                  offset_nms: float = 5.,
-                 weights: str = None):
+                 weights: str = None,
+                 sparse_detection: bool = True):
 
         super().__init__()
         self.num_classes = num_classes
         self.backbone = backbone
         self.peak_nms = peak_nms
         self.offset_nms = offset_nms ** 2
+        self.sparse_detection = sparse_detection
         self.detector = detector.Panoptic(num_classes)
         self.train_steps = tf.Variable(0, dtype=tf.float32, trainable=False)
         self.train_metric_keys = ["loss/train", "HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"]
         self.train_metrics = {n: tf.Variable(0, dtype=tf.float32, trainable=False) for n in self.train_metric_keys}
+
         if weights is not None:
             s = max(fs.working_stride for fs in self.backbone.feature_specs)
             self(tf.zeros((1, s, s, 3)))
@@ -62,14 +65,15 @@ class PanopticSegmentor(tf.keras.Model):
         D = tf.reduce_sum(  # [M, 1, 2] - [N, 1, 2] -> [M, N, 2]
             tf.square(iseg_offset[:, None, :] - centroids[None, :, :]), axis=2)  # -> [M, N]
         affiliations = tf.argmin(D, axis=1)
-        idx = tf.stack([tf.range(D.shape[0], dtype=affiliations.dtype),
-                        affiliations], axis=1)
-        offset_scores = tf.gather_nd(D, idx)
+        offset_scores = tf.reduce_min(D, axis=1)
         return affiliations, offset_scores
 
     def get_filtered_result(self, coords_non_bg, affiliations, offset_scores):
         valid = offset_scores < self.offset_nms
         return coords_non_bg[valid], affiliations[valid]
+
+    def scatter_result(self, coords_non_bg, affiliations, tensor_shape):
+        return tf.scatter_nd(tf.cast(coords_non_bg, tf.int64), affiliations, tensor_shape)
 
     def postprocess(self, hmap, rreg, iseg, sseg):
         centroids, types, scores = self.get_centroids(hmap, rreg)
@@ -84,11 +88,13 @@ class PanopticSegmentor(tf.keras.Model):
         affiliations, offset_scores = self.get_affiliations(iseg_offset, centroids)
         coords_non_bg, affiliations = self.get_filtered_result(coords_non_bg, affiliations, offset_scores)
 
+        # masks = self.scatter_result(coords_non_bg, affiliations, iseg[0].shape[:2])
         return coords_non_bg, affiliations, centroids, types, scores
 
     def detect(self, inputs):
         hmap, rreg, iseg, sseg = self(inputs)
-        return self.postprocess(hmap, rreg, iseg, sseg)
+        coords, affiliations, centroids, types, scores = self.postprocess(hmap, rreg, iseg, sseg)
+        return coords, affiliations, centroids, types, scores
 
     def _save_and_report_losses(self, total_loss, hmap_loss, rreg_loss, iseg_loss, sseg_loss, acc):
         self.train_metrics["loss/train"].assign_add(total_loss)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from .config import COCODoomStreamConfig, TASK
+from .config import COCODoomStreamConfig
 from .loader import COCODoomLoader
 from .sequence import COCODoomSequence
 
@@ -15,11 +15,12 @@ class COCODoomTimeSequence(COCODoomSequence):
         super().__init__(stream_config, data_loader)
         self.full_loader = full_data_loader
         self.mapping = {}
+        self._prepare()
 
     def _prepare(self):
         new_ids = []
-        for meta in cocodoom_utils.apply_filters(self.base_loader.index.values(), self.cfg, self.loader):
-            ID = meta["id"]
+        for ID in self.ids:
+            meta = self.loader.index[ID]
             run_no, map_no, frame_no = cocodoom_utils.deconstruct_path(meta["file_name"])
             prev_meta = self.full_loader.index[ID-1]
             prev_run_no, prev_map_no, prev_frame_no = cocodoom_utils.deconstruct_path(prev_meta["file_name"])
@@ -28,29 +29,13 @@ class COCODoomTimeSequence(COCODoomSequence):
 
             self.mapping[ID] = prev_meta["id"], meta["id"]
             new_ids.append(ID)
-        self.ids = np.array(sorted(new_ids))
 
-    def make_batch(self, IDs=None):
+    def make_sample(self, ID, batch_index: int):
 
-        if self.cfg.task != TASK.DETECTION:
-            raise NotImplementedError
+        features = []
 
-        if IDs is None:
-            IDs = np.random.choice(self.ids, size=self.cfg.batch_size)
+        for actual_id in self.mapping[ID]:
+            local_features = super().make_sample(actual_id, batch_index)
+            features.extend(local_features)
 
-        batch = []
-
-        for i, ids in enumerate(IDs):
-
-            features = []
-
-            for ID in ids:
-                image = self.loader.get_image(ID).astype("float32") / 255.
-                heatmap = self.loader.get_object_heatmap(ID)
-                locations, rreg_values = self.loader.get_refinements(ID, i)
-                _, boxx_values = self.loader.get_bbox(ID, i)
-                features += [image, heatmap, locations, rreg_values, boxx_values]
-
-            batch.append(features)
-
-        return self._reconfigure_batch(batch)
+        return features

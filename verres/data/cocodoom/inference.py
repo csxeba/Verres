@@ -12,9 +12,11 @@ class PredictionVisualizer:
 
     def __init__(self,
                  output_to_screen: bool = True,
-                 output_file: str = None):
+                 output_file: str = None,
+                 fps: int = 25,
+                 scale: float = 4.):
 
-        self.device = visualize.output_device_factory(fps=30, scale=4, to_screen=output_to_screen,
+        self.device = visualize.output_device_factory(fps=fps, scale=scale, to_screen=output_to_screen,
                                                       output_file=output_file)
         self.visualizer = visualize.Visualizer()
 
@@ -52,7 +54,7 @@ class PredictionVisualizer:
         return canvas
 
     def draw_panoptic_segmentation(self, image, model_output, alpha=0.3, write: bool = True):
-        canvas = self.visualizer.overlay_panoptic(image, model_output[2], model_output[3], alpha)
+        canvas = self.visualizer.overlay_panoptic(image, coords=model_output[0], affils=model_output[1], alpha=alpha)
         if write:
             self.device.write(canvas)
         return canvas
@@ -81,7 +83,9 @@ def run(loader: COCODoomLoader,
         to_screen: bool = True,
         output_file: str = None,
         stop_after: int = None,
-        alpha: float = 0.5):
+        alpha: float = 0.5,
+        fps: int = 25,
+        scale: float = 4.):
 
     @tf.function
     def preprocess(image_path):
@@ -100,14 +104,16 @@ def run(loader: COCODoomLoader,
     if stop_after is None:
         stop_after = total
 
-    with PredictionVisualizer(to_screen, output_file) as vis:
+    with PredictionVisualizer(to_screen, output_file, fps, scale) as vis:
 
         for i, tensor in enumerate(dataset, start=1):
 
             if mode == Mode.DETECTION:
                 output = model.detect(tensor)
                 vis.draw_detection(tensor, output, alpha, write=True)
-
+            elif mode == Mode.PANOPTIC:
+                output = model.detect(tensor)
+                vis.draw_panoptic_segmentation(tensor, output, alpha, write=True)
             else:
                 output = model(tensor)
 
@@ -119,8 +125,6 @@ def run(loader: COCODoomLoader,
                     vis.draw_semantic_segmentation(tensor, output, alpha, write=True)
                 elif mode == Mode.INSTANCE:
                     vis.draw_instance_segmentation(tensor, output, alpha, write=True)
-                elif mode == Mode.PANOPTIC:
-                    vis.draw_panoptic_segmentation(tensor, output, alpha, write=True)
                 else:
                     raise NotImplementedError(f"Mode `{mode}` is not implemented!")
 

@@ -73,14 +73,24 @@ class Visualizer:
         image[..., 2][data_present] = (1 - alpha) * image[..., 2][data_present] + alpha * norms[data_present]
         return image.astype("uint8")
 
-    def overlay_panoptic(self, image, iseg, sseg, alpha=0.3):
-        iseg, sseg = map(tensor_ops.untensorize, [iseg, sseg])
-        if sseg.shape[-1] > 1:
-            sseg = np.argmax(sseg, axis=-1)
-        if sseg.ndim == 2:
-            sseg = sseg[..., None]
-        iseg_masked = iseg * sseg > 0
-        return self.overlay_instance_mask(image, iseg_masked, alpha)
+    def overlay_panoptic(self, image, coords, affils, alpha=0.3):
+        image = self.deprocess_image(image)
+        x, y = image.shape[:2]
+        coords = tf.cast(coords, tf.int64)
+        masks = tf.scatter_nd(coords[:, ::-1], affils, [x, y])
+        masks = masks.numpy()
+        fg = tf.scatter_nd(coords[:, ::-1], tf.ones(len(coords)), [x, y])
+        fg = fg.numpy().astype(bool)
+
+        colorized = np.zeros([x, y, 3], dtype="uint8")
+
+        for i, affil in enumerate(np.unique(affils)):
+            mask = masks == affil
+            color = c.COLOR[i % len(c.COLOR)]
+            colorized[mask] += color[None, :]
+
+        image[fg] = (image[fg] * (1. - alpha) + colorized[fg] * alpha).astype("uint8")
+        return image
 
     @staticmethod
     def overlay_vector_field(image, field, alpha=0.3):
