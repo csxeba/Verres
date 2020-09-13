@@ -64,7 +64,7 @@ fusion = vrsbackbone.FeatureFuser(backbone, final_stride=8, base_width=8, final_
 model = vision.ObjectDetector(num_classes=base_loader.num_classes,
                               backbone=fusion,
                               stride=STRIDE,
-                              refinementent_stages=2)
+                              refinement_stages=2)
 
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 model.train_step(next(stream))

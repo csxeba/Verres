@@ -1,3 +1,5 @@
+from typing import List
+
 import tensorflow as tf
 
 
@@ -46,3 +48,22 @@ def mae(y_true, y_pred):
 def mean_of_cxent_sparse_from_logits(y_true, y_pred):
     xent = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True, axis=-1)
     return tf.reduce_mean(xent)
+
+
+class Tracker:
+
+    def __init__(self, keys: List[str]):
+        self.keys = keys
+        self.variables = [tf.Variable(0., dtype=tf.float32) for _ in keys]
+        self.step = tf.Variable(0, dtype=tf.int64)
+
+    def record(self, data):
+        for v, d in zip(self.variables, data):
+            v.assig_add(d)
+        self.step.assign_add(1)
+        return {k: v / self.step for k, v in zip(self.keys, self.variables)}
+
+    def reset(self):
+        for v in self.variables:
+            v.assign(0.)
+        self.step.assign(0)
