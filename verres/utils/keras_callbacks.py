@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import tensorflow as tf
@@ -97,3 +97,21 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         logs["cocodoom_val/mAP"] = mAP
         logs["cocodoom_val/mAR"] = result[6]
         return logs
+
+
+class LossAggregator(tf.keras.callbacks.Callback):
+
+    def __init__(self, names: List[str]):
+        super().__init__()
+        self.names = names
+        self.variables = [0. for _ in names]
+
+    def on_batch_end(self, batch, logs=None):
+        for v, name in zip(self.variables, self.names):
+            data = logs.pop(name)
+            v += data
+            logs[name] = v / (batch+1)
+
+    def on_epoch_end(self, epoch, logs=None):
+        for i, v in self.variables:
+            self.variables[i] = 0.

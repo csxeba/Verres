@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import tensorflow as tf
 
 from . import detector, backbone as _backbone
@@ -32,7 +30,8 @@ class PanopticSegmentor(tf.keras.Model):
         self.offset_nms = offset_nms ** 2
         self.sparse_detection = sparse_detection
         self.detector = detector.Panoptic(num_classes)
-        self.loss_tracker = L.Tracker(["loss/train", "HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"])
+        self.loss_tracker = L.Tracker(
+            ["loss/train", "HMap/train", "RReg/train", "ISeg/train", "SSeg/train", "Acc/train"])
 
         if weights is not None:
             s = max(fs.working_stride for fs in self.backbone.feature_specs)
@@ -51,7 +50,8 @@ class PanopticSegmentor(tf.keras.Model):
         centroids = centroids[:, ::-1] * 8
         return centroids, types, scores
 
-    def get_offsetted_coords(self, sseg, iseg):
+    @staticmethod
+    def get_offsetted_coords(sseg, iseg):
         hard_sseg = tf.argmax(sseg[0], axis=-1)
         coord = T.meshgrid(hard_sseg.shape[:2], dtype=tf.float32)
         non_bg = hard_sseg > 0
@@ -59,7 +59,8 @@ class PanopticSegmentor(tf.keras.Model):
         iseg_offset = iseg[0][non_bg][:, ::-1] + coords_non_bg
         return coords_non_bg, iseg_offset
 
-    def get_affiliations(self, iseg_offset, centroids):
+    @staticmethod
+    def get_affiliations(iseg_offset, centroids):
         D = tf.reduce_sum(  # [M, 1, 2] - [N, 1, 2] -> [M, N, 2]
             tf.square(iseg_offset[:, None, :] - centroids[None, :, :]), axis=2)  # -> [M, N]
         affiliations = tf.argmin(D, axis=1)
@@ -69,9 +70,6 @@ class PanopticSegmentor(tf.keras.Model):
     def get_filtered_result(self, coords_non_bg, affiliations, offset_scores):
         valid = offset_scores < self.offset_nms
         return coords_non_bg[valid], affiliations[valid]
-
-    def scatter_result(self, coords_non_bg, affiliations, tensor_shape):
-        return tf.scatter_nd(tf.cast(coords_non_bg, tf.int64), affiliations, tensor_shape)
 
     def postprocess(self, hmap, rreg, iseg, sseg):
         centroids, types, scores = self.get_centroids(hmap, rreg)
@@ -128,6 +126,7 @@ class ObjectDetector(tf.keras.Model):
                  refinement_stages: int = 1,
                  weights: str = None,
                  peak_nms: float = 0.1):
+        self.step = tf.Variable(0, dtype=tf.int64)
 
         super().__init__()
         self.backbone = backbone
@@ -145,11 +144,6 @@ class ObjectDetector(tf.keras.Model):
             self.build((None, None, None, 3))
             self.load_weights(weights)
 
-    def reset_metrics(self):
-        for metric in self.train_metrics.values():
-            metric.assign(0.)
-        self.train_steps.assign(0)
-
     def call(self, inputs, training=None, mask=None):
         outputs = []
         features = self.backbone(inputs)
@@ -158,8 +152,8 @@ class ObjectDetector(tf.keras.Model):
 
         hmap_features, boxx_features = features
 
-        for detector in self.detectors:
-            hmap, rreg, boxx = detector(features)
+        for det in self.detectors:
+            hmap, rreg, boxx = det(features)
             outputs.extend([hmap, rreg, boxx])
             features = [tf.concat([hmap_features, hmap], axis=-1),
                         tf.concat([boxx_features, boxx], axis=-1)]
@@ -208,7 +202,7 @@ class ObjectDetector(tf.keras.Model):
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
 
-        return self.loss_tracker.record([total_loss, hmap_loss, rreg_loss, boxx_loss])
+        return total_loss, hmap_loss, rreg_loss, boxx_loss
 
 
 class TimePriorizedObjectDetector(ObjectDetector):
@@ -227,7 +221,7 @@ class TimePriorizedObjectDetector(ObjectDetector):
     def call(self, inputs, training=None, mask=None):
         images, priors = inputs
         outputs = []
-        features = self.backbone(inputs)
+        features = self.backbone(images)
         if self.single_backbone_mode:
             features = [features[0], features[0]]
         hmap_features, boxx_features = features
@@ -247,10 +241,10 @@ class TimePriorizedObjectDetector(ObjectDetector):
         locations1 = tf.stack([locations1[:, 0], locations1[:, 2], locations1[:, 1], locations1[:, 3]], axis=1)
         locations2 = tf.stack([locations2[:, 0], locations2[:, 2], locations2[:, 1], locations2[:, 3]], axis=1)
 
-        m, x, y, c = hmap_gt1.shape
+        s = tf.shape(hmap_gt1)
 
-        no_prior = [tf.zeros((m, x, y, self.num_classes), dtype=tf.float32)
-                    tf.zeros((m, x, y, self.num_classes*2), dtype=tf.float32)]
+        no_prior = [tf.zeros(s, dtype=tf.float32),
+                    tf.zeros((s[0], s[1], s[2], s[3]*2), dtype=tf.float32)]
 
         with tf.GradientTape() as tape:
 
@@ -258,12 +252,13 @@ class TimePriorizedObjectDetector(ObjectDetector):
             hmap2, rreg2, boxx2 = self([image1, no_prior])
 
             hmap_loss = L.sse(hmap_gt1, hmap1) + L.sse(hmap_gt2, hmap2)
-            rreg_loss = L.sparse_vector_field_sae(rreg_values1, rreg1, locations1) + \
-                        L.sparse_vector_field_sae(rreg_values2, rreg2, locations2)
-            boxx_loss = L.sparse_vector_field_sae(boxx_values1, boxx1, locations1) + \
-                        L.sparse_vector_field_sae(boxx_values2, boxx2, locations2)
+            rreg_loss = (L.sparse_vector_field_sae(rreg_values1, rreg1, locations1) +
+                         L.sparse_vector_field_sae(rreg_values2, rreg2, locations2))
+            boxx_loss = (L.sparse_vector_field_sae(boxx_values1, boxx1, locations1) +
+                         L.sparse_vector_field_sae(boxx_values2, boxx2, locations2))
 
-            hmapp, rregp, boxxp = self(image2, priors=[hmap1, boxx1])
+            priors = [hmap1, boxx1]
+            hmapp, rregp, boxxp = self([image2, priors])
 
             phmap_loss = L.sse(hmap_gt2, hmapp)
             prreg_loss = L.sparse_vector_field_sae(rreg_values2, rregp, locations2)

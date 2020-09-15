@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from .loader import COCODoomLoader
 from verres.tf_arch import vision
-from verres.utils import box, visualize
+from verres.utils import box, visualize, profiling
 
 
 class PredictionVisualizer:
@@ -104,23 +104,34 @@ def run(loader: COCODoomLoader,
     if stop_after is None:
         stop_after = total
 
+    timer = profiling.MultiTimer()
+
+    iterator = iter(dataset)
+
     with PredictionVisualizer(to_screen, output_file, fps, scale) as vis:
 
-        for i, tensor in enumerate(dataset, start=1):
+        for i in range(1, stop_after+1):
 
-            if mode == Mode.DETECTION:
-                output = model.detect(tensor)
-                vis.draw_detection(tensor, output, alpha, write=True)
-            elif mode == Mode.PANOPTIC:
-                output = model.detect(tensor)
-                vis.draw_panoptic_segmentation(tensor, output, alpha, write=True)
-            else:
-                output = model(tensor)
+            with timer.time("data"):
+                tensor = next(iterator)
 
+            with timer.time("model"):
+                if mode == Mode.DETECTION:
+                    output = model.detect(tensor)
+                elif mode == Mode.PANOPTIC:
+                    output = model.detect(tensor)
+                else:
+                    output = model(tensor)
+
+            with timer.time("visualizer"):
                 if mode == Mode.RAW_HEATMAP:
                     vis.draw_raw_heatmap(tensor, output, alpha, write=True)
                 elif mode == Mode.RAW_BOX:
                     vis.draw_raw_box(tensor, output, alpha, write=True)
+                elif mode == Mode.DETECTION:
+                    vis.draw_detection(tensor, output, alpha, write=True)
+                elif mode == Mode.PANOPTIC:
+                    vis.draw_panoptic_segmentation(tensor, output, alpha, write=True)
                 elif mode == Mode.SEMANTIC:
                     vis.draw_semantic_segmentation(tensor, output, alpha, write=True)
                 elif mode == Mode.INSTANCE:
@@ -131,6 +142,10 @@ def run(loader: COCODoomLoader,
             if i >= stop_after:
                 break
 
-            print(f"\r [Verres] - Inference P: {i / stop_after:>7.2%}", end="")
+            logstr = (
+                    f"\r [Verres] - Inference P: {i / stop_after:>7.2%} - " +
+                    " - ".join(f"{k}: {1/v:.4f} FPS" for k, v in timer.get_results(reset=True).items()))
+            print(logstr, end="")
 
     print()
+

@@ -180,9 +180,14 @@ class COCODoomLoader:
             bbox.append(augmented_boxes)
 
         self.cache_id = image_id
-        self.cache["locations"] = np.concatenate(locations).astype(int)
-        self.cache["values"] = np.concatenate(values).astype("float32")
-        self.cache["bbox"] = np.concatenate(bbox).astype("float32")
+        if len(self.index[image_id]) == 0:
+            self.cache["locations"] = np.zeros((0, 4), dtype=int)
+            self.cache["values"] = np.zeros((0, 2), dtype="float32")
+            self.cache["bbox"] = np.zeros((0, 2), dtype="float32")
+        else:
+            self.cache["locations"] = np.concatenate(locations).astype(int)
+            self.cache["values"] = np.concatenate(values).astype("float32")
+            self.cache["bbox"] = np.concatenate(bbox).astype("float32")
 
     def get_refinements(self, image_id, batch_idx):
         self._get_regression_base(image_id, batch_idx)

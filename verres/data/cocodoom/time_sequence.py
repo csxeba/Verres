@@ -12,23 +12,23 @@ class COCODoomTimeSequence(COCODoomSequence):
     def __init__(self, stream_config: COCODoomStreamConfig, data_loader: COCODoomLoader,
                  full_data_loader: COCODoomLoader):
 
-        super().__init__(stream_config, data_loader)
-        self.full_loader = full_data_loader
+        super().__init__(stream_config, full_data_loader)
+        self.small_loader = data_loader
         self.mapping = {}
         self._prepare()
 
     def _prepare(self):
         new_ids = []
-        for ID in self.ids:
-            meta = self.loader.index[ID]
-            run_no, map_no, frame_no = cocodoom_utils.deconstruct_path(meta["file_name"])
-            prev_meta = self.full_loader.index[ID-1]
-            prev_run_no, prev_map_no, prev_frame_no = cocodoom_utils.deconstruct_path(prev_meta["file_name"])
-            if prev_map_no != map_no:
+        meta_stream = cocodoom_utils.apply_filters(
+            self.small_loader.image_meta.values(), self.cfg, self.small_loader)
+        for meta in meta_stream:
+            ID = meta["id"]
+            prev_meta = self.loader.image_meta.get(ID-1, None)
+            if prev_meta is None:
                 continue
-
             self.mapping[ID] = prev_meta["id"], meta["id"]
             new_ids.append(ID)
+        self.ids = np.array(new_ids)
 
     def make_sample(self, ID, batch_index: int):
 

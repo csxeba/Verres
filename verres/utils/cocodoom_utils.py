@@ -88,8 +88,9 @@ def generate_enemy_dataset(root="/data/Datasets/cocodoom"):
 
 
 def deconstruct_path(file_name: str):
-    run_str, map_str, frame_str = file_name.split("/")
-    run_no = int(run_str.split("run")[-1])
-    map_no = int(map_str.split("map")[-1])
-    frame_no = int(frame_str.split(".")[0])
+    # run_str, map_str, frame_str = file_name.split("/")
+    parts = file_name.split("/")
+    run_no = int(parts[0].split("run")[-1])
+    map_no = int(parts[1].split("map")[-1])
+    frame_no = int(parts[-1].split(".")[0])
     return run_no, map_no, frame_no

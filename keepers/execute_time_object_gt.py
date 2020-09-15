@@ -39,6 +39,6 @@ for [data] in stream:
     past_canvas = vis.overlay_heatmap(past_image, past_hmap)
     pres_canvas = vis.overlay_heatmap(pres_image, pres_hmap)
 
-    canvas = np.concatenate([past_canvas, pres_canvas], axis=2)
+    canvas = np.concatenate([past_canvas, pres_canvas], axis=1)
 
     screen.write(canvas)
