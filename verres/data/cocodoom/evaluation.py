@@ -71,3 +71,11 @@ def run_detection(loader: COCODoomLoader, model, detection_file="default"):
     cocoeval.accumulate()
     cocoeval.summarize()
     return cocoeval.stats
+
+
+def run_time_priorized_detection(loader: COCODoomLoader,
+                                 model: tf.keras.Model,
+                                 subsampling_factor: int = 4,
+                                 detection_file="default"):
+
+    ...

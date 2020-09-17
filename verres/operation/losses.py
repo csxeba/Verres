@@ -54,16 +54,16 @@ class Tracker:
 
     def __init__(self, keys: List[str]):
         self.keys = keys
-        self.variables = [tf.Variable(0., dtype=tf.float32) for _ in keys]
-        self.step = tf.Variable(0, dtype=tf.int64)
+        self.variables = [tf.Variable(0., dtype=tf.float32, trainable=False) for _ in keys]
+        self.step = tf.Variable(0., dtype=tf.float32, trainable=False)
 
     def record(self, data):
         for v, d in zip(self.variables, data):
-            v.assig_add(d)
-        self.step.assign_add(1)
+            v.assign_add(d)
+        self.step.assign_add(1.)
         return {k: v / self.step for k, v in zip(self.keys, self.variables)}
 
     def reset(self):
         for v in self.variables:
             v.assign(0.)
-        self.step.assign(0)
+        self.step.assign(0.)

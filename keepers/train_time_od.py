@@ -5,6 +5,7 @@ from verres.tf_arch import backbone as vrsbackbone, vision
 
 STRIDE = 8
 BATCH_SIZE = 8
+VIF = 4
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
@@ -60,5 +61,5 @@ model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 model.train_step(next(stream))
 
 model.fit(dataset.prefetch(10),
-          epochs=120 * 2,
-          steps_per_epoch=stream.steps_per_epoch() // 2)
+          epochs=120 * VIF,
+          steps_per_epoch=stream.steps_per_epoch() // VIF)

@@ -1,4 +1,8 @@
 import time
+from collections import defaultdict
+from typing import List, Dict
+
+import numpy as np
 
 
 def timed(callback, *args, **kwargs):
@@ -30,7 +34,7 @@ class Timer:
 class MultiTimer:
 
     def __init__(self):
-        self._results = {}
+        self._results: Dict[List[float]] = defaultdict(list)
         self._latest = None
 
     def time(self, fieldname):
@@ -42,17 +46,16 @@ class MultiTimer:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._results[self._latest] = time.time() - self._results[self._latest]
+        self._results[self._latest][-1] = time.time() - self._results[self._latest][-1]
 
-    def get_results(self, field=None, reset=False):
-        if field is not None:
-            result = self._results[field]
-        else:
-            result = self._results
+    def get_results(self, reset=False, reduce=True):
+        result = self._results
+        if reduce:
+            result = {k: np.mean(v) for k, v in result.items()}
         if reset:
             self.reset()
         return result
 
     def reset(self):
-        self._results = {}
+        self._results = defaultdict(list)
         self._latest = None

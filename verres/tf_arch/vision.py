@@ -216,7 +216,7 @@ class TimePriorizedObjectDetector(ObjectDetector):
                  peak_nms: float = 0.1):
 
         super().__init__(backbone, num_classes, stride, refinement_stages, weights, peak_nms)
-        self.loss_tracker = L.Tracker([])
+        self.loss_tracker = L.Tracker(["loss", "noprio_loss", "prio_loss"])
 
     def call(self, inputs, training=None, mask=None):
         images, priors = inputs
@@ -238,18 +238,20 @@ class TimePriorizedObjectDetector(ObjectDetector):
         (image1, hmap_gt1, locations1, rreg_values1, boxx_values1,
          image2, hmap_gt2, locations2, rreg_values2, boxx_values2) = data[0]
 
-        locations1 = tf.stack([locations1[:, 0], locations1[:, 2], locations1[:, 1], locations1[:, 3]], axis=1)
-        locations2 = tf.stack([locations2[:, 0], locations2[:, 2], locations2[:, 1], locations2[:, 3]], axis=1)
+        locations1 = tf.stop_gradient(tf.stack(
+            [locations1[:, 0], locations1[:, 2], locations1[:, 1], locations1[:, 3]], axis=1))
+        locations2 = tf.stop_gradient(tf.stack(
+            [locations2[:, 0], locations2[:, 2], locations2[:, 1], locations2[:, 3]], axis=1))
 
         s = tf.shape(hmap_gt1)
 
-        no_prior = [tf.zeros(s, dtype=tf.float32),
-                    tf.zeros((s[0], s[1], s[2], s[3]*2), dtype=tf.float32)]
+        no_prior = [tf.stop_gradient(tf.zeros(s, dtype=tf.float32)),
+                    tf.stop_gradient(tf.zeros((s[0], s[1], s[2], s[3]*2), dtype=tf.float32))]
 
         with tf.GradientTape() as tape:
 
             hmap1, rreg1, boxx1 = self([image1, no_prior])
-            hmap2, rreg2, boxx2 = self([image1, no_prior])
+            hmap2, rreg2, boxx2 = self([image2, no_prior])
 
             hmap_loss = L.sse(hmap_gt1, hmap1) + L.sse(hmap_gt2, hmap2)
             rreg_loss = (L.sparse_vector_field_sae(rreg_values1, rreg1, locations1) +
@@ -264,8 +266,8 @@ class TimePriorizedObjectDetector(ObjectDetector):
             prreg_loss = L.sparse_vector_field_sae(rreg_values2, rregp, locations2)
             pboxx_loss = L.sparse_vector_field_sae(boxx_values2, boxxp, locations2)
 
-            no_prior_loss = (hmap_loss + rreg_loss * 10 + boxx_loss) / 2
-            with_prior_loss = phmap_loss + prreg_loss * 10 + pboxx_loss
+            no_prior_loss = (hmap_loss + rreg_loss * 10. + boxx_loss) / 2.
+            with_prior_loss = phmap_loss + prreg_loss * 10. + pboxx_loss
 
             total_loss = no_prior_loss + with_prior_loss
 
