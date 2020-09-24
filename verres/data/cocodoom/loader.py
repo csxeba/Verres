@@ -70,7 +70,23 @@ class COCODoomLoader:
     def N(self):
         return len(self.index)
 
+    def empty_image(self):
+        return np.zeros(self.model_input_shape, dtype="uint8")
+
+    def empty_tensor(self, depth: int, stride: int = None, dtype="float32"):
+        if stride is None:
+            s = self.cfg.stride
+        else:
+            s = stride
+        sh = self.model_input_shape
+        return np.zeros((sh[0] // s, sh[1] // s, depth), dtype=dtype)
+
+    def empty_sparse_tensor(self, dims: int, dtype):
+        return np.zeros((0, dims), dtype=dtype)
+
     def get_image(self, image_id, preprocess=False):
+        if image_id is None:
+            return self.empty_image()
         meta = self.image_meta[image_id]
         image_path = os.path.join(self.cfg.images_root, meta["file_name"])
         image = cv2.imread(image_path)
@@ -83,14 +99,15 @@ class COCODoomLoader:
         return image
 
     def get_panoptic_masks(self, image_id):
-        image_shape = self.model_input_shape[:2] + (1,)
-        segmentation_mask = np.zeros(image_shape, dtype="float32")
+        segmentation_mask = self.empty_tensor(depth=1, stride=1, dtype="int64")
+        instance_canvas = self.empty_tensor(depth=2, stride=1, dtype="float32")
+        if image_id is None:
+            return [instance_canvas, segmentation_mask]
         coord_template = np.stack(
             np.meshgrid(
-                np.arange(image_shape[1]),
-                np.arange(image_shape[0])),
+                np.arange(self.model_input_shape[1]),
+                np.arange(self.model_input_shape[0])),
             axis=-1)
-        instance_canvas = np.zeros_like(coord_template, dtype="float32")
 
         for anno in self.index[image_id]:
             category = self.categories[anno["category_id"]]
@@ -99,7 +116,10 @@ class COCODoomLoader:
 
             class_idx = ENEMY_TYPES.index(category["name"])
 
-            instance_mask = np.squeeze(masking.get_mask(anno, image_shape))
+            instance_mask = np.squeeze(masking.get_mask(anno, self.IMAGE_SHAPE))
+            if self.warper is not None:
+                instance_mask = self.warper.warp_image(instance_mask)
+
             coords = np.argwhere(instance_mask)  # type: np.ndarray
 
             segmentation_mask[instance_mask] = class_idx+1
@@ -114,11 +134,14 @@ class COCODoomLoader:
         return depth_image
 
     def get_object_heatmap(self, image_id):
-        tensor_shape = np.array(self.model_output_shape + (self.num_classes,))
-        heatmap = np.zeros(tensor_shape, dtype="float32")
+        annos = self.index[image_id]
+        heatmap = self.empty_tensor(depth=self.num_classes, stride=self.cfg.stride, dtype="float32")
+        if image_id is None or len(annos) == 0:
+            return heatmap
 
+        tensor_shape = heatmap.shape[:2]
         hit = 0
-        for anno in self.index[image_id]:
+        for anno in annos:
             category = self.categories[anno["category_id"]]
             if category["name"] not in ENEMY_TYPES:
                 continue
@@ -140,7 +163,16 @@ class COCODoomLoader:
         return heatmap
 
     def _get_regression_base(self, image_id, batch_idx):
+
         if image_id == self.cache_id:
+            return
+
+        self.cache_id = image_id
+
+        if image_id is None or len(self.index[image_id]) == 0:
+            self.cache["locations"] = np.zeros((0, 4), dtype=int)
+            self.cache["values"] = np.zeros((0, 2), dtype="float32")
+            self.cache["bbox"] = np.zeros((0, 2), dtype="float32")
             return
 
         tensor_shape = np.array(self.model_output_shape)
@@ -179,15 +211,9 @@ class COCODoomLoader:
             values.append(augmented_values)
             bbox.append(augmented_boxes)
 
-        self.cache_id = image_id
-        if len(self.index[image_id]) == 0:
-            self.cache["locations"] = np.zeros((0, 4), dtype=int)
-            self.cache["values"] = np.zeros((0, 2), dtype="float32")
-            self.cache["bbox"] = np.zeros((0, 2), dtype="float32")
-        else:
-            self.cache["locations"] = np.concatenate(locations).astype(int)
-            self.cache["values"] = np.concatenate(values).astype("float32")
-            self.cache["bbox"] = np.concatenate(bbox).astype("float32")
+        self.cache["locations"] = np.concatenate(locations).astype(int)
+        self.cache["values"] = np.concatenate(values).astype("float32")
+        self.cache["bbox"] = np.concatenate(bbox).astype("float32")
 
     def get_refinements(self, image_id, batch_idx):
         self._get_regression_base(image_id, batch_idx)
