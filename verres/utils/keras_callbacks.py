@@ -66,7 +66,12 @@ class LinearLRSchedule(tf.keras.callbacks.Callback):
 
 class ObjectMAP(tf.keras.callbacks.Callback):
 
-    def __init__(self, loader: COCODoomLoader, artifactory: Artifactory = None, checkpoint_best: bool = True):
+    def __init__(self,
+                 loader: COCODoomLoader,
+                 artifactory: Artifactory = None,
+                 checkpoint_best: bool = True,
+                 time_detection_mode: bool = False):
+
         super().__init__()
         self.loader = loader
         if artifactory is None:
@@ -78,9 +83,14 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.last_map = -1.
         self.last_chkp = ""
         self.checkpoint_best = checkpoint_best
+        self.time_detection_mode = time_detection_mode
 
     def on_epoch_end(self, epoch, logs=None):
-        result = evaluation.run_detection(loader=self.loader, model=self.model, detection_file=self.detection_tmp.format(epoch=epoch + 1))
+        if self.time_detection_mode:
+            result = evaluation.run_time_priorized_detection(self.loader, self.model, self.detection_tmp.format(epoch=epoch + 1))
+        else:
+            result = evaluation.run_detection(loader=self.loader, model=self.model, detection_file=self.detection_tmp.format(epoch=epoch + 1))
+
         mAP = result[0]
         if self.checkpoint_best:
             if mAP > self.last_map:

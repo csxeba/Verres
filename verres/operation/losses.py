@@ -54,8 +54,8 @@ class Tracker:
 
     def __init__(self, keys: List[str]):
         self.keys = keys
-        self.variables = [tf.Variable(0., dtype=tf.float32, trainable=False) for _ in keys]
-        self.step = tf.Variable(0., dtype=tf.float32, trainable=False)
+        self.variables = [tf.Variable(0., dtype=tf.float32, trainable=False, name=key + "_logger") for key in keys]
+        self.step = tf.Variable(0., dtype=tf.float32, trainable=False, name="step_logger")
 
     def record(self, data):
         for v, d in zip(self.variables, data):

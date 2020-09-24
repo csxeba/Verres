@@ -126,7 +126,6 @@ class ObjectDetector(tf.keras.Model):
                  refinement_stages: int = 1,
                  weights: str = None,
                  peak_nms: float = 0.1):
-        self.step = tf.Variable(0, dtype=tf.int64)
 
         super().__init__()
         self.backbone = backbone
@@ -234,6 +233,24 @@ class TimePriorizedObjectDetector(ObjectDetector):
                         tf.concat([boxx_features, boxx], axis=-1)]
         return outputs
 
+    def _generate_empty_priors(self, image_shape):
+        s = image_shape[0], image_shape[1] // self.stride, image_shape[2] // self.stride, self.num_classes
+        no_prior = [tf.stop_gradient(tf.zeros(s, dtype=tf.float32)),
+                    tf.stop_gradient(tf.zeros((s[0], s[1], s[2], s[3]*2), dtype=tf.float32))]
+        return no_prior
+
+    def detect(self, inputs):
+        past_image, present_image = inputs
+        no_prior = self._generate_empty_priors(tf.shape(past_image))
+        hmap, rreg, boxx = self([past_image, no_prior])
+
+        prior = [hmap, boxx]
+        outputs = self([present_image, prior])
+
+        result = super().postprocess(outputs)
+        return result
+
+    @tf.function
     def train_step(self, data):
         (image1, hmap_gt1, locations1, rreg_values1, boxx_values1,
          image2, hmap_gt2, locations2, rreg_values2, boxx_values2) = data[0]
@@ -243,10 +260,7 @@ class TimePriorizedObjectDetector(ObjectDetector):
         locations2 = tf.stop_gradient(tf.stack(
             [locations2[:, 0], locations2[:, 2], locations2[:, 1], locations2[:, 3]], axis=1))
 
-        s = tf.shape(hmap_gt1)
-
-        no_prior = [tf.stop_gradient(tf.zeros(s, dtype=tf.float32)),
-                    tf.stop_gradient(tf.zeros((s[0], s[1], s[2], s[3]*2), dtype=tf.float32))]
+        no_prior = self._generate_empty_priors(tf.shape(image1))
 
         with tf.GradientTape() as tape:
 

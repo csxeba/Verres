@@ -33,7 +33,7 @@ class Artifactory(Artifactorium):
             self.__class__.default_instance = self
 
     def make_checkpoint_template(self, model_name=""):
-        return os.path.join(self.checkpoint_root, "{}_chkp_{}".format(model_name, "{}"))
+        return os.path.join(self.checkpoints, "{}_chkp_{}".format(model_name, "{}"))
 
     @classmethod
     def get_default(cls, experiment_name=None, add_now: bool = True):
