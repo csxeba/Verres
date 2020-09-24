@@ -139,7 +139,7 @@ class COCODoomLoader:
         if image_id is None or len(annos) == 0:
             return heatmap
 
-        tensor_shape = heatmap.shape[:2]
+        tensor_shape = np.array(heatmap.shape[:2])
         hit = 0
         for anno in annos:
             category = self.categories[anno["category_id"]]
