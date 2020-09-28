@@ -101,12 +101,15 @@ def run_time_priorized_detection(time_data_loader: COCODoomLoader,
 
     img_root = time_data_loader.cfg.images_root
     file_names = [os.path.join(img_root, meta["file_name"])
-                  for meta in time_data_loader.image_meta.values()]
+                  for meta in time_data_loader.image_meta.values() if "prev_image_id" in meta]
     category_index = {cat["name"]: cat for cat in time_data_loader.categories.values()}
 
     prev_file_names = []
     for meta in time_data_loader.image_meta.values():
-        prev_meta = time_data_loader.image_meta[meta["prev_image_id"]]
+        prev_meta_id = meta.get("prev_image_id", None)
+        if prev_meta_id is None:
+            continue
+        prev_meta = time_data_loader.image_meta[prev_meta_id]
         prev_file_names.append(os.path.join(img_root, prev_meta["file_name"]))
 
     present: tf.data.Dataset = process(file_names)

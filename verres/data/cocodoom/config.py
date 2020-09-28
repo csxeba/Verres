@@ -16,12 +16,14 @@ class COCODoomLoaderConfig:
                  data_json: str,
                  images_root: str,
                  stride: int = None,
-                 input_shape: Tuple[int, int, int] = None):
+                 input_shape: Tuple[int, int, int] = None,
+                 allow_empty_ids: bool = False):
 
         self.data_json = data_json
         self.images_root = images_root
         self.stride = stride
         self.input_shape = input_shape
+        self.allow_empty_ids = allow_empty_ids
 
 
 class COCODoomStreamConfig:

@@ -241,6 +241,8 @@ class TimePriorizedObjectDetector(ObjectDetector):
 
     def detect(self, inputs):
         past_image, present_image = inputs
+        past_image = past_image[None, ...]
+        present_image = present_image[None, ...]
         no_prior = self._generate_empty_priors(tf.shape(past_image))
         hmap, rreg, boxx = self([past_image, no_prior])
 
@@ -250,7 +252,7 @@ class TimePriorizedObjectDetector(ObjectDetector):
         result = super().postprocess(outputs)
         return result
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def train_step(self, data):
         (image1, hmap_gt1, locations1, rreg_values1, boxx_values1,
          image2, hmap_gt2, locations2, rreg_values2, boxx_values2) = data[0]

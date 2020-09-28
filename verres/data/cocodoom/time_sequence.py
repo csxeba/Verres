@@ -16,8 +16,10 @@ class COCODoomTimeSequence(COCODoomSequence):
         features = []
 
         meta = self.loader.image_meta[ID]
+        ID = meta["id"]
+        prev_ID = meta.get("prev_image_id", None)
 
-        for actual_id in [meta["prev_image_id"], meta["id"]]:
+        for actual_id in [prev_ID, ID]:
             local_features = super().make_sample(actual_id, batch_index)
             features.extend(local_features)
 

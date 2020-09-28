@@ -45,8 +45,7 @@ output_shapes = ((None, 200, 320, 3),
 dataset = tf.data.Dataset.from_generator(
     lambda: stream,
     output_types=output_types,
-    output_shapes=output_shapes
-)
+    output_shapes=output_shapes)
 
 backbone = vrsbackbone.SmallFCNN(width_base=16, strides=(2, 4, 8))
 fusion = vrsbackbone.FeatureFuser(backbone, final_stride=8, base_width=8, final_width=64)
@@ -64,7 +63,6 @@ artifactory = vrs.artifactory.Artifactory.get_default(
 )
 
 callbacks = [
-    vrscallbacks.ObjectMAP(val_loader, artifactory, checkpoint_best=True, time_detection_mode=True),
     kcallbacks.TensorBoard(artifactory.tensorboard, profile_batch=0, write_graph=False),
     kcallbacks.CSVLogger(artifactory.logfile_path),
     kcallbacks.ModelCheckpoint(artifactory.make_checkpoint_template().format("latest"), save_weights_only=True)]
@@ -73,3 +71,4 @@ model.fit(dataset.prefetch(10),
           epochs=120 * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
           callbacks=callbacks)
+

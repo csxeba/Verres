@@ -103,11 +103,6 @@ class COCODoomLoader:
         instance_canvas = self.empty_tensor(depth=2, stride=1, dtype="float32")
         if image_id is None:
             return [instance_canvas, segmentation_mask]
-        coord_template = np.stack(
-            np.meshgrid(
-                np.arange(self.model_input_shape[1]),
-                np.arange(self.model_input_shape[0])),
-            axis=-1)
 
         for anno in self.index[image_id]:
             category = self.categories[anno["category_id"]]
