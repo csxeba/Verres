@@ -197,3 +197,6 @@ data/
 *.png
 *.py[oc]
 *.json
+
+# Your environment setup
+*.env
