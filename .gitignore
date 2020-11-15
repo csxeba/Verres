@@ -173,13 +173,28 @@ fabric.properties
 # Editor-based Rest Client
 .idea/httpRequests
 
-# Csa
-.spyder
-tmp
-logs
-experiments/
+#####################
+### Non-generated ###
+#####################
+
+# Training outputs and checkpoints
 artifactory/
+
+# Custom scripts
+experiments/
+
+# Pretrained weights
 models/
+
+# Just that: data
+data/
+
+# Please don't put these into the docker image
+*.avi
+*.mp4
 *.h5
+*.jpeg
+*.jpg
 *.png
-.idea
+*.py[oc]
+*.json

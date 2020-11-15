@@ -14,8 +14,8 @@ STRIDE = 8
 
 loader = cocodoom.COCODoomLoader(
     cocodoom.COCODoomLoaderConfig(
-        data_json="/data/Datasets/cocodoom/map-train.json",
-        images_root="/data/Datasets/cocodoom",
+        data_json="/data/cocodoom/map-train.json",
+        images_root="/data/cocodoom",
         stride=STRIDE,
         input_shape=None
     )
@@ -41,8 +41,8 @@ dataset = tf.data.Dataset.from_generator(
 
 val_loader = cocodoom.COCODoomLoader(
     config=cocodoom.COCODoomLoaderConfig(
-        data_json="/data/Datasets/cocodoom/enemy-map-val.json",
-        images_root="/data/Datasets/cocodoom",
+        data_json="/data/cocodoom/enemy-map-val.json",
+        images_root="/data/cocodoom",
         stride=STRIDE,
         input_shape=None))
 

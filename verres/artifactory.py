@@ -12,10 +12,7 @@ class Artifactory(Artifactorium):
     def __init__(self, root="default", experiment_name=None, add_now: bool = True):
 
         if root == "default":
-            current = os.path.split(os.getcwd())[-1]
-            if current in ["experiments", "keepers"]:
-                os.chdir("..")
-            root = "artifactory"
+            root = "/artifactory"
 
         args = [root, experiment_name]
         if add_now:
@@ -33,7 +30,8 @@ class Artifactory(Artifactorium):
             self.__class__.default_instance = self
 
     def make_checkpoint_template(self, model_name=""):
-        return os.path.join(self.checkpoints, "{}_chkp_{}".format(model_name, "{}"))
+        return os.path.join(self.checkpoints, "{}_chkp_{}.h5"
+                                              "".format(model_name, "{}"))
 
     @classmethod
     def get_default(cls, experiment_name=None, add_now: bool = True):

@@ -1,0 +1,21 @@
+# Training outputs and checkpoints
+artifactory/
+
+# Custom scripts
+experiments/
+
+# Pretrained weights
+models/
+
+# Just that: data
+data/
+
+# Please don't put these into the docker image
+*.avi
+*.mp4
+*.h5
+*.jpeg
+*.jpg
+*.png
+*.py[oc]
+*.json

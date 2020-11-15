@@ -59,8 +59,8 @@ model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 model.train_step(next(stream))
 
 artifactory = vrs.artifactory.Artifactory.get_default(
-    experiment_name="time_od", add_now=True
-)
+    experiment_name="time_od",
+    add_now=True)
 
 callbacks = [
     kcallbacks.TensorBoard(artifactory.tensorboard, profile_batch=0, write_graph=False),
@@ -71,4 +71,3 @@ model.fit(dataset.prefetch(10),
           epochs=120 * VIF,
           steps_per_epoch=stream.steps_per_epoch() // VIF,
           callbacks=callbacks)
-

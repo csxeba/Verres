@@ -77,30 +77,17 @@ class Mode:
     PANOPTIC = "panoptic"
 
 
-def run(loader: COCODoomLoader,
-        model: Union[vision.ObjectDetector, vision.PanopticSegmentor],
-        mode: str = Mode.DETECTION,
-        to_screen: bool = True,
-        output_file: str = None,
-        stop_after: int = None,
-        alpha: float = 0.5,
-        fps: int = 25,
-        scale: float = 4.):
+def _run_common(model: Union[vision.ObjectDetector, vision.PanopticSegmentor],
+                dataset: tf.data.Dataset,
+                total: int,
+                mode: str,
+                to_screen: bool,
+                output_file: str,
+                stop_after: int,
+                alpha: float,
+                fps: int,
+                scale: float):
 
-    @tf.function
-    def preprocess(image_path):
-        data = tf.io.read_file(image_path)
-        image = tf.io.decode_image(data)
-        image = tf.image.convert_image_dtype(image, tf.float32)[..., ::-1]
-        return image[None, ...]
-
-    image_paths = [os.path.join(loader.cfg.images_root, meta["file_name"])
-                   for meta in sorted(loader.image_meta.values(), key=lambda m: m["id"])]
-    dataset = tf.data.Dataset.from_tensor_slices(image_paths)
-    dataset = dataset.map(preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    dataset = dataset.prefetch(10)
-
-    total = len(image_paths)
     if stop_after is None:
         stop_after = total
 
@@ -149,3 +136,30 @@ def run(loader: COCODoomLoader,
 
     print()
 
+
+def run(loader: COCODoomLoader,
+        model: Union[vision.ObjectDetector, vision.PanopticSegmentor],
+        mode: str = Mode.DETECTION,
+        to_screen: bool = True,
+        output_file: str = None,
+        stop_after: int = None,
+        alpha: float = 0.5,
+        fps: int = 25,
+        scale: float = 4.):
+
+    @tf.function
+    def preprocess(image_path):
+        data = tf.io.read_file(image_path)
+        image = tf.io.decode_image(data)
+        image = tf.image.convert_image_dtype(image, tf.float32)[..., ::-1]
+        return image[None, ...]
+
+    image_paths = [os.path.join(loader.cfg.images_root, meta["file_name"])
+                   for meta in sorted(loader.image_meta.values(), key=lambda m: m["id"])]
+    dataset = tf.data.Dataset.from_tensor_slices(image_paths)
+    dataset = dataset.map(preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    dataset = dataset.prefetch(10)
+
+    total = len(image_paths)
+
+    _run_common(model, dataset, total, mode, to_screen, output_file, stop_after, alpha, fps, scale)
