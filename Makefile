@@ -15,7 +15,7 @@ build :
 	docker build \
 	--tag trickster/environment:latest \
 	--network host \
-	-f docker/Dockerfile \
-	--build-arg user=$${USERNAME} \
 	--build-arg uid=$(shell id -u) \
+	--build-arg accelerator=${compute_accelerator} \
+	-f docker/Dockerfile \
 	.

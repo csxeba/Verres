@@ -201,7 +201,9 @@ class ObjectDetector(tf.keras.Model):
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
 
-        return total_loss, hmap_loss, rreg_loss, boxx_loss
+        logs = {"loss": total_loss, "hmap": hmap_loss, "rreg": rreg_loss, "boxx": boxx_loss}
+
+        return logs
 
 
 class TimePriorizedObjectDetector(ObjectDetector):

@@ -1,0 +1,23 @@
+#! /bin/bash
+
+echo " [Verres] - Attempting to build docker environment"
+make build > /dev/null
+
+if [ $? -ne 0 ]
+then
+  echo " [Verres] - ERROR: Couldn't build environment..."
+  exit 1
+fi
+
+source .env
+
+echo " [Verres] - Running command in environment: $@"
+
+docker run --rm --network host \
+	-v ${host_artifactory_root}:/artifactory \
+	-v ${host_models_root}:/models \
+	-v ${host_data_root}:/data \
+	-v $(pwd):/workspace \
+	-u $(id -u) \
+	trickster/environment:latest \
+	/opt/conda/bin/python $@

@@ -1,6 +1,7 @@
 FROM continuumio/miniconda3:latest
 
 ARG uid
+ARG accelerator=mkl
 
 ENV PYTHONPATH=/workspace
 
@@ -10,21 +11,18 @@ RUN apt-get update && apt-get install -y \
     "vim" \
     "graphviz"
 
-RUN conda install \
-    "python>=3.7" \
-    "tensorflow>=2.2" \
-    "matplotlib"
+COPY ./conda /conda
 
-RUN pip install \
-    "opencv-python" \
-    "pydot-ng" \
-    "pycocotools-fix" \
-    "git+https://github.com/csxeba/Artifactorium.git"
+RUN conda env update --file /conda/conda-env-${accelerator}.yml --name base
 
 RUN useradd -m -s /bin/bash -u $uid --no-log-init user
 
 RUN mkdir /workspace && \
-    chmod -R a+rw /workspace
+    mkdir /artifactory && \
+    mkdir /data && \
+    chmod -R a+rw /workspace && \
+    chmod -R a+rw /artifactory && \
+    chmod -R a+rw /data
 
 WORKDIR /workspace
 

@@ -199,4 +199,4 @@ data/
 *.json
 
 # Your environment setup
-*.env
+./.env
