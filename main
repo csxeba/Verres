@@ -1,7 +1,7 @@
 #! /bin/bash
 
 echo " [Verres] - Attempting to build docker environment"
-make build > /dev/null
+make build
 
 if [ $? -ne 0 ]
 then
