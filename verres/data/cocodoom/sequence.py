@@ -26,52 +26,62 @@ class COCODoomSequence(tf.keras.utils.Sequence):
         return self.N // self.cfg.batch_size
 
     @staticmethod
-    def _configure_batch(xs, ys):
-        if isinstance(xs[0], list):
-            X = [np.array([x[i] for x in xs]) for i in range(len(xs[0]))]
+    def _reconfigure_batch(batch: list):
+        elements = []
+        for stack in zip(*batch):
+            if stack[0].ndim > 2:
+                elements.append(tf.convert_to_tensor(stack))
+            else:
+                elements.append(tf.concat(stack, axis=0))
+
+        return tuple(elements),
+
+    def make_sample(self, ID, batch_index: int):
+        features = [self.loader.get_image(ID).astype("float32") / 255.]
+
+        if self.cfg.task == TASK.SEMSEG:
+            y = self.loader.get_panoptic_masks(ID)
+            features.append(y[1])
+        elif self.cfg.task == TASK.PANSEG:
+            iseg, sseg = self.loader.get_panoptic_masks(ID)
+            heatmap = self.loader.get_object_heatmap(ID)
+            locations, refinements = self.loader.get_refinements(ID, batch_index)
+            features += [heatmap, locations, refinements, iseg, sseg]
+        elif self.cfg.task == TASK.DEPTH:
+            y = self.loader.get_depth_image(ID)
+            features.append(y)
+        elif self.cfg.task == TASK.DETECTION:
+            heatmap = self.loader.get_object_heatmap(ID)
+            locations, rreg_values = self.loader.get_refinements(ID, batch_index)
+            _, boxx_values = self.loader.get_bbox(ID, batch_index)
+            features += [heatmap, locations, rreg_values, boxx_values]
+        elif self.cfg.task == TASK.INFERENCE:
+            pass
         else:
-            X = np.array(xs)
-        if isinstance(ys[0], list):
-            Y = [np.array([y[i] for y in ys]) for i in range(len(ys[0]))]
-        else:
-            Y = np.array(ys)
-        return X, Y
+            assert False
+
+        return features
 
     def make_batch(self, IDs=None):
-        xs, ys = [], []
 
         if IDs is None:
             IDs = np.random.choice(self.ids, size=self.cfg.batch_size)
 
-        for ID in IDs:
-            x = self.loader.get_image(ID) / 255.
+        batch = []
 
-            if self.cfg.task == TASK.SEGMENTATION:
-                y = self.loader.get_segmentation_mask(ID)
-            elif self.cfg.task == TASK.DEPTH:
-                y = self.loader.get_depth_image(ID)
-            elif self.cfg.task == TASK.DETECTION_TRAINING:
-                heatmap, refinement, wh, mask = self.loader.get_box_ground_truth(ID)
-                x = [x, mask]
-                y = [heatmap, refinement*mask, wh*mask]
-            elif self.cfg.task == TASK.DETECTION_INFERENCE:
-                heatmap, refinement, wh, mask = self.loader.get_box_ground_truth(ID)
-                y = [heatmap, refinement, wh]
-            else:
-                assert False
+        for i, ID in enumerate(IDs):
+            features = self.make_sample(ID, batch_index=i)
+            batch.append(features)
 
-            xs.append(x)
-            ys.append(y)
-
-        batch = self._configure_batch(xs, ys)
-
-        return batch
+        return self._reconfigure_batch(batch)
 
     def stream(self):
         while 1:
             if self.cfg.shuffle:
                 np.random.shuffle(self.ids)
             for batch in (self.ids[start:start+self.cfg.batch_size] for start in range(0, self.N, self.cfg.batch_size)):
+                if len(batch) < self.cfg.batch_size:
+                    break
                 yield self.make_batch(batch)
 
     # Keras Sequence interface
@@ -89,6 +99,3 @@ class COCODoomSequence(tf.keras.utils.Sequence):
         if self._internal_interator is None:
             self._internal_interator = self.stream()
         return next(self._internal_interator)
-
-    def __call__(self, *args, **kwargs):
-        return self.__next__()

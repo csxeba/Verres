@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 
-class _InMemoryImageClassificationDatasets:
+class InMemoryImageClassificationDataset:
 
     def __init__(self, onehot_label=True):
 
@@ -100,17 +100,17 @@ class _InMemoryImageClassificationDatasets:
                 yield self.make_batch(ids[start:start+batch_size])
 
 
-class CIFAR10(_InMemoryImageClassificationDatasets):
+class CIFAR10(InMemoryImageClassificationDataset):
     ...
 
 
-class CIFAR100(_InMemoryImageClassificationDatasets):
+class CIFAR100(InMemoryImageClassificationDataset):
     ...
 
 
-class MNIST(_InMemoryImageClassificationDatasets):
+class MNIST(InMemoryImageClassificationDataset):
     ...
 
 
-class FASHION_MNIST(_InMemoryImageClassificationDatasets):
+class FASHION_MNIST(InMemoryImageClassificationDataset):
     ...

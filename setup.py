@@ -9,5 +9,17 @@ setup(
     license='MIT',
     author='Csxeba',
     author_email='csxeba@gmail.com',
-    description='Curiosity'
+    description='Curiosity',
+    install_requires=["opencv-python>=4.0",
+                      "numpy",
+                      "scipy",
+                      "matplotlib",
+                      "tensorflow>=2.2",
+                      "IPython",
+                      "tqdm",
+                      "git+https://github.com/csxeba/Artifactorium.git"],
+    extras_require={"all": ["tfkerassurgeon"],
+                    "pruning": ["tfkerassurgeon"],
+                    "gpu": ["tensorflow-gpu>=2.2"]}
+
 )

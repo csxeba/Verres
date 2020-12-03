@@ -1,27 +1,40 @@
 import os
-import pathlib
-import datetime
+
+from artifactorium import Artifactorium
 
 
-class Artifactory:
+class Artifactory(Artifactorium):
 
-    def __init__(self, root=None):
-        if root is None:
-            root = self._default_root()
-        self.root = pathlib.Path(root)
-        self.experiment_root = self.root/datetime.datetime.now().strftime("xp_%Y%m%d.%H%M%S")
-        self.checkpoint_root = self.experiment_root/"checkpoints"
-        self.tensorboard_root = self.experiment_root/"tensorboard"
-        for roots in [self.checkpoint_root, self.tensorboard_root]:
-            roots.mkdir(parents=True, exist_ok=True)
-        self.logfile_path = str(self.experiment_root/"training_logs.csv")
+    __slots__ = "checkpoints", "tensorboard", "logfile_path", "detections"
 
-    @staticmethod
-    def _default_root():
-        current = os.getcwd()
-        if "experiments" in current:
-            os.chdir("..")
-        return os.path.join(current, "artifactory")
+    default_instance = None
+
+    def __init__(self, root="default", experiment_name=None, add_now: bool = True):
+
+        if root == "default":
+            root = "/artifactory"
+
+        args = [root, experiment_name]
+        if add_now:
+            args.append("NOW")
+        super().__init__(*args)
+
+        self.register_path("checkpoints")
+        self.register_path("tensorboard")
+        self.register_path("detections")
+        self.register_path("logfile_path", "training_logs.csv", is_file=True)
+
+        print(f" [Verres.Artifactory] - Root set to {self.root}")
+
+        if self.__class__.default_instance is None:
+            self.__class__.default_instance = self
 
     def make_checkpoint_template(self, model_name=""):
-        return os.path.join(self.checkpoint_root, "{}_chkp_{}".format(model_name, "{}"))
+        return os.path.join(self.checkpoints, "{}_chkp_{}.h5"
+                                              "".format(model_name, "{}"))
+
+    @classmethod
+    def get_default(cls, experiment_name=None, add_now: bool = True):
+        if cls.default_instance is None:
+            return cls(experiment_name=experiment_name, add_now=add_now)
+        return cls.default_instance
