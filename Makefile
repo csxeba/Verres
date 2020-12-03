@@ -24,9 +24,10 @@ build :
 tensorboard : build
 	docker run --rm -d \
 	--name verres_tensorboard \
+	--hostname $(shell cat /etc/hostname) \
 	-v ${host_artifactory_root}:/artifactory \
 	-u $(shell id -u) \
-	-p ${host_tensorboard_port}:6666 \
+	-p ${host_tensorboard_port}:6006 \
 	trickster/environment:latest \
 	tensorboard \
 	--logdir /artifacotry \
@@ -35,6 +36,7 @@ tensorboard : build
 jupyter : build
 	docker run --rm -d \
 	--name verres_jupyter \
+	--hostname $(shell cat /etc/hostname) \
 	-v ${host_artifactory_root}:/artifactory \
 	-v ${host_models_root}:/models \
 	-v ${host_data_root}:/data \

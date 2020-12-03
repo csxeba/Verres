@@ -2,9 +2,10 @@ import tensorflow as tf
 from tensorflow.keras import callbacks as kcallbacks
 
 import verres as vrs
+import verres.architecture.head.detection
 from verres.data import cocodoom
-from verres.tf_arch import backbone as vrsbackbone, vision
-from verres.utils import keras_callbacks as vrscallbacks
+from verres.architecture import backbone as vrsbackbone
+from verres.architecture.head import vision
 
 STRIDE = 8
 BATCH_SIZE = 8
@@ -50,10 +51,10 @@ dataset = tf.data.Dataset.from_generator(
 backbone = vrsbackbone.SmallFCNN(width_base=16, strides=(2, 4, 8))
 fusion = vrsbackbone.FeatureFuser(backbone, final_stride=8, base_width=8, final_width=64)
 
-model = vision.TimePriorizedObjectDetector(num_classes=loader.num_classes,
-                                           backbone=fusion,
-                                           stride=STRIDE,
-                                           refinement_stages=1)
+model = verres.architecture.head.detection.TimePriorizedObjectDetector(num_classes=loader.num_classes,
+                                                                       backbone=fusion,
+                                                                       stride=STRIDE,
+                                                                       refinement_stages=1)
 
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 model.train_step(next(stream))

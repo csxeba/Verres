@@ -25,7 +25,7 @@ class Reservoir:
         inputs = keras.Input(batch_shape=(batch_size, None, self.wordsize))
         echo = inputs
         for units in num_units:
-            self.layers.append(keras.layers.SimpleRNN(
+            self.layers.append(keras.layers.LSTM(
                 units,
                 kernel_initializer=ReservoirInit(r),
                 recurrent_initializer=ReservoirInit(r),
@@ -71,30 +71,27 @@ class Reservoir:
 def xperiment():
     from matplotlib import pyplot as plt
 
-    TOTAL_XP_TIME = 1000
-    BATCH_SIZE = 16
+    TOTAL_XP_TIME = 10000
+    BATCH_SIZE = 8
     WORD_SIZE = 1
 
-    x = np.random.normal(scale=0.01, size=(BATCH_SIZE, TOTAL_XP_TIME, WORD_SIZE))
-    x[:, 100:200, :] += 10
-    # x[:, 300:400, :] += 1
-    # x[:, 500:600, :] += 1
-    # x[:, 600:700, :] += 10
+    inputs = np.random.normal(scale=0.01, size=(BATCH_SIZE, TOTAL_XP_TIME, WORD_SIZE)).astype("float32")
+    # inputs[:, 100, :] += 10
+    # inputs[:, 300:400, :] += 1.
+    # inputs[:, 500:600, :] -= 1.
+    # inputs[:, 600:700, :] -= np.linspace(10, 0, 100, dtype="float32")[None, :, None]
+    inputs[:, 0, :] += 1
+    inputs[:, 400:, :] -= 1
 
-    # x = np.arange(TOTAL_XP_TIME) / 10
-    # x = np.sin(x)
-    # x = np.stack([x]*BATCH_SIZE, axis=0)[..., None]
-    # x += noise
-
-    res = Reservoir(num_units=[1024], batch_size=BATCH_SIZE, wordsize=WORD_SIZE, r=0.0017)
-    res.drive_reservoir(x=x)
+    res = Reservoir(num_units=[1024, 256, 1024], batch_size=BATCH_SIZE, wordsize=WORD_SIZE, r=0.0019)
+    res.drive_reservoir(x=inputs)
     means = np.mean(res.last_states_np, axis=-1)
 
     plt.figure(figsize=(16, 9))
     x = np.arange(TOTAL_XP_TIME)
     for i in range(BATCH_SIZE):
         plt.plot(x, means[i], "r-", alpha=0.1)
-    # plt.vlines([0, 34, 67], ymin=means.min(), ymax=means.max(), colors="black", linestyles="--", alpha=0.3)
+    plt.plot(x, (inputs[0, ..., 0] / inputs.max()) * means.max(), "b-", alpha=1)
     plt.grid()
     plt.tight_layout()
     plt.show()

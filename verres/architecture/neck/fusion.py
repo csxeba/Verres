@@ -1,10 +1,11 @@
 import tensorflow as tf
 
-from .base import FeatureSpec, VRSBackbone
+from verres.architecture.backbone.base import FeatureSpec, VRSBackbone
 from verres.layers import block
+from .base import VRSNeck
 
 
-class FeatureFuser(VRSBackbone):
+class FeatureFuser(VRSNeck):
 
     def __init__(self,
                  backbone: VRSBackbone,

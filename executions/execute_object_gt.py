@@ -14,7 +14,7 @@ loader = cocodoom.COCODoomLoader(
     )
 )
 
-vis = visualize.Visualizer(n_classes=loader.num_classes)
+vis = visualize.Visualizer()
 screen = visualize.CV2Screen(fps=25, scale=2)
 
 for ID in loader.index:

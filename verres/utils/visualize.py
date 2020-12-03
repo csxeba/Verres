@@ -143,7 +143,7 @@ class Visualizer:
         pt2 = tuple(map(int, box[:2] * stride + half_wh))
         color = int(box[-1])
         image = np.copy(image)
-        canvas = cv2.rectangle(image, pt1, pt2, self.COLORS[color], thickness=2)
+        canvas = cv2.rectangle(image, pt1, pt2, self.COLORS[cdenseolor], thickness=2)
         return canvas
 
     def overlay_boxes(self, image, boxes: np.ndarray, stride: int = 1, alpha=0.4):

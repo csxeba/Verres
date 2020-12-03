@@ -16,9 +16,10 @@ setup(
                       "matplotlib",
                       "tensorflow>=2.2",
                       "IPython",
-                      "tqdm"],
-    extras_require={"all": ["torch", "tfkerassurgeon"],
-                    "torch": ["torch"],
-                    "pruning": ["tfkerassurgeon"]}
+                      "tqdm",
+                      "git+https://github.com/csxeba/Artifactorium.git"],
+    extras_require={"all": ["tfkerassurgeon"],
+                    "pruning": ["tfkerassurgeon"],
+                    "gpu": ["tensorflow-gpu>=2.2"]}
 
 )

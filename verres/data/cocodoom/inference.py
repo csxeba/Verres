@@ -3,8 +3,10 @@ from typing import Union
 
 import tensorflow as tf
 
+import verres.architecture.head.detection
+import verres.architecture.head.segmentation
 from .loader import COCODoomLoader
-from verres.tf_arch import vision
+from ...architecture.head import vision
 from verres.utils import box, visualize, profiling
 
 
@@ -77,7 +79,8 @@ class Mode:
     PANOPTIC = "panoptic"
 
 
-def _run_common(model: Union[vision.ObjectDetector, vision.PanopticSegmentor],
+def _run_common(model: Union[
+    verres.architecture.head.detection.ObjectDetector, verres.architecture.head.segmentation.PanopticSegmentor],
                 dataset: tf.data.Dataset,
                 total: int,
                 mode: str,
@@ -138,7 +141,8 @@ def _run_common(model: Union[vision.ObjectDetector, vision.PanopticSegmentor],
 
 
 def run(loader: COCODoomLoader,
-        model: Union[vision.ObjectDetector, vision.PanopticSegmentor],
+        model: Union[
+            verres.architecture.head.detection.ObjectDetector, verres.architecture.head.segmentation.PanopticSegmentor],
         mode: str = Mode.DETECTION,
         to_screen: bool = True,
         output_file: str = None,

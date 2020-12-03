@@ -1,7 +1,9 @@
 import tensorflow as tf
 
+import verres.architecture.head.detection
 from verres.data import cocodoom
-from verres.tf_arch import backbone as vrsbackbone, vision
+from verres.architecture import backbone as vrsbackbone
+from verres.architecture.head import vision
 from verres.artifactory import Artifactory
 from verres.utils import keras_callbacks as vcb, cocodoom_utils
 
@@ -58,9 +60,9 @@ callbacks = [
 feature_specs = [vrsbackbone.FeatureSpec("conv_pw_5_relu", working_stride=8)]
 backbone = vrsbackbone.SideTunedBackbone("MobileNet", feature_specs, weights="imagenet")
 
-model = vision.ObjectDetector(num_classes=loader.num_classes,
-                              backbone=backbone,
-                              stride=8)
+model = verres.architecture.head.detection.ObjectDetector(num_classes=loader.num_classes,
+                                                          backbone=backbone,
+                                                          stride=8)
 
 model.compile(optimizer=tf.keras.optimizers.Adam(2e-4))
 model.train_step(next(stream))

@@ -17,3 +17,6 @@ class VRSBackbone(tf.keras.Model):
         super().__init__()
         self.feature_specs: List[FeatureSpec] = feature_specs or None
         self.single_feature_mode = len(feature_specs) == 1
+
+    def preprocess_input(self, inputs):
+        raise NotImplementedError

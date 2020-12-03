@@ -1,8 +1,10 @@
 import pathlib
 
+import verres.architecture.head.detection
 from verres.data import cocodoom
-from verres.tf_arch import backbone as vrsbackbone, vision
-from verres.data.cocodoom import inference, evaluation
+from verres.architecture import backbone as vrsbackbone
+from verres.architecture.head import vision
+from verres.data.cocodoom import inference
 
 p: pathlib.Path
 WEIGHTS = str(sorted(pathlib.Path("artifactory/od_small_mr/checkpoints").glob("*"),
@@ -19,11 +21,11 @@ loader = cocodoom.COCODoomLoader(
 backbone = vrsbackbone.SmallFCNN(width_base=16, strides=(2, 4, 8))
 fusion = vrsbackbone.FeatureFuser(backbone, final_stride=8, base_width=8, final_width=32)
 
-model = vision.ObjectDetector(num_classes=loader.num_classes,
-                              backbone=fusion,
-                              stride=8,
-                              peak_nms=0.1,
-                              weights=WEIGHTS)
+model = verres.architecture.head.detection.ObjectDetector(num_classes=loader.num_classes,
+                                                          backbone=fusion,
+                                                          stride=8,
+                                                          peak_nms=0.1,
+                                                          weights=WEIGHTS)
 
 inference.run(loader, model, mode=inference.Mode.DETECTION, to_screen=False,
               output_file="MicroNet-COCODoom-OD-mr.avi", stop_after=30*120)

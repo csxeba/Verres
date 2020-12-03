@@ -1,7 +1,9 @@
 import tensorflow as tf
 
+import verres.architecture.head.detection
 from verres.data import cocodoom
-from verres.tf_arch import backbone as vrsbackbone, vision
+from verres.architecture import backbone as vrsbackbone
+from verres.architecture.head import vision
 from verres.artifactory import Artifactory
 from verres.utils import keras_callbacks as vcb, cocodoom_utils
 
@@ -56,13 +58,13 @@ callbacks = [
     tf.keras.callbacks.TensorBoard(artifactory.tensorboard, profile_batch=0),
     tf.keras.callbacks.LambdaCallback(on_epoch_end=lambda *args, **kwargs: model.reset_metrics())]
 
-backbone = vrsbackbone.SmallFCNN(width_base=16, strides=(2, 4, 8))
+backbone = vrsbackbone.ApplicationBackbone.from_feature_strides("ResNet50V2", feature_strides=[32])
 fusion = vrsbackbone.FeatureFuser(backbone, final_stride=8, base_width=8, final_width=64)
 
-model = vision.ObjectDetector(num_classes=loader.num_classes,
-                              backbone=fusion,
-                              stride=STRIDE,
-                              refinement_stages=2)
+model = verres.architecture.head.detection.ObjectDetector(num_classes=loader.num_classes,
+                                                          backbone=fusion,
+                                                          stride=STRIDE,
+                                                          refinement_stages=2)
 
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-4))
 model.train_step(next(stream))

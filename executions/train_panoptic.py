@@ -2,8 +2,10 @@ import os
 
 import tensorflow as tf
 
+import verres.architecture.head.segmentation
 from verres.data import cocodoom
-from verres.tf_arch import backbone, vision
+from verres.architecture import backbone
+from verres.architecture.head import vision
 from verres.artifactory import Artifactory
 
 EPOCHS = 120
@@ -59,7 +61,7 @@ callbacks = [
 ]
 
 backbone = backbone.SmallFCNN(strides=(1, 2, 4, 8), width_base=16)
-model = vision.PanopticSegmentor(
+model = verres.architecture.head.segmentation.PanopticSegmentor(
     num_classes=loader.num_classes,
     backbone=backbone)
 

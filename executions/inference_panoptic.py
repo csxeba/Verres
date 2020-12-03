@@ -1,5 +1,7 @@
+import verres.architecture.head.segmentation
 from verres.data import cocodoom
-from verres.tf_arch import backbone as vrsbackbone, vision
+from verres.architecture import backbone as vrsbackbone
+from verres.architecture.head import vision
 
 WEIGHTS = "artifactory/panseg/xp_20200908.152323/checkpoints/latest.h5"
 
@@ -13,7 +15,7 @@ loader = cocodoom.COCODoomLoader(
 )
 
 backbone = vrsbackbone.SmallFCNN(strides=(1, 2, 4, 8), width_base=16)
-model = vision.PanopticSegmentor(
+model = verres.architecture.head.segmentation.PanopticSegmentor(
     num_classes=loader.num_classes,
     backbone=backbone,
     weights=WEIGHTS)

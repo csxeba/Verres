@@ -1,9 +1,19 @@
-from typing import List
+from typing import List, Tuple
 
 import tensorflow as tf
 
 from . import FeatureSpec, VRSBackbone
 from verres.utils import keras_utils
+
+
+available_specs = {
+    "resnet50v2": [FeatureSpec("input_1", working_stride=1),
+                   FeatureSpec("conv1_conv", working_stride=2),
+                   FeatureSpec("conv2_block3_1_relu", working_stride=4),
+                   FeatureSpec("conv3_block4_1_relu", working_stride=8),
+                   FeatureSpec("conv4_block6_1_relu", working_stride=16),
+                   FeatureSpec("post_relu", working_stride=32)]
+}
 
 
 class ApplicationBackbone(VRSBackbone):
@@ -29,6 +39,18 @@ class ApplicationBackbone(VRSBackbone):
         self.wrapped_model = tf.keras.Model(inputs=base_model.input, outputs=outputs)
         for spec, shape in zip(self.feature_specs, self.get_output_shapes()):
             spec.width = shape[-1]
+
+    @classmethod
+    def from_feature_strides(cls,
+                             name: str,
+                             feature_strides: List[int],
+                             input_shape: Tuple[int, int, int] = None,
+                             fixed_batch_size: int = None,
+                             weights: str = None):
+
+        specs_for_model = {spec.working_stride: spec for spec in available_specs[name.lower()]}
+        specs = [specs_for_model[stride] for stride in feature_strides]
+        return cls(name, specs, input_shape, fixed_batch_size, weights)
 
     def get_output_shapes(self):
         shapes = self.wrapped_model.compute_output_shape((None, None, None, 3))
