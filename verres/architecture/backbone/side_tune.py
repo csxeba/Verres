@@ -4,12 +4,12 @@ from typing import List
 import tensorflow as tf
 from tensorflow.keras import layers as tfl
 
-from verres.layers import block
+from ..layers import block
 from .application import ApplicationBackbone
 from . import FeatureSpec
 
 
-class SideModel(tf.keras.Model):
+class SideModel(tf.keras.layers.Layer):
 
     def __init__(self,
                  working_stride: int,

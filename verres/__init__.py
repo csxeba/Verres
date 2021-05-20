@@ -1,13 +1,17 @@
 import os
 import pathlib
 
-from . import artifactory
-from . import data
-from . import layers
-from . import methods
-from . import operation
-from . import optimizers
+from .config import Config
+from .artifactory import Artifactory
+
 from . import utils
+from . import operation
+from . import data
+from . import optim
+from . import architecture
+from . import methods
+from . import visualization
+from . import execution
 
 try:
     import tfkerassurgeon

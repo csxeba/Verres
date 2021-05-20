@@ -1,0 +1,30 @@
+context:
+  experiment_name: "panoptic_baseline"
+  artifactory_root: /artifactory
+
+data:
+  dataset: cocodoom
+  dataset_root: /data/cocodoom
+  transformations:
+    - {name: image, stride: 1}
+    - {name: heatmap, stride: 8}
+    - {name: regression, stride: 8}
+    - {name: panoptic_seg, stride: 1}
+
+model:
+  input_shape: [200, 320]
+  output_features:
+    - {name: heatmap, stride: 8}
+    - {name: refinement, stride: 8}
+    - {name: semantic_seg, stride: 1}
+    - {name: instance_seg, stride: 1}
+
+training:
+  epochs: 120
+  batch_size: 8
+  validation_increase_factor: 1
+
+inference:
+  to_screen: False
+  output_video_path: /data
+  fps: 25

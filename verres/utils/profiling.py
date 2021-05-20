@@ -35,18 +35,24 @@ class MultiTimer:
 
     def __init__(self):
         self._results: Dict[List[float]] = defaultdict(list)
-        self._latest = None
+        self._currently_measuring = None
 
     def time(self, fieldname):
-        self._latest = fieldname
-        self._results[fieldname] = time.time()
+        """
+        Starts measuring.
+        """
+        if self._currently_measuring is not None:
+            raise RuntimeError("I was already measuring {}")
+        self._currently_measuring = fieldname
+        self._results[fieldname].append(time.time())
         return self
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._results[self._latest][-1] = time.time() - self._results[self._latest][-1]
+        self._results[self._currently_measuring][-1] = time.time() - self._results[self._currently_measuring][-1]
+        self._currently_measuring = None
 
     def get_results(self, reset=False, reduce=True):
         result = self._results
@@ -58,4 +64,4 @@ class MultiTimer:
 
     def reset(self):
         self._results = defaultdict(list)
-        self._latest = None
+        self._currently_measuring = None

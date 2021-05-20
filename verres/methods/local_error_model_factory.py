@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-from verres.layers import local_error as le_layers
-from verres.operation import numpy_ops
+from verres.architecture.layers import local_error as le_layers
 
 
 class LocalErrorModelFactory:

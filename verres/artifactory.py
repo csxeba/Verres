@@ -1,23 +1,34 @@
 import os
 
-from artifactorium import Artifactorium
+from artifactorium import Artifactorium as _Artifactorium
+
+import verres as V
 
 
-class Artifactory(Artifactorium):
+class Artifactory(_Artifactorium):
 
     __slots__ = "checkpoints", "tensorboard", "logfile_path", "detections"
 
     default_instance = None
 
-    def __init__(self, root="default", experiment_name=None, add_now: bool = True):
+    def __init__(self, config: V.Config):
 
-        if root == "default":
-            root = "/artifactory"
+        if self.__class__.default_instance is not None:
+            raise RuntimeError("Attempted to rebuild the Verres Artifactory, which is a singleton.")
 
-        args = [root, experiment_name]
-        if add_now:
-            args.append("NOW")
-        super().__init__(*args)
+        if not config.context.artifactory_root:
+            raise RuntimeError("Please set context.artifactory_root in your config YAML.")
+        if not config.context.experiment_set:
+            raise RuntimeError("Please set context.experiment_set in your config YAML.")
+        if not config.context.experiment_name:
+            raise RuntimeError("Please set context.experiment_name in your config YAML.")
+
+        args = [config.context.artifactory_root,
+                config.context.experiment_set,
+                config.context.experiment_name,
+                "NOW"]
+
+        super().__init__(*args, return_paths_as_string=False)
 
         self.register_path("checkpoints")
         self.register_path("tensorboard")
@@ -34,7 +45,7 @@ class Artifactory(Artifactorium):
                                               "".format(model_name, "{}"))
 
     @classmethod
-    def get_default(cls, experiment_name=None, add_now: bool = True):
+    def get_default(cls, config: V.Config):
         if cls.default_instance is None:
-            return cls(experiment_name=experiment_name, add_now=add_now)
+            return cls(config)
         return cls.default_instance

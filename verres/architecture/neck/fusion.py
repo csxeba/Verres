@@ -1,35 +1,38 @@
 import tensorflow as tf
 
-from verres.architecture.backbone.base import FeatureSpec, VRSBackbone
-from verres.layers import block
+import verres as V
+from ..backbone import VRSBackbone
+from ..layers import block
 from .base import VRSNeck
 
 
-class FeatureFuser(VRSNeck):
+class AutoFusion(VRSNeck):
 
     def __init__(self,
-                 backbone: VRSBackbone,
-                 final_stride: int,
-                 base_width: int = 16,
-                 final_width: int = None,
-                 batch_normalize: bool = True,
-                 activation: str = "leakyrelu"):
+                 config: V.Config,
+                 backbone: VRSBackbone):
 
-        super().__init__([FeatureSpec("fused_features", working_stride=final_stride)])
-        self.backbone = backbone
+        spec = config.model.neck_spec.copy()
+
+        super().__init__(backbone=backbone,
+                         input_feature_specs=backbone.feature_specs,
+                         output_stride=spec["output_stride"])
+
         self.branches = []
-        self.final_width = final_width
-        for spec in backbone.feature_specs:
-            self.branches.append(
-                block.VRSDownscaleBlock(
-                    starting_stride=spec.working_stride,
-                    target_stride=final_stride,
-                    width_base=base_width * spec.working_stride,
-                    depth_base=spec.working_stride,
-                    activation=activation,
-                    batch_normalize=batch_normalize))
+        self.final_width = spec["output_width"]
+        for ftr in backbone.feature_specs:
+            self.branches.append(block.VRSRescaler.from_strides(
+                feature_stride=ftr.working_stride,
+                target_stride=spec["output_stride"],
+                base_width=ftr.width,
+                kernel_size=3,
+                batch_normalize=spec.get("batch_normalize", True),
+                activation=spec.get("activation", "leakyrelu")))
         if self.final_width is not None:
-            self.final_conv = block.VRSConvolution(final_width, activation, batch_normalize, kernel_size=1)
+            self.final_conv = block.VRSConvolution(self.final_width,
+                                                   spec.get("activation", "leakyrelu"),
+                                                   spec.get("batch_normalize", True),
+                                                   kernel_size=1)
 
     def call(self, inputs, training=None, mask=None):
         features = self.backbone(inputs)

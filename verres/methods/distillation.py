@@ -2,9 +2,6 @@ from typing import Tuple
 
 import numpy as np
 
-from keras.models import Model
-from keras.layers import Activation
-
 
 DISTILLATION_MODE_SIMPLE = "simple"
 DISTILLATION_MODE_COMBINED = "combined"

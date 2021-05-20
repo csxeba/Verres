@@ -2,5 +2,5 @@ import os
 
 
 def ensure_working_directory():
-    if os.path.split(os.getcwd())[-1] in ["experiments", "executions"]:
+    if os.path.split(os.getcwd())[-1] in ["experiments", "experiments"]:
         os.chdir("..")

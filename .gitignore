@@ -181,12 +181,10 @@ artifactory/
 
 # Custom scripts
 experiments/
+tmp/
 
 # Pretrained weights
 models/
-
-# Just that: data
-data/
 
 # Please don't put these into the docker image
 *.avi

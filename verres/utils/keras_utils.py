@@ -5,17 +5,6 @@ from typing import Tuple, List, Union
 import tensorflow as tf
 
 
-def get_default_keras_callbacks(artifactory, checkpoint_template=None):
-    os.makedirs(artifactory, exist_ok=True)
-    if checkpoint_template is None:
-        checkpoint_dir = os.path.join(artifactory, "checkpoints")
-        checkpoint_template = os.path.join(checkpoint_dir, "checkpoint_{}.h5")
-    return [tf.keras.callbacks.ModelCheckpoint(checkpoint_template.format("latest")),
-            tf.keras.callbacks.ModelCheckpoint(checkpoint_template.format("best"), save_best_only=True),
-            tf.keras.callbacks.CSVLogger(os.path.join(artifactory, "training_log.csv")),
-            tf.keras.callbacks.TensorBoard(os.path.join(artifactory, "tensorboard"), write_graph=False)]
-
-
 def plot_model_svg(model: tf.keras.Model,
                    path: str):
 
@@ -30,11 +19,42 @@ def plot_model_svg(model: tf.keras.Model,
     return svg
 
 
+class _KerasApplicationDescriptor:
+
+    def __init__(self,
+                 application_type_str: str,
+                 preprocess_fn_provider_str: str):
+
+        self.application_type_str = application_type_str
+        self.preprocess_fn_provider_str = preprocess_fn_provider_str
+
+    def get(self,
+            include_top: bool = False,
+            input_shape: tuple = None,
+            fixed_batch_size: int = None,
+            build_model: bool = True,
+            weights: Union[None, str] = None):
+
+        if input_shape is None:
+            input_shape = (None, None, 3)
+
+        input_tensor = tf.keras.Input(input_shape, fixed_batch_size, dtype=tf.float32)
+
+        application_type = getattr(tf.keras.applications, self.application_type_str)
+        application = application_type(include_top=include_top,
+                                       weights=weights,
+                                       input_shape=input_shape,
+                                       input_tensor=input_tensor)
+        preprocess_fn_provider_module = getattr(tf.keras.applications, self.preprocess_fn_provider_str)
+        application.preprocess_input = preprocess_fn_provider_module.preprocess_input
+        return application
+
+
 class ApplicationCatalogue:
 
     def __init__(self):
         self.application_init_file_path = os.path.join(tf.keras.applications.__path__[0], "__init__.py")
-        self.applications = []
+        self.applications = {}
         self._populate_catalogue()
 
     def _populate_catalogue(self):
@@ -42,8 +62,12 @@ class ApplicationCatalogue:
             for line in handle:
                 if "from tensorflow." not in line:
                     continue
-                self.applications.append(line.split(" ")[-1].strip())
-        self.applications.sort()
+                words = line.split(" ")
+                application_type_str = words[-1].strip()
+                preprocess_fn_provider_str = words[1].split(".")[-1]
+                self.applications[application_type_str] = _KerasApplicationDescriptor(
+                    application_type_str=application_type_str,
+                    preprocess_fn_provider_str=preprocess_fn_provider_str)
 
     def make_model(self,
                    model_name: str,
@@ -54,21 +78,16 @@ class ApplicationCatalogue:
                    weights: Union[None, str] = None) -> tf.keras.Model:
 
         if model_name not in self.applications:
-            raise ValueError(f"{model_name} is not in the catalogue of applications.")
+            err = [f"{model_name} is not in the catalogue of applications.",
+                   f"Available applications: {', '.join(self.applications)}"]
+            raise ValueError("\n".join(err))
+        application_descripor: _KerasApplicationDescriptor = self.applications[model_name]
 
-        if input_shape is None:
-            input_shape = (None, None, 3)
-
-        input_tensor = tf.keras.Input(input_shape, fixed_batch_size, dtype=tf.float32)
-
-        model = getattr(tf.keras.applications, model_name)(include_top=include_top,
-                                                           weights=weights,
-                                                           input_shape=input_shape,
-                                                           input_tensor=input_tensor)
-        if build_model:
-            input_tensor = tf.zeros((1,) + input_shape, dtype=tf.float32)
-            model(input_tensor)  # builds the forward-pass
-
+        model = application_descripor.get(include_top=include_top,
+                                          input_shape=(None, None, 3),
+                                          fixed_batch_size=fixed_batch_size,
+                                          build_model=build_model,
+                                          weights=weights)
         return model
 
 
@@ -148,3 +167,19 @@ def inject_regularizer(model,
             layer.bias_regularizer = bias_regularizer
 
     touch_layers(model, callback=_inject_regularizer_callback)
+
+
+def deduce_feature_spec_params(model: Union[tf.keras.Model, tf.keras.layers.Layer]) -> dict:
+
+    input_tensor = tf.zeros([1, 960, 960, 3], dtype=tf.float32)
+    output_tensor = model(input_tensor)
+    output_shape = tf.keras.backend.int_shape(output_tensor)[1]
+    working_stride = 960 // output_shape
+
+    result = {"layer_name": model.layers[-1].name,
+              "working_stride": working_stride,
+              "width": output_shape}
+
+    print(f" [Verres] - automatically deduced feature layer: {result['layer_name']}")
+
+    return result

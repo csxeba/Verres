@@ -1,15 +1,13 @@
 import json
 import os
-import sys
 from typing import List
 
 import numpy as np
 import tensorflow as tf
-import tqdm
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-from .loader import COCODoomLoader, ENEMY_TYPES
+from verres.data.dataset.cocodoom import COCODoomDataset
 import verres as vrs
 from verres.utils import profiling
 
@@ -31,7 +29,7 @@ def _convert_to_coco_format(detection, category_index, ID):
 
 
 def _evaluate(detections: List[dict],
-              loader: COCODoomLoader,
+              loader: COCODoomDataset,
               detection_file: str = "default"):
 
     if len(detections) == 0:
@@ -55,7 +53,7 @@ def _evaluate(detections: List[dict],
     return cocoeval.stats
 
 
-def run_detection(loader: COCODoomLoader, model, detection_file="default"):
+def run_detection(loader: COCODoomDataset, model, detection_file="default"):
     detections = []
     category_index = {cat["name"]: cat for cat in loader.categories.values()}
 
@@ -88,7 +86,7 @@ def run_detection(loader: COCODoomLoader, model, detection_file="default"):
     return _evaluate(detections, loader, detection_file)
 
 
-def run_time_priorized_detection(time_data_loader: COCODoomLoader,
+def run_time_priorized_detection(time_data_loader: COCODoomDataset,
                                  model: tf.keras.Model,
                                  detection_file="default"):
 
