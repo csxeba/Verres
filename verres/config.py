@@ -111,7 +111,7 @@ class Config:
 
     def __init__(self, config_path: str):
         self.config_path = config_path
-        config_dict = yaml.load(open(config_path), Loader=yaml.FullLoader)
+        config_dict = yaml.load(open(config_path))
         self.context = ContextConfig(**config_dict["context"])
         self.model = ModelSpec(**config_dict["model"])
         self.training = TrainingConfig(**config_dict["training"])
