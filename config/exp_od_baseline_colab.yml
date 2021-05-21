@@ -7,7 +7,7 @@ context:
 
 model:
   input_shape: [200, 320]
-  maximum_stride: 8
+  maximum_stride: 32
   backbone_spec:
     name: ResNet50
     weights: imagenet
