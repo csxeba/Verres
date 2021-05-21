@@ -9,7 +9,7 @@ def get_args():
     parser.add_argument("--config", "-c", type=str)
     parser.add_argument("--execution_type", "-e", type=str, default="_unset")
     parser.add_argument("--model_weights", "-w", type=str, default="_unset")
-    parser.add_argument("--config_updates", "-u", nargs="+")
+    parser.add_argument("--config_updates", "-u", nargs="+", default={})
     return parser.parse_args()
 
 

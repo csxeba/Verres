@@ -7,14 +7,14 @@ context:
 
 model:
   input_shape: [200, 320]
-  maximum_stride: 32
+  maximum_stride: 8
   backbone_spec:
-    name: ResNet50
-    weights: imagenet
+    name: SmallFCNN
+    strides: [8]
+    width_base: 32
   neck_spec:
     name: Rescaler
     output_stride: 4
-    base_width: 16
   head_spec:
     name: OD
     num_classes: 17
