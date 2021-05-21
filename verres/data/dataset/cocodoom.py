@@ -60,6 +60,7 @@ class COCODoomDataset(Dataset):
                          IDs=sorted(list(self.index)),
                          descriptor=descriptor)
 
+        print(f" [Verres.COCODoomLoader] - Loaded", descriptor.annotation_file_path)
         print(f" [Verres.COCODoomLoader] - Num images :", len(data["images"]))
         print(f" [Verres.COCODoomLoader] - Num annos  :", len(data["annotations"]))
         print(f" [Verres.COCODoomLoader] - Num classes:", descriptor.num_classes)

@@ -84,10 +84,10 @@ class VRSRescaler(VRSLayerStack):
         steps = int(math.log2(stride))
         for i in range(steps):
             if self.MODE_UP:
-                width = base_width * (2 ** i)
+                width = base_width // (2 ** i)
             else:
                 assert base_width % (2 ** i) == 0
-                width = base_width // (2 ** i)
+                width = base_width * (2 ** i)
             self.layer_objects.append(resampler_type())
             self.layer_objects.append(VRSConvolution(width, activation, batch_normalize, kernel_size))
 

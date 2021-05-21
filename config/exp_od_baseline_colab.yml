@@ -14,6 +14,7 @@ model:
   neck_spec:
     name: Rescaler
     output_stride: 4
+    base_width: 16
   head_spec:
     name: OD
     num_classes: 17
