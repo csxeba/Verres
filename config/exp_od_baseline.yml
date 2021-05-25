@@ -4,9 +4,11 @@ context:
   artifactory_root: ./artifactory
   execution_type: training
   verbose: 2
+  debug: False
 
 model:
-  input_shape: [200, 320]
+  input_width: 320
+  input_height: 200
   maximum_stride: 8
   backbone_spec:
     name: SmallFCNN

@@ -11,6 +11,7 @@ class ContextConfig:
     experiment_set: str = ""
     experiment_name: str = ""
     verbose: int = 1
+    debug: bool = False
 
 
 @dataclasses.dataclass
@@ -25,6 +26,8 @@ class DatasetSpec:
 
 @dataclasses.dataclass
 class ModelSpec:
+    input_width: int = -1
+    input_height: int = -1
     input_shape: Tuple[int, int] = (0, 0)
     backbone_spec: dict = dataclasses.field(default_factory=dict)
     neck_spec: dict = dataclasses.field(default_factory=dict)
@@ -114,6 +117,7 @@ class Config:
         config_dict = yaml.load(open(config_path))
         self.context = ContextConfig(**config_dict["context"])
         self.model = ModelSpec(**config_dict["model"])
+        self.model.input_shape = self.model.input_height, self.model.input_width
         self.training = TrainingConfig(**config_dict["training"])
         self.evaluation = EvaluationConfig(**config_dict["evaluation"])
         self.inference = InferenceConfig(**config_dict["inference"])

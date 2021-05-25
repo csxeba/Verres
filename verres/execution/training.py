@@ -21,7 +21,7 @@ class TrainingExecutor:
         self.criteria = criteria
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.loss_tracker = V.operation.losses.Tracker(criteria.OUTPUT_KEYS)
+        self.loss_tracker = V.optim.losses.Tracker(criteria.OUTPUT_KEYS)
         self.model.train_step = self.train_step
 
     @classmethod
@@ -44,13 +44,17 @@ class TrainingExecutor:
                 shuffle=True,
                 collate="default")
 
-        self.model.compile(optimizer=self.optimizer)
-        self.model.fit(stream,
-                       steps_per_epoch=self.cfg.training.steps_per_epoch,
-                       epochs=self.cfg.training.epochs,
-                       callbacks=callback_factory(self.cfg))
+        if not self.cfg.context.debug:
+            self.model.compile(optimizer=self.optimizer)
+            self.model.fit(stream,
+                           steps_per_epoch=self.cfg.training.steps_per_epoch,
+                           epochs=self.cfg.training.epochs,
+                           callbacks=callback_factory(self.cfg))
+        else:
+            for data in stream:
+                self.train_step(data)
 
-    @tf.function
+    # @tf.function
     def train_step(self, batch):
         image = batch["image"]
         image = self.model.preprocess_input(image)

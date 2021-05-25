@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 import verres as V
-from ..operation import losses
+from . import losses
 
 
 class VRSCriteria(tf.Module):

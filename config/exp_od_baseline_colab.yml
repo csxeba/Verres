@@ -1,12 +1,13 @@
 context:
   experiment_set: od
   experiment_name: baseline
-  artifactory_root: /data/My Drive/artifactory
+  artifactory_root: /drive/My Drive/artifactory
   execution_type: training
   verbose: 2
 
 model:
-  input_shape: [200, 320]
+  input_width: 320
+  input_height: 200
   maximum_stride: 8
   backbone_spec:
     name: SmallFCNN

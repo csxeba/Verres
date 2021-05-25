@@ -25,6 +25,7 @@ class ImageProcessor(Transformation):
 
     def call(self, image_path):
         image = cv2.imread(image_path)
+        assert image.shape[:2] == self.cfg.model.input_shape[:2]
         if image is None:
             raise RuntimeError(f"No image found @ {image_path}")
         return image

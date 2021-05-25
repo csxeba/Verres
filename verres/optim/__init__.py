@@ -1,3 +1,4 @@
+from . import losses
 from . import optimizers
 from . import criteria
 from . import schedule

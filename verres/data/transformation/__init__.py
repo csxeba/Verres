@@ -4,7 +4,7 @@ import verres as V
 from ..dataset import DatasetDescriptor
 from .abstract import Transformation, TransformationList
 from .image import ImageProcessor
-from .heatmap import HeatmapProcessor
+from .heatmap import UniformSigmaHeatmapProcessor
 from .regression import RegressionTensor
 from .segmentation import SemanticSegmentationTensor, PanopticSegmentationTensor
 from .collate import CollateBatch
@@ -12,7 +12,7 @@ from .collate import CollateBatch
 # noinspection PyTypeChecker
 _feature_transformation_map: Dict[str, Transformation] = {
     "image": ImageProcessor,
-    "heatmap": HeatmapProcessor,
+    "heatmap": UniformSigmaHeatmapProcessor,
     "regression": RegressionTensor,
     "panoptic_seg": PanopticSegmentationTensor,
     "semantic_seg": SemanticSegmentationTensor
