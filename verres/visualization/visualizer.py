@@ -142,7 +142,7 @@ class DataVisualizer:
         pt2 = tuple(map(int, box[:2] * scale + half_wh))
         image = np.copy(image)
         color = tuple(map(int, self.COLORS[type_id]))
-        canvas = cv2.rectangle(image, pt1, pt2, color=color, thickness=2)
+        canvas = cv2.rectangle(image, pt1[::-1], pt2[::-1], color=color, thickness=2)
         # canvas = cv2.addWeighted(image, 1. - alpha, canvas, alpha, 1.)
         return canvas
 
