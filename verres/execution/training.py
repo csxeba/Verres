@@ -32,6 +32,20 @@ class TrainingExecutor:
         optimizer = V.optim.optimizers.factory(config, scheduler)
         return cls(config, model, criteria, optimizer, scheduler)
 
+    def _train_loop_custom(self, stream):
+        epochs = self.cfg.training.epochs
+        steps = self.cfg.training.steps_per_epoch
+        if self.cfg.context.verbose:
+            print(" [Verres.training] - Executing in DEBUG mode.")
+        for epoch in range(1, epochs + 1):
+            for i, data in enumerate(stream, start=1):
+                logs = self.train_step(data)
+                if self.cfg.context.verbose:
+                    print("-" * 100)
+                    print(f" [Verres.training] - Epoch {epoch}/{epochs} - Step {i}/{steps}")
+                    for key, value in logs.items():
+                        print(f" {key}: {value:.6f}")
+
     def execute(self, stream=None):
 
         if stream is None:
@@ -51,8 +65,7 @@ class TrainingExecutor:
                            epochs=self.cfg.training.epochs,
                            callbacks=callback_factory(self.cfg))
         else:
-            for data in stream:
-                self.train_step(data)
+            self._train_loop_custom(stream)
 
     # @tf.function
     def train_step(self, batch):

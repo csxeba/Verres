@@ -8,7 +8,7 @@ context:
 model:
   input_width: 320
   input_height: 200
-  maximum_stride: 8
+  maximum_stride: 32
   backbone_spec:
     name: ResNet50V2
     weights: imagenet
@@ -28,7 +28,7 @@ training:
       sampling_probability: 1.0
       transformations:
         - { name: image, stride: 1 }
-        - { name: heatmap, stride: 4 }
+        - { name: uniform_heatmap, stride: 4 }
         - { name: regression, stride: 4 }
       kwargs:
         full: False
@@ -37,12 +37,12 @@ training:
   steps_per_epoch: 500
   batch_size: 10
   criteria_spec:
-    name: od
+    name: ctdet_od
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
     name: constant
-    learning_rate: 3e-4
+    learning_rate: 2e-5
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }

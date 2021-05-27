@@ -14,6 +14,6 @@ def factory(config: V.Config):
     else:
         assert False
     if config.context.verbose > 1:
-        print(f" [Verres.neck] - Factory built: {name}")
+        print(f" [Verres.head] - Factory built: {name}")
 
     return head

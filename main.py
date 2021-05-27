@@ -9,6 +9,7 @@ def get_args():
     parser.add_argument("--config", "-c", type=str)
     parser.add_argument("--execution_type", "-e", type=str, default="_unset")
     parser.add_argument("--model_weights", "-w", type=str, default="_unset")
+    parser.add_argument("--debug", "-d", action="store_true", default=False)
     parser.add_argument("--config_updates", "-u", nargs="+", default={})
     return parser.parse_args()
 
@@ -52,6 +53,7 @@ def update_config(config: V.Config, field_path: str, value):
 def main(config_path: str = None,
          execution_type: str = None,
          model_weights: str = None,
+         debug: bool = False,
          config_updates: Dict[str, Any] = None):
 
     if config_path is None:
@@ -59,6 +61,7 @@ def main(config_path: str = None,
         config_path = args.config
         execution_type = args.execution_type
         model_weights = args.model_weights
+        debug = args.debug
         config_updates = dict(line.split("=") for line in args.config_updates)
 
     cfg = V.Config(config_path)
@@ -66,6 +69,8 @@ def main(config_path: str = None,
     if config_updates:
         for field_name, value in config_updates.items():
             update_config(cfg, field_name, value)
+
+    cfg.context.debug = cfg.context.debug or debug
 
     if execution_type in {"_unset", None}:
         execution_type = cfg.context.execution_type
