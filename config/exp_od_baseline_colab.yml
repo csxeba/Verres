@@ -10,9 +10,8 @@ model:
   input_height: 200
   maximum_stride: 8
   backbone_spec:
-    name: SmallFCNN
-    strides: [8]
-    width_base: 32
+    name: ResNet50V2
+    weights: imagenet
   neck_spec:
     name: Rescaler
     output_stride: 4
