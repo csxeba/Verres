@@ -53,11 +53,9 @@ class CTDetCriteria(VRSCriteria):
 
     def call(self, ground_truth, prediction):
 
-        heatmap_loss = losses.focal_loss(
-            ground_truth["heatmap"],
-            prediction["heatmap"],
-            self.alpha,
-            self.beta)
+        heatmap_loss = losses.mse(
+            y_true=ground_truth["heatmap"],
+            y_pred=prediction["heatmap"])
         refinement_loss = losses.sparse_vector_field_mae(
             y_true=ground_truth["refinement"],
             y_pred=prediction["refinement"],

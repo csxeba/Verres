@@ -24,7 +24,7 @@ class OD(VRSHead):
         return {"heatmap": hmap, "box_wh": boxx, "refinement": rreg}
 
     def postprocess_network_output(self, predictions):
-        hmap = predictions["heatmap"]
+        hmap = tf.nn.sigmoid(predictions["heatmap"])
         rreg = predictions["refinement"]
         bbox = predictions["box_wh"]
 

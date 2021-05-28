@@ -106,10 +106,19 @@ class BestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
 
 class CSVLogger(tf.keras.callbacks.CSVLogger):
 
-    def __init__(self, config: V.Config):
+    def __init__(self, config: V.Config, **kwargs):
         artifactory = V.Artifactory.get_default(config)
         filename = artifactory.logfile_path
-        super().__init__(filename)
+        super().__init__(filename, **kwargs)
+
+
+class TensorBoard(tf.keras.callbacks.TensorBoard):
+
+    def __init__(self, config: V.Config, **kwargs):
+        artifactory = V.Artifactory.get_default(config)
+        profile_batch = kwargs.pop("profile_batch", 0)
+        super().__init__(log_dir=artifactory.tensorboard, profile_batch=profile_batch, **kwargs)
+
 
 
 _mapping = {

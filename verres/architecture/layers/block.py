@@ -28,11 +28,13 @@ class VRSConvolution(VRSLayerStack):
                  activation: str = None,
                  batch_normalize: bool = True,
                  kernel_size: int = 3,
+                 stride: int = 1,
                  initializer: str = "he_uniform"):
 
         super().__init__()
 
-        self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer)]
+        self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer,
+                                         strides=stride)]
         if batch_normalize:
             self.layer_objects.append(tfl.BatchNormalization())
         if activation is not None:
@@ -164,7 +166,7 @@ class VRSResidualBottleneck(tf.keras.layers.Layer):
             self.resampler = None
 
         self.residual_path = [VRSConvolution(width, activation, batch_normalize, kernel_size=1),
-                              VRSConvolution(width, activation, batch_normalize, kernel_size=3),
+                              VRSConvolution(width, activation, batch_normalize, kernel_size=3, stride=stride),
                               VRSConvolution(output_width, "linear", batch_normalize, kernel_size=1)]
 
     # @tf.function(experimental_relax_shapes=True)

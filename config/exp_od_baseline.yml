@@ -8,10 +8,11 @@ context:
 model:
   input_width: 320
   input_height: 200
-  maximum_stride: 32
+  maximum_stride: 8
   backbone_spec:
-    name: ResNet50V2
-    weights: imagenet
+    name: SmallFCNN
+    width_base: 32
+    strides: [8]
   neck_spec:
     name: Rescaler
     output_stride: 4
@@ -47,6 +48,7 @@ training:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }
     - { name: CSVLogger }
+    - { name: TensorBoard }
 
 evaluation:
   data:
