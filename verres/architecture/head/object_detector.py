@@ -22,8 +22,8 @@ class OD(VRSHead):
         rreg = self.rreg_head(centroid_features, training=training)
         boxx = self.boxx_head(centroid_features, training=training)
         hmap = tf.cond(training,
-                       true_fn=lambda: tf.nn.sigmoid(hmap),
-                       false_fn=lambda: hmap)
+                       true_fn=lambda: hmap,
+                       false_fn=lambda: tf.nn.sigmoid(hmap))
         return {"heatmap": hmap, "box_wh": boxx, "refinement": rreg}
 
     def postprocess_network_output(self, predictions):
