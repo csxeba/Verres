@@ -55,7 +55,7 @@ class EvaluationExecutor:
 
             with timer:
                 network_input = self.model.preprocess_input(image[None, ...])
-                model_output = self.model(network_input)
+                model_output = self.model(network_input, training=False)
             model_time.append(timer.result)
 
             with timer:

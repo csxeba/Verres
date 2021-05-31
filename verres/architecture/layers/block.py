@@ -43,7 +43,8 @@ class VRSConvolution(VRSLayerStack):
     # @tf.function(experimental_relax_shapes=True)
     def call(self, x, training=None, mask=None):
         for layer in self.layer_objects:
-            x = layer(x)
+            nx = layer(x)
+            x = nx
         return x
 
 
@@ -54,11 +55,13 @@ class VRSHead(VRSLayerStack):
                  output_width: int,
                  pre_activation: str = "leakyrelu",
                  output_activation: str = "linear",
-                 output_initializer: str = "he_uniform",
+                 output_initializer: str = "default",
                  batch_normalize: bool = True,
                  **kwargs):
 
         super().__init__(**kwargs)
+        if output_initializer == "default":
+            output_initializer = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.1)
         self.layer_objects = [VRSConvolution(pre_width, pre_activation, batch_normalize, kernel_size=3),
                               VRSConvolution(output_width, output_activation, batch_normalize=False, kernel_size=1,
                                              initializer=output_initializer)]
