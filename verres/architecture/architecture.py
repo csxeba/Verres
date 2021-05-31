@@ -45,6 +45,7 @@ class VRSArchitecture(tf.keras.Model):
         return self.backbone.preprocess_input(inputs)
 
     def call(self, inputs, training=None, mask=None):
+        training = tf.cast(training, tf.bool)
         features = self.backbone(inputs, training=training)
         if self.single_backbone_mode:
             features = [features[0], features[0]]
