@@ -27,5 +27,5 @@ class SmallFCNN(VRSBackbone):
 
     def call(self, x, training=None, mask=None):
         for layer in self.layer_objects:
-            x = layer(x)
+            x = layer(x, training=training)
         return [x]

@@ -1,4 +1,5 @@
 import argparse
+import os
 from typing import Dict, Any
 
 import verres as V
@@ -6,7 +7,8 @@ import verres as V
 
 def get_args():
     parser = argparse.ArgumentParser(prog="Verres")
-    parser.add_argument("--config", "-c", type=str)
+    parser.add_argument("--config", "-c", type=str, default="_unset")
+    parser.add_argument("--continue_training", type=str, default="_unset")
     parser.add_argument("--execution_type", "-e", type=str, default="_unset")
     parser.add_argument("--model_weights", "-w", type=str, default="_unset")
     parser.add_argument("--debug", "-d", action="store_true", default=False)
@@ -46,23 +48,32 @@ def update_config(config: V.Config, field_path: str, value):
     if isinstance(field, dict):
         field[field_name_list[-1]] = value
     else:
-        setattr(field, field_path[-1], value)
+        setattr(field, field_name_list[-1], value)
     print(f" [Verres] - Set config.{field_path} to {value}")
 
 
 def main(config_path: str = None,
+         continue_train: str = None,
          execution_type: str = None,
          model_weights: str = None,
          debug: bool = False,
          config_updates: Dict[str, Any] = None):
 
-    if config_path is None:
+    on_cluster = "COLAB_GPU" in os.environ
+
+    if not on_cluster:
         args = get_args()
         config_path = args.config
+        continue_train = args.continue_training
         execution_type = args.execution_type
         model_weights = args.model_weights
         debug = args.debug
         config_updates = dict(line.split("=") for line in args.config_updates)
+
+    if continue_train not in {None, "_unset"}:
+        config_path = os.path.join(continue_train, "config.yml")
+        config_updates["model.weights"] = os.path.join(continue_train, "checkpoints", "latest.h5")
+        config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(continue_train)
 
     cfg = V.Config(config_path)
 

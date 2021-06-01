@@ -50,14 +50,17 @@ def mean_of_cxent_sparse_from_logits(y_true, y_pred):
     return tf.reduce_mean(xent)
 
 
-def focal_loss(y_true, y_pred, alpha, beta):
+def focal_loss(y_true, y_pred, alpha, beta, from_logits=True):
     pos_mask = tf.stop_gradient(tf.cast(y_true == 1., tf.float32))
     neg_mask = tf.stop_gradient(tf.cast(y_true < 1., tf.float32))
     num_pos = tf.maximum(tf.reduce_sum(pos_mask), 1.)
 
-    bce = tf.keras.backend.binary_crossentropy(y_true, y_pred, from_logits=True)
+    bce = tf.keras.backend.binary_crossentropy(y_true, y_pred, from_logits=from_logits)
 
-    y_prob = tf.nn.sigmoid(y_pred)
+    if from_logits:
+        y_prob = tf.nn.sigmoid(y_pred)
+    else:
+        y_prob = y_pred
 
     pos_loss = bce * pos_mask * tf.pow(1. - y_prob, alpha)
     neg_loss = bce * neg_mask * tf.pow(y_prob, alpha) * tf.pow(1. - y_true, beta)

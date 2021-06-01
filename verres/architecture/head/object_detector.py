@@ -66,9 +66,9 @@ class CTDet(VRSHead):
 
     def call(self, inputs, training=None, mask=None):
         centroid_features, box_features = inputs
-        hmap = self.hmap_head(centroid_features)
-        rreg = self.rreg_head(centroid_features)
-        boxx = self.boxx_head(centroid_features)
+        hmap = self.hmap_head(centroid_features, training=training)
+        rreg = self.rreg_head(centroid_features, training=training)
+        boxx = self.boxx_head(centroid_features, training=training)
         return {"heatmap": hmap, "box_wh": boxx, "refinement": rreg}
 
     def postprocess_network_output(self, predictions):

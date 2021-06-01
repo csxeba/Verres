@@ -43,8 +43,7 @@ class VRSConvolution(VRSLayerStack):
     # @tf.function(experimental_relax_shapes=True)
     def call(self, x, training=None, mask=None):
         for layer in self.layer_objects:
-            nx = layer(x)
-            x = nx
+            x = layer(x, training=training)
         return x
 
 
@@ -178,6 +177,6 @@ class VRSResidualBottleneck(tf.keras.layers.Layer):
         for layer in self.residual_path:
             x = layer(x, training=training, mask=mask)
         if self.has_resampling_path:
-            inputs = self.resampler(inputs)
+            inputs = self.resampler(inputs, training=training)
         x = inputs + x
         return x

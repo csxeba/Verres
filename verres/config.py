@@ -49,7 +49,8 @@ class TrainingConfig:
                  criteria_spec: dict = None,
                  optimizer_spec: dict = None,
                  lr_schedule_spec: dict = None,
-                 callbacks: List[dict] = None):
+                 callbacks: List[dict] = None,
+                 initial_epoch: int = 0):
 
         self.data = [DatasetSpec(**spec) for spec in data]
         self.epochs = epochs
@@ -60,6 +61,7 @@ class TrainingConfig:
         self.optimizer_spec = optimizer_spec
         self.lr_schedule_spec = lr_schedule_spec
         self.callbacks = callbacks
+        self.initial_epoch = initial_epoch
 
 
 class EvaluationConfig:

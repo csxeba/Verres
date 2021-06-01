@@ -63,7 +63,8 @@ class TrainingExecutor:
             self.model.fit(stream,
                            steps_per_epoch=self.cfg.training.steps_per_epoch,
                            epochs=self.cfg.training.epochs,
-                           callbacks=callback_factory(self.cfg))
+                           callbacks=callback_factory(self.cfg),
+                           initial_epoch=self.cfg.training.initial_epoch)
         else:
             self._train_loop_custom(stream)
 
