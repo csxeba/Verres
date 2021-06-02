@@ -19,7 +19,7 @@ model:
   head_spec:
     name: OD
     num_classes: 17
-    peak_nms: 0.1
+    peak_nms: 0.3
 
 training:
   data:
@@ -73,7 +73,7 @@ inference:
         full: True
         split: run
 
-  visualization_mode: detection
+  visualization_mode: raw_heatmap
   to_screen: True
   output_video_path: None
   fps: 25

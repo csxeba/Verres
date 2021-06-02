@@ -57,7 +57,7 @@ class COCODoomDataset(Dataset):
 
         super().__init__(config,
                          dataset_spec=spec,
-                         IDs=sorted(list(self.index)),
+                         IDs=sorted(list(self.image_meta)),
                          descriptor=descriptor)
 
         print(f" [Verres.COCODoomLoader] - Loaded", descriptor.annotation_file_path)

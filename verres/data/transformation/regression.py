@@ -82,7 +82,12 @@ class RegressionTensor(Transformation):
             result_box_whs.append(augmented_box_whs)
             result_refinements.append(augmented_refinements)
 
-        result = tuple(map(
-            lambda a: np.concatenate(a, axis=0), [result_locations, result_box_whs, result_refinements]))
+        if len(result_locations) > 0:
+            result = tuple(map(
+                lambda a: np.concatenate(a, axis=0), [result_locations, result_box_whs, result_refinements]))
+        else:
+            result = [np.zeros([0, 3], dtype=int),
+                      np.zeros([0, 2], dtype=float),
+                      np.zeros([0, 2], dtype=float)]
 
         return result

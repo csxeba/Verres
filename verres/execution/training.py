@@ -51,7 +51,12 @@ class TrainingExecutor:
         if stream is None:
             pipes = V.data.factory(self.cfg, specs=self.cfg.training.data)
 
-            stream = streaming.get_tf_dataset(
+            if self.cfg.context.debug:
+                stream_provider = streaming.stream
+            else:
+                stream_provider = streaming.get_tf_dataset
+
+            stream = stream_provider(
                 self.cfg,
                 pipes,
                 batch_size=self.cfg.training.batch_size,
