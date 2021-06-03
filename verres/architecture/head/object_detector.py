@@ -1,19 +1,33 @@
+from typing import List
+
 import tensorflow as tf
 
 import verres as V
 from verres.operation import numeric as T
 from ..layers import block
 from .base import VRSHead
+from ..backbone import FeatureSpec
 
 
 class OD(VRSHead):
 
-    def __init__(self, config: V.Config):
+    def __init__(self, config: V.Config, input_features: List[FeatureSpec]):
         super().__init__()
         spec = config.model.head_spec.copy()
-        self.hmap_head = block.VRSHead(spec.get("head_convolution_width", 32), output_width=spec["num_classes"])
-        self.rreg_head = block.VRSHead(spec.get("head_convolution_width", 32), output_width=spec["num_classes"]*2)
-        self.boxx_head = block.VRSHead(spec.get("head_convolution_width", 32), output_width=spec["num_classes"]*2)
+        if len(input_features) == 1:
+            input_features = [input_features[0], input_features[0]]
+        self.centroid_feature_spec, self.box_feature_spec = input_features
+        nearest_po2 = V.utils.numeric_utils.ceil_to_nearest_power_of_2(spec["num_classes"])
+        self.hmap_head = block.VRSHead(
+            spec.get("head_convolution_width", nearest_po2),
+            output_width=spec["num_classes"])
+        self.rreg_head = block.VRSHead(
+            spec.get("head_convolution_width", nearest_po2*2),
+            output_width=spec["num_classes"]*2)
+        self.boxx_head = block.VRSHead(
+            spec.get("head_convolution_width", nearest_po2*2),
+            output_width=spec["num_classes"]*2)
+
         self.peak_nms = spec.get("peak_nms", 0.1)
 
     def call(self, inputs, training=None, mask=None):

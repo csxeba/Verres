@@ -1,3 +1,4 @@
+from . import numeric_utils
 from . import colors
 from . import demonstration
 from . import keras_utils

@@ -37,7 +37,7 @@ class VRSArchitecture(tf.keras.Model):
         fused = _neck.factory(config, backbone)
         if fused is None:
             fused = backbone
-        detector = _head.factory(config)
+        detector = _head.factory(config, fused.feature_specs)
         architecture = cls(config, fused, detector)
         return architecture
 
