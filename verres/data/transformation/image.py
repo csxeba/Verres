@@ -7,9 +7,10 @@ from . abstract import Transformation
 
 class ImageProcessor(Transformation):
 
-    def __init__(self, config: V.Config):
+    def __init__(self, config: V.Config, transformation_spec: dict = None):
         super().__init__(
             config=config,
+            transformation_spec=transformation_spec,
             input_fields="image_path",
             output_features=feature.Feature(
                 "image",

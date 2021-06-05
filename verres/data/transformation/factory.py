@@ -7,6 +7,7 @@ from .image import ImageProcessor
 from .heatmap import UniformSigmaHeatmapProcessor, VariableSigmaHeatmapProcessor
 from .regression import RegressionTensor
 from .segmentation import PanopticSegmentationTensor, SemanticSegmentationTensor
+from .filters import FilterNumObjects
 
 
 _feature_transformation_map = {
@@ -15,7 +16,8 @@ _feature_transformation_map = {
     "variable_heatmap": VariableSigmaHeatmapProcessor,
     "regression": RegressionTensor,
     "panoptic_seg": PanopticSegmentationTensor,
-    "semantic_seg": SemanticSegmentationTensor
+    "semantic_seg": SemanticSegmentationTensor,
+    "filter_num_objects": FilterNumObjects
 }
 
 
@@ -29,5 +31,6 @@ def factory(cfg: V.Config,
         transformation_type = _feature_transformation_map[transformation_params.pop("name")]
         transformation = transformation_type.from_descriptors(cfg, data_descriptor, transformation_params)
         transformations.append(transformation)
-        print(" [Verres.transformation] - Factory built:", transformation.__class__.__name__)
+        if cfg.context.verbose:
+            print(" [Verres.transformation] - Factory built:", transformation.__class__.__name__)
     return transformations

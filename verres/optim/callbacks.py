@@ -120,14 +120,14 @@ class TensorBoard(tf.keras.callbacks.TensorBoard):
         super().__init__(log_dir=artifactory.tensorboard, profile_batch=profile_batch, **kwargs)
 
 
-
 _mapping = {
     "ResetOptimizerState": ResetOptimizerState,
     "ObjectMAP": ObjectMAP,
     "LossAggregator": LossAggregator,
     "LatestModelCheckpoint": LatestModelCheckpoint,
     "BestModelCheckpoint": BestModelCheckpoint,
-    "CSVLogger": CSVLogger}
+    "CSVLogger": CSVLogger,
+    "TensorBoard": TensorBoard}
 
 
 def factory(config: V.Config) -> List[tf.keras.callbacks.Callback]:

@@ -9,24 +9,24 @@ class RegressionTensor(Transformation):
 
     def __init__(self,
                  config: V.Config,
-                 transformation_params: dict,
+                 transformation_spec: dict,
                  num_classes: int):
 
         output_features = [
             feature.Feature("regression_mask",
-                            stride=transformation_params["stride"],
+                            stride=transformation_spec["stride"],
                             sparse=True,
                             dtype="int64",
                             depth=4,
                             shape=(None,)),
             feature.Feature("box_wh",
-                            stride=transformation_params["stride"],
+                            stride=transformation_spec["stride"],
                             sparse=True,
                             dtype="float32",
                             depth=2,
                             shape=(None,)),
             feature.Feature("refinement",
-                            stride=transformation_params["stride"],
+                            stride=transformation_spec["stride"],
                             sparse=True,
                             dtype="float32",
                             depth=2,
@@ -35,19 +35,20 @@ class RegressionTensor(Transformation):
 
         super().__init__(
             config,
+            transformation_spec,
             input_fields=["bboxes", "types"],
             output_features=[output_feature])
 
-        self.stride = transformation_params["stride"]
+        self.stride = transformation_spec["stride"]
         self.num_classes = num_classes
         self.tensor_shape = np.array([config.model.input_shape[0] // self.stride,
                                       config.model.input_shape[1] // self.stride])
 
     @classmethod
-    def from_descriptors(cls, config: V.Config, data_descriptor, transformation_params):
+    def from_descriptors(cls, config: V.Config, data_descriptor, transformation_spec):
         return cls(config,
-                   num_classes=data_descriptor["num_classes"],
-                   transformation_params=transformation_params)
+                   transformation_spec,
+                   num_classes=data_descriptor["num_classes"])
 
     def call(self, bboxes, types):
         shape = np.array(self.tensor_shape[:2])

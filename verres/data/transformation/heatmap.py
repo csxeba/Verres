@@ -27,6 +27,7 @@ class _HeatmapProcessor(abstract.Transformation):
             shape=padded_shape)
 
         super().__init__(config,
+                         transformation_spec,
                          input_fields=["bboxes", "types"],
                          output_features=[output_feature])
 
@@ -38,10 +39,10 @@ class _HeatmapProcessor(abstract.Transformation):
                                   num_classes)  # Format: image
 
     @classmethod
-    def from_descriptors(cls, config, data_descriptor, transformation_params):
+    def from_descriptors(cls, config, data_descriptor, transformation_spec):
         return cls(config,
-                   num_classes=data_descriptor["num_classes"],
-                   transformation_spec=transformation_params)
+                   transformation_spec,
+                   num_classes=data_descriptor["num_classes"])
 
     def call(self, *args, **kwargs):
         raise NotImplementedError

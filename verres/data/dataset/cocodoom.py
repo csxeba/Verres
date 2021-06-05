@@ -70,7 +70,12 @@ class COCODoomDataset(Dataset):
         annotations = self.index[ID]
 
         image_path = os.path.join(self.dataset_spec.root, image_meta["file_name"])
-        meta = {"bboxes": [], "segmentations": [], "types": [], "image_path": image_path, "image_id": image_meta["id"]}
+        meta = {"bboxes": [],
+                "segmentations": [],
+                "types": [],
+                "image_path": image_path,
+                "image_id": image_meta["id"],
+                "_validity_flag": True}
 
         for anno in annotations:
             types = [self.descriptor["enemy_type_ids"].index(anno["category_id"])]

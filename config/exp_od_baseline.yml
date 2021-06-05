@@ -19,7 +19,7 @@ model:
   head_spec:
     name: OD
     num_classes: 17
-    peak_nms: 0.3
+    peak_nms: 0.1
 
 training:
   data:
@@ -28,6 +28,7 @@ training:
       subset: train
       sampling_probability: 1.0
       transformations:
+        - { name: filter_num_objects, minimum_num_objects: 2}
         - { name: image, stride: 1 }
         - { name: uniform_heatmap, stride: 4 }
         - { name: regression, stride: 4 }
@@ -43,7 +44,7 @@ training:
     name: Adam
   lr_schedule_spec:
     name: constant
-    learning_rate: 1e-4
+    learning_rate: 3e-4
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }
@@ -73,7 +74,7 @@ inference:
         full: True
         split: run
 
-  visualization_mode: raw_heatmap
+  visualization_mode: detection
   to_screen: True
   output_video_path: None
   fps: 25

@@ -28,6 +28,7 @@ training:
       subset: train
       sampling_probability: 1.0
       transformations:
+        - { name: filter_num_objects, minimum_num_objects: 2}
         - { name: image, stride: 1 }
         - { name: uniform_heatmap, stride: 4 }
         - { name: regression, stride: 4 }
@@ -35,8 +36,8 @@ training:
         full: False
         split: run
   epochs: 120
-  steps_per_epoch: 500
-  batch_size: 10
+  steps_per_epoch: 1000
+  batch_size: 32
   criteria_spec:
     name: ctdet_od
   optimizer_spec:
