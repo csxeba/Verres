@@ -11,6 +11,7 @@ model:
   maximum_stride: 32
   backbone_spec:
     name: ResNet50V2
+    weights: imagenet
   neck_spec:
     name: Rescaler
     output_stride: 4
