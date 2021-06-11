@@ -12,6 +12,7 @@ class ContextConfig:
     experiment_name: str = ""
     verbose: int = 1
     debug: bool = False
+    float_precision: str = "float32"
 
 
 @dataclasses.dataclass

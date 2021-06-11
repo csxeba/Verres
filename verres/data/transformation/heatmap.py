@@ -22,7 +22,7 @@ class _HeatmapProcessor(abstract.Transformation):
             name="heatmap",
             stride=transformation_spec["stride"],
             sparse=False,
-            dtype="float32",
+            dtype=config.context.float_precision,
             depth=num_classes,
             shape=padded_shape)
 
@@ -137,7 +137,7 @@ class VariableSigmaHeatmapProcessor(_HeatmapProcessor):
 
     def call(self, bboxes, types):
         shape = np.array(self.full_tensor_shape[-1:] + self.full_tensor_shape[:-1])
-        heatmap_tensor = np.zeros(shape, dtype="float32")
+        heatmap_tensor = np.zeros(shape, dtype=self.cfg.context.float_precision)
         for box, type_id in zip(bboxes, types):
             x0y0 = box[:2]
             center = x0y0 + box[2:] / 2

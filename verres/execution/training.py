@@ -1,3 +1,5 @@
+import time
+
 import tensorflow as tf
 
 import verres as V
@@ -75,14 +77,55 @@ class TrainingExecutor:
 
     # @tf.function
     def train_step(self, batch):
+        dbg = self.cfg.context.debug
+        verbose = self.cfg.context.verbose
+        
+        times = {"prep": 0.,
+                 "forw": 0.,
+                 "crit": 0.,
+                 "back": 0.,
+                 "updt": 0.}
+
+        if dbg:
+            times["prep"] = time.time()
         image = batch["image"]
         image = self.model.preprocess_input(image)
-
+        if dbg:
+            times["prep"] = time.time() - times["prep"]
+            if verbose > 1:
+                print(f" [Verres.train_step] - prep: {times['prep']:.4f}")
+        
         with tf.GradientTape() as tape:
+            if dbg:
+                times["forw"] = time.time()
             prediction = self.model(image, training=True)
-            losses = self.criteria(batch, prediction)
+            if dbg:
+                times["forw"] = time.time() - times["forw"]
+                if verbose > 1:
+                    print(f" [Verres.train_step] - forw: {times['forw']:.4f}")
 
+            if dbg:
+                times["crit"] = time.time()
+            losses = self.criteria(batch, prediction)
+            if dbg:
+                times["crit"] = time.time() - times["crit"]
+                if verbose > 1:
+                    print(f" [Verres.train_step] - crit: {times['crit']:.4f}")
+
+        if dbg:
+            times["back"] = time.time()
         grads = tape.gradient(losses["loss"], self.model.trainable_weights)
+        if dbg:
+            times["back"] = time.time() - times["back"]
+            if verbose > 1:
+                print(f" [Verres.train_step] - back: {times['back']:.4f}")
+
+        if dbg:
+            times["updt"] = time.time()
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
+        if dbg:
+            times["updt"] = time.time() - times["updt"]
+            if verbose > 1:
+                print(f" [Verres.train_step] - updt: {times['updt']:.4f}")
 
         return losses

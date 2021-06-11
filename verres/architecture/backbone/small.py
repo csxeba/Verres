@@ -43,7 +43,8 @@ class SmallFCNN(VRSBackbone):
         return layers
 
     def preprocess_input(self, inputs):
-        return tf.cast(inputs, tf.float32) / 255.
+        inputs = tf.cast(inputs, tf.keras.backend.floatx()) / 255.
+        return inputs
 
     def call(self, x, training=None, mask=None):
         for layer in self.layer_objects:

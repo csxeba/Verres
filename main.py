@@ -2,6 +2,8 @@ import argparse
 import os
 from typing import Dict, Any
 
+import tensorflow as tf
+
 import verres as V
 
 
@@ -48,7 +50,7 @@ def update_config(config: V.Config, field_path: str, value):
     if isinstance(field, dict):
         field[field_name_list[-1]] = value
     else:
-        setattr(field, field_path[-1], value)
+        setattr(field, field_name_list[-1], value)
     print(f" [Verres] - Set config.{field_path} to {value}")
 
 
@@ -88,6 +90,10 @@ def main(config_path: str = None,
 
     if model_weights not in {"_unset", None}:
         cfg.model.weights = model_weights
+
+    tf.keras.backend.set_floatx(cfg.context.float_precision)
+    if cfg.context.verbose:
+        print(" [Verres] - Float precision set to", cfg.context.float_precision)
 
     if execution_type == V.execution.ExecutionType.TRAINING:
         execute_training(cfg)

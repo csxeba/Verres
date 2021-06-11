@@ -22,13 +22,13 @@ class RegressionTensor(Transformation):
             feature.Feature("box_wh",
                             stride=transformation_spec["stride"],
                             sparse=True,
-                            dtype="float32",
+                            dtype=config.context.float_precision,
                             depth=2,
                             shape=(None,)),
             feature.Feature("refinement",
                             stride=transformation_spec["stride"],
                             sparse=True,
-                            dtype="float32",
+                            dtype=config.context.float_precision,
                             depth=2,
                             shape=(None,))]
         output_feature = feature.MultiFeature("regression", feature_list=output_features)

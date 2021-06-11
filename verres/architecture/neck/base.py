@@ -1,7 +1,7 @@
 from typing import List
 
-from ..backbone.base import VRSBackbone
-from ..backbone.base import FeatureSpec
+from ..backbone.abstract import VRSBackbone
+from ..backbone.abstract import FeatureSpec
 
 
 class VRSNeck(VRSBackbone):

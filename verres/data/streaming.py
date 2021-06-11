@@ -1,5 +1,4 @@
 import random
-import itertools
 from typing import List
 
 import numpy as np

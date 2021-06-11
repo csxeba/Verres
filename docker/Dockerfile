@@ -1,29 +1,32 @@
-FROM continuumio/miniconda3:latest
+FROM archlinux
 
-ARG uid
-ARG accelerator=mkl
+ARG username=csa
+ARG uid=1000
 
-ENV PYTHONPATH=/workspace
+RUN pacman -Sy && \
+    pacman -S --noconfirm \
+    wget \
+    sudo \
+    fakeroot \
+    binutils \
+    pacman \
+    yajl \
+    base-devel
 
-RUN apt-get update && apt-get install -y \
-    "libgtk2.0-dev" \
-    "libgl1-mesa-glx" \
-    "vim" \
-    "graphviz"
+RUN useradd -m -s /bin/bash --no-log-init -u ${uid} ${username}
+RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-COPY ./conda /conda
-
-RUN conda env update --file /conda/conda-env-${accelerator}.yml --name base
-
-RUN useradd -m -s /bin/bash -u $uid --no-log-init user
-
-RUN mkdir /workspace && \
-    mkdir /artifactory && \
-    mkdir /data && \
-    chmod -R a+rw /workspace && \
-    chmod -R a+rw /artifactory && \
-    chmod -R a+rw /data
+RUN mkdir -p /workspace
+RUN chown -R ${username} /workspace
 
 WORKDIR /workspace
 
-CMD ["/bin/bash"]
+COPY makepkg.conf /etc/makepkg.conf
+USER ${username}
+
+RUN wget https://aur.archlinux.org/cgit/aur.git/snapshot/package-query.tar.gz && \
+RUN bash /workspace/getyaourt.bash && rm /workspace/getyaourt.bash
+
+RUN yaourt -Sy && sudo yaourt -S --noconfirm --overwrite "*.py" --overwrite "*.pyc" --overwrite "*.pyo" \
+    python \
+    tensorflow-opt-native

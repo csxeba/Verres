@@ -4,6 +4,7 @@ context:
   artifactory_root: ./artifactory
   execution_type: training
   verbose: 2
+  float_precision: float32
 
 model:
   input_width: 320

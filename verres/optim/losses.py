@@ -27,7 +27,7 @@ def sparse_vector_field_mae(y_true, y_pred, locations):
     pred_x = tf.gather_nd(y_pred[..., 0::2], locations)
     pred_y = tf.gather_nd(y_pred[..., 1::2], locations)
     d = tf.abs(y_true - tf.stack([pred_x, pred_y], axis=-1))
-    batch_size = tf.cast(tf.shape(y_pred)[0], tf.float32)
+    batch_size = tf.cast(tf.shape(y_pred)[0], tf.keras.backend.floatx())
     d = tf.reduce_sum(d) / batch_size
     return d
 
@@ -53,8 +53,8 @@ def mean_of_cxent_sparse_from_logits(y_true, y_pred):
 
 
 def focal_loss(y_true, y_pred, alpha, beta, from_logits=True):
-    pos_mask = tf.stop_gradient(tf.cast(y_true == 1., tf.float32))
-    neg_mask = tf.stop_gradient(tf.cast(y_true < 1., tf.float32))
+    pos_mask = tf.stop_gradient(tf.cast(y_true == 1., tf.keras.backend.floatx()))
+    neg_mask = tf.stop_gradient(tf.cast(y_true < 1., tf.keras.backend.floatx()))
     num_pos = tf.maximum(tf.reduce_sum(pos_mask), 1.)
 
     bce = tf.keras.backend.binary_crossentropy(y_true, y_pred, from_logits=from_logits)
@@ -76,8 +76,8 @@ class Tracker:
 
     def __init__(self, keys: List[str]):
         self.keys = keys
-        self.variables = [tf.Variable(0., dtype=tf.float32, trainable=False, name=key + "_logger") for key in keys]
-        self.step = tf.Variable(0., dtype=tf.float32, trainable=False, name="step_logger")
+        self.variables = [tf.Variable(0., dtype=tf.keras.backend.floatx(), trainable=False, name=key + "_logger") for key in keys]
+        self.step = tf.Variable(0., dtype=tf.keras.backend.floatx(), trainable=False, name="step_logger")
 
     def record(self, data):
         for v, d in zip(self.variables, data):
