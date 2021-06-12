@@ -29,6 +29,7 @@ training:
       sampling_probability: 1.0
       transformations:
         - { name: filter_num_objects, minimum_num_objects: 2}
+        - { name: filter_map_number, filtered_maps: [1, 2], mode: include}
         - { name: image, stride: 1 }
         - { name: uniform_heatmap, stride: 4 }
         - { name: regression, stride: 4 }
@@ -57,6 +58,7 @@ evaluation:
       root: /data/Datasets/cocodoom
       subset: val-mini
       transformations:
+        - { name: filter_map_number, filtered_maps: [1, 2], mode: include}
         - { name: image, stride: 1 }
       kwargs:
         full: False
@@ -69,6 +71,7 @@ inference:
       root: /data/Datasets/cocodoom
       subset: val
       transformations:
+        - { name: filter_map_number, filtered_maps: [1, 2], mode: include}
         - { name: image, stride: 1 }
       kwargs:
         full: True

@@ -7,7 +7,7 @@ from .image import ImageProcessor
 from .heatmap import UniformSigmaHeatmapProcessor, VariableSigmaHeatmapProcessor
 from .regression import RegressionTensor
 from .segmentation import PanopticSegmentationTensor, SemanticSegmentationTensor
-from .filters import FilterNumObjects
+from .filters import FilterNumObjects, FilterMapNumber
 
 
 _feature_transformation_map = {
@@ -17,7 +17,8 @@ _feature_transformation_map = {
     "regression": RegressionTensor,
     "panoptic_seg": PanopticSegmentationTensor,
     "semantic_seg": SemanticSegmentationTensor,
-    "filter_num_objects": FilterNumObjects
+    "filter_num_objects": FilterNumObjects,
+    "filter_map_number": FilterMapNumber
 }
 
 

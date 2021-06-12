@@ -70,11 +70,13 @@ class COCODoomDataset(Dataset):
         annotations = self.index[ID]
 
         image_path = os.path.join(self.dataset_spec.root, image_meta["file_name"])
+        map_no = [int(mapno[3:]) for mapno in image_path.split("/") if "map" in mapno][0]
         meta = {"bboxes": [],
                 "segmentations": [],
                 "types": [],
                 "image_path": image_path,
                 "image_id": image_meta["id"],
+                "map_no": map_no,
                 "_validity_flag": True}
 
         for anno in annotations:
