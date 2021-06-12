@@ -4,7 +4,6 @@ context:
   artifactory_root: ./artifactory
   execution_type: training
   verbose: 2
-  float_precision: float32
 
 model:
   input_width: 320
@@ -45,7 +44,7 @@ training:
     name: Adam
   lr_schedule_spec:
     name: constant
-    learning_rate: 3e-4
+    learning_rate: 1e-3
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }

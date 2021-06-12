@@ -8,7 +8,7 @@ context:
 model:
   input_width: 320
   input_height: 200
-  maximum_stride: 32
+  maximum_stride: 8
   backbone_spec:
     name: SmallFCNN
     width_base: 32
@@ -36,8 +36,8 @@ training:
         full: False
         split: run
   epochs: 120
-  steps_per_epoch: 1000
-  batch_size: 32
+  steps_per_epoch: 500
+  batch_size: 10
   criteria_spec:
     name: ctdet_od
   optimizer_spec:
