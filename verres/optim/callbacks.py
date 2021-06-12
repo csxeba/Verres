@@ -23,7 +23,7 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.cfg = config
         self.evaluator: Union[V.execution.EvaluationExecutor, None] = None
         self.artifactory = artifactory
-        self.detection_tmp = str((artifactory.detections / "detections_epoch_{epoch}.json"))
+        self.detection_tmp = str((artifactory.detections / "detections.json"))
         self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}.h5"))
         self.file_writer = tf.summary.create_file_writer(str(artifactory.tensorboard))
         self.last_map = -1.

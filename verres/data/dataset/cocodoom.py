@@ -1,6 +1,5 @@
 import json
 import os
-from collections import defaultdict
 
 import verres as V
 from .abstract import Dataset, DatasetDescriptor
@@ -16,6 +15,12 @@ def _generate_annotation_path(split: str, full: bool, subset: str):
         elements.append("full")
     elements.append(subset)
     return "-".join(elements) + ".json"
+
+
+def _get_map_number(image_meta):
+    image_path = image_meta["file_name"]
+    map_no = [int(mapno[3:]) for mapno in image_path.split("/") if "map" in mapno][0]
+    return map_no
 
 
 class COCODoomDataDescriptor(DatasetDescriptor):
@@ -49,20 +54,34 @@ class COCODoomDataset(Dataset):
         data = json.load(open(descriptor.annotation_file_path))
 
         self.image_meta = {meta["id"]: meta for meta in data["images"]}
-        self.index = defaultdict(list)
+
+        filtered_maps = spec.filtered_map_numbers
+        if filtered_maps == "all" or filtered_maps == "default":
+            filtered_maps = list(range(1, 32))
+        filtered_maps = set(filtered_maps)
+        if config.context.verbose > 1:
+            print(" [Verres.COCODoomDataset] - Maps:", filtered_maps)
+        self.index = {meta["id"]: [] for meta in data["images"] if _get_map_number(meta) in filtered_maps}
+
+        filtered_types = spec.filtered_types
+        if filtered_types == "default":
+            filtered_types = descriptor.enemy_type_ids
+        filtered_types = set(filtered_types)
         for anno in data["annotations"]:
-            if anno["category_id"] not in descriptor.enemy_type_ids:
+            if anno["image_id"] not in self.index:
+                continue
+            if anno["category_id"] not in filtered_types:
                 continue
             self.index[anno["image_id"]].append(anno)
 
         super().__init__(config,
                          dataset_spec=spec,
-                         IDs=sorted(list(self.image_meta)),
+                         IDs=sorted(list(self.index)),
                          descriptor=descriptor)
 
         print(f" [Verres.COCODoomLoader] - Loaded", descriptor.annotation_file_path)
-        print(f" [Verres.COCODoomLoader] - Num images :", len(data["images"]))
-        print(f" [Verres.COCODoomLoader] - Num annos  :", len(data["annotations"]))
+        print(f" [Verres.COCODoomLoader] - Num images :", len(self.index))
+        print(f" [Verres.COCODoomLoader] - Num annos  :", sum(map(len, self.index.values())))
         print(f" [Verres.COCODoomLoader] - Num classes:", descriptor.num_classes)
 
     def unpack(self, ID: int) -> dict:

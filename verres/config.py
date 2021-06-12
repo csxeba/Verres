@@ -21,6 +21,8 @@ class DatasetSpec:
     root: str = ""
     subset: str = ""
     sampling_probability: float = 1.0
+    filtered_types: List[int] = "default"
+    filtered_map_numbers: List[int] = "default"
     transformations: List[dict] = dataclasses.field(default_factory=list)
     kwargs: dict = dataclasses.field(default_factory=dict)
 

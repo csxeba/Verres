@@ -27,9 +27,9 @@ training:
       root: /data/Datasets/cocodoom
       subset: train
       sampling_probability: 1.0
+      filtered_map_numbers: [1, 2]
       transformations:
         - { name: filter_num_objects, minimum_num_objects: 2}
-        - { name: filter_map_number, filtered_maps: [1, 2], mode: include}
         - { name: image, stride: 1 }
         - { name: uniform_heatmap, stride: 4 }
         - { name: regression, stride: 4 }
@@ -44,8 +44,9 @@ training:
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
-    name: constant
-    learning_rate: 1e-3
+    name: PiecewiseConstantDecay
+    boundaries: [1500]
+    values: [0.001, 0.0001]
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }
@@ -57,8 +58,8 @@ evaluation:
     - name: cocodoom
       root: /data/Datasets/cocodoom
       subset: val-mini
+      filtered_map_numbers: [1, 2]
       transformations:
-        - { name: filter_map_number, filtered_maps: [1, 2], mode: include}
         - { name: image, stride: 1 }
       kwargs:
         full: False
@@ -70,14 +71,14 @@ inference:
     - name: cocodoom
       root: /data/Datasets/cocodoom
       subset: val
+      filtered_map_numbers: [ 1, 2 ]
       transformations:
-        - { name: filter_map_number, filtered_maps: [1, 2], mode: include}
         - { name: image, stride: 1 }
       kwargs:
         full: True
         split: run
 
-  visualization_mode: detection
+  visualization_mode: raw_heatmap
   to_screen: True
   output_video_path: None
   fps: 25

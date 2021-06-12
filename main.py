@@ -47,6 +47,15 @@ def update_config(config: V.Config, field_path: str, value):
             field = getattr(field, field_name, None)
         if field is None:
             raise RuntimeError(f"No such config field: {field_path}")
+    if isinstance(value, str):
+        if "." in value and value.replace(".", "").isnumeric():
+            print(f" [Verres] - Update config value {value} was automatically cast to float")
+            value = float(value)
+        elif value.isnumeric():
+            print(f" [Verres] - Update config value {value} was automatically cast to int")
+            value = int(value)
+        else:
+            pass
     if isinstance(field, dict):
         field[field_name_list[-1]] = value
     else:

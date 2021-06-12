@@ -44,8 +44,9 @@ training:
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
-    name: constant
-    learning_rate: 1e-3
+    name: PiecewiseConstantDecay
+    boundaries: [0, 1500]
+    values: [0.001, 0.0001]
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }

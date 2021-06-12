@@ -39,6 +39,9 @@ class VRSArchitecture(tf.keras.Model):
             fused = backbone
         detector = _head.factory(config, fused.feature_specs)
         architecture = cls(config, fused, detector)
+        if config.context.verbose > 1:
+            architecture.build(input_shape=(1, config.model.input_shape[0], config.model.input_shape[1], 3))
+            architecture.summary()
         return architecture
 
     def preprocess_input(self, inputs):
