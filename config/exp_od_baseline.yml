@@ -78,7 +78,7 @@ inference:
         full: True
         split: run
 
-  visualization_mode: raw_heatmap
+  visualization_mode: detection
   to_screen: True
   output_video_path: None
   fps: 25
