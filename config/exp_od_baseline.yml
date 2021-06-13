@@ -11,6 +11,7 @@ model:
   maximum_stride: 8
   backbone_spec:
     name: SmallFCNN
+    stage_type: simple  # residual
     width_base: 32
     strides: [8]
   neck_spec:
@@ -57,7 +58,7 @@ evaluation:
   data:
     - name: cocodoom
       root: /data/Datasets/cocodoom
-      subset: val-mini
+      subset: val
       filtered_map_numbers: [1, 2]
       transformations:
         - { name: image, stride: 1 }
