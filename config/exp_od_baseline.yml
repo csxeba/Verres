@@ -58,7 +58,7 @@ evaluation:
   data:
     - name: cocodoom
       root: /data/Datasets/cocodoom
-      subset: val
+      subset: val-mini
       filtered_map_numbers: []
       transformations:
         - { name: image, stride: 1 }
