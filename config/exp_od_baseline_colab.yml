@@ -28,7 +28,6 @@ training:
       root: /data/Datasets/cocodoom
       subset: train
       sampling_probability: 1.0
-      filtered_map_numbers: []
       filtered_num_objects: 1
       transformations:
         - { name: image, stride: 1 }
@@ -46,7 +45,7 @@ training:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
-    boundaries: [1500]
+    boundaries: [15000]
     values: [0.001, 0.0001]
   callbacks:
     - { name: LatestModelCheckpoint }
@@ -59,7 +58,6 @@ evaluation:
     - name: cocodoom
       root: /data/Datasets/cocodoom
       subset: val-mini
-      filtered_map_numbers: []
       transformations:
         - { name: image, stride: 1 }
       kwargs:
@@ -72,7 +70,6 @@ inference:
     - name: cocodoom
       root: /data/Datasets/cocodoom
       subset: val
-      filtered_map_numbers: [ 1, 2 ]
       transformations:
         - { name: image, stride: 1 }
       kwargs:

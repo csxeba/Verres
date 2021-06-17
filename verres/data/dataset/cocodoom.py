@@ -74,7 +74,7 @@ class COCODoomDataset(Dataset):
                 continue
             self.index[anno["image_id"]].append(anno)
 
-        self.index = {ID: annos for ID, annos in self.index.items() if len(annos) > spec.filtered_num_objects}
+        self.index = {ID: annos for ID, annos in self.index.items() if len(annos) >= spec.filtered_num_objects}
 
         super().__init__(config,
                          dataset_spec=spec,
