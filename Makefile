@@ -3,7 +3,7 @@ export
 
 run : build
 	docker run -it --rm --network host \
-    --name verres_environment \
+	--name verres_environment \
 	-v ${host_artifactory_root}:/artifactory \
 	-v ${host_models_root}:/models \
 	-v ${host_data_root}:/data \
@@ -16,8 +16,8 @@ build :
 	docker build \
 	--tag trickster/environment:latest \
 	--network host \
+	--build-arg username=${USERNAME} \
 	--build-arg uid=$(shell id -u) \
-	--build-arg accelerator=${compute_accelerator} \
 	-f docker/Dockerfile \
 	.
 

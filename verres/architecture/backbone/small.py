@@ -26,7 +26,7 @@ class SmallFCNN(VRSBackbone):
 
         super().__init__([FeatureSpec("small_fcnn_output", working_stride=8, width=width_base*8)])
         self.layer_objects = [
-            block.VRSConvolution(width=width_base, kernel_size=7, **convolution_kwargs)]
+            block.VRSConvolution(width=width_base, kernel_size=3, **convolution_kwargs)]
         if config.context.verbose > 1:
             print(f" [Verres.SmallFCNN] - Starting architecture with Convolution of width {width_base} and ksize 7")
 

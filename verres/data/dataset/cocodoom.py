@@ -29,8 +29,8 @@ class COCODoomDataDescriptor(DatasetDescriptor):
         super().__init__()
         self.enemy_types = [
             "POSSESSED", "SHOTGUY", "VILE", "UNDEAD", "FATSO", "CHAINGUY", "TROOP", "SERGEANT", "HEAD", "BRUISER",
-            "KNIGHT", "SKULL", "SPIDER", "BABY", "CYBORG", "PAIN", "WOLFSS"]
-        self.enemy_type_ids = [1, 2, 3, 5, 8, 10, 11, 12, 14, 15, 17, 18, 19, 20, 21, 22, 23]
+            "KNIGHT", "SKULL", "SPIDER", "BABY", "CYBORG", "PAIN"]
+        self.enemy_type_ids = [1, 2, 3, 5, 8, 10, 11, 12, 14, 15, 17, 18, 19, 20, 21, 22]
         self.image_shape = (200, 320, 3)
         self.num_classes = len(self.enemy_type_ids)
         self.root = data_spec.root
@@ -56,8 +56,8 @@ class COCODoomDataset(Dataset):
         self.image_meta = {meta["id"]: meta for meta in data["images"]}
 
         filtered_maps = spec.filtered_map_numbers
-        if filtered_maps == "all" or filtered_maps == "default":
-            filtered_maps = list(range(1, 32))
+        if filtered_maps == "all" or filtered_maps == "default" or filtered_maps == []:
+            filtered_maps = list(range(1, 31))
         filtered_maps = set(filtered_maps)
         if config.context.verbose > 1:
             print(" [Verres.COCODoomDataset] - Maps:", filtered_maps)
@@ -73,6 +73,8 @@ class COCODoomDataset(Dataset):
             if anno["category_id"] not in filtered_types:
                 continue
             self.index[anno["image_id"]].append(anno)
+
+        self.index = {ID: annos for ID, annos in self.index.items() if len(annos) > spec.filtered_num_objects}
 
         super().__init__(config,
                          dataset_spec=spec,

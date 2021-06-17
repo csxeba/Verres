@@ -18,15 +18,24 @@ class OD(VRSHead):
             input_features = [input_features[0], input_features[0]]
         self.centroid_feature_spec, self.box_feature_spec = input_features
         nearest_po2 = V.utils.numeric_utils.ceil_to_nearest_power_of_2(spec["num_classes"])
+
         self.hmap_head = block.VRSHead(
             spec.get("head_convolution_width", nearest_po2),
             output_width=spec["num_classes"])
+        if config.context.verbose > 1:
+            print(f" [Verres.OD] - Added Heatmap head with widths: {nearest_po2} -> {spec['num_classes']}")
+
         self.rreg_head = block.VRSHead(
             spec.get("head_convolution_width", nearest_po2*2),
             output_width=spec["num_classes"]*2)
+        if config.context.verbose > 1:
+            print(f" [Verres.OD] - Added Refinement head with widths: {nearest_po2*2} -> {spec['num_classes']*2}")
+
         self.boxx_head = block.VRSHead(
             spec.get("head_convolution_width", nearest_po2*2),
             output_width=spec["num_classes"]*2)
+        if config.context.verbose > 1:
+            print(f" [Verres.OD] - Added Box head with widths: {nearest_po2*2} -> {spec['num_classes']*2}")
 
         self.peak_nms = spec.get("peak_nms", 0.1)
 
