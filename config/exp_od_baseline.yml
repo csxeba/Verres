@@ -70,6 +70,7 @@ inference:
     - name: cocodoom
       root: /data/Datasets/cocodoom
       subset: val
+      filtered_map_numbers: [3]
       transformations:
         - { name: image, stride: 1 }
       kwargs:
@@ -80,4 +81,4 @@ inference:
   to_screen: True
   output_video_path: None
   fps: 25
-  total_num_frames: 200
+  total_num_frames: 400

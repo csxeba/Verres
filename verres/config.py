@@ -131,3 +131,7 @@ class Config:
 
         # noinspection PyUnresolvedReferences
         print(" [Verres] - Read config from", config_path)
+
+    def copy(self, path):
+        import shutil
+        shutil.copy(self.config_path, path)

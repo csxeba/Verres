@@ -37,15 +37,15 @@ training:
         full: False
         split: run
   epochs: 120
-  steps_per_epoch: 500
-  batch_size: 10
+  steps_per_epoch: 1000
+  batch_size: 32
   criteria_spec:
     name: ctdet_od
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
-    boundaries: [15000]
+    boundaries: [30000]
     values: [0.001, 0.0001]
   callbacks:
     - { name: LatestModelCheckpoint }

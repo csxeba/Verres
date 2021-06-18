@@ -1,4 +1,5 @@
 import time
+import shutil
 
 import tensorflow as tf
 
@@ -49,6 +50,9 @@ class TrainingExecutor:
                         print(f" {key}: {value:.6f}")
 
     def execute(self, stream=None):
+
+        artifactory = V.Artifactory.get_default(self.cfg)
+        self.cfg.copy(artifactory.root)
 
         if stream is None:
             pipes = V.data.factory(self.cfg, specs=self.cfg.training.data)
