@@ -37,7 +37,7 @@ training:
         full: False
         split: run
   epochs: 120
-  steps_per_epoch: 500
+  steps_per_epoch: 1000
   batch_size: 10
   criteria_spec:
     name: ctdet_od
@@ -45,7 +45,7 @@ training:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
-    boundaries: [15000]
+    boundaries: [30000]
     values: [0.001, 0.0001]
   callbacks:
     - { name: LatestModelCheckpoint }
@@ -70,7 +70,6 @@ inference:
     - name: cocodoom
       root: /data/Datasets/cocodoom
       subset: val
-      filtered_map_numbers: [3]
       transformations:
         - { name: image, stride: 1 }
       kwargs:
