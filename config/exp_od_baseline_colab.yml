@@ -28,7 +28,7 @@ training:
       root: /data/Datasets/cocodoom
       subset: train
       sampling_probability: 1.0
-      filtered_num_objects: 1
+      filtered_num_objects: 0
       transformations:
         - { name: image, stride: 1 }
         - { name: uniform_heatmap, stride: 4 }

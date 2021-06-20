@@ -116,7 +116,7 @@ class DataVisualizer:
         boxes = boxutil.convert_box_representation(locations[..., :2], whs, locations[..., 2], stride)
         return self.overlay_boxes(image, boxes, stride=1, alpha=alpha)
 
-    def overlay_heatmap(self, image, hmap, alpha=0.3):
+    def overlay_heatmap(self, image, hmap, alpha=0.75):
         image = self.deprocess_image(image)
         hmap = numeric.untensorize(hmap)
 
