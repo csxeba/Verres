@@ -13,9 +13,9 @@ model:
     name: SmallFCNN
     stage_type: simple  # residual
     width_base: 32
-    strides: [8]
+    strides: [2, 4, 8]
   neck_spec:
-    name: Rescaler
+    name: autofusion
     output_stride: 4
   head_spec:
     name: OD
@@ -81,3 +81,4 @@ inference:
   output_video_path: None
   fps: 25
   total_num_frames: 400
+  output_upscale_factor: 2

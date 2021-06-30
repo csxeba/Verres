@@ -9,7 +9,7 @@ from .application import ApplicationBackbone
 from . import FeatureSpec
 
 
-class SideModel(tf.keras.layers.Layer):
+class SideModel(block.VRSLayerStack):
 
     def __init__(self,
                  working_stride: int,
@@ -22,16 +22,15 @@ class SideModel(tf.keras.layers.Layer):
 
         self.working_stride = working_stride
         self.base_width = base_width
-        self.batch_norm = batch_norm
 
         self.layer_objects = []
         current_stride = 1
         current_width = base_width
         current_depth = base_depth
         for i in range(10):
-            self.layer_objects.append(
-                block.VRSConvBlock(current_width, current_depth, batch_normalize=batch_norm)
-            )
+            self.layer_objects.extend(
+                [block.VRSConvolution(current_width, activation="leakyrelu", batch_normalize=batch_norm)
+                 for _ in range(current_depth)])
             self.layer_objects.append(tfl.MaxPool2D())
             current_width *= 2
             current_depth *= 2
@@ -44,12 +43,6 @@ class SideModel(tf.keras.layers.Layer):
             raise RuntimeError(f"Misspecified or too great working stride: {working_stride}")
         self.layer_objects.append(
             block.VRSConvolution(final_width, batch_normalize=batch_norm, initializer="zeros"))
-
-    @tf.function(experimental_relax_shapes=True)
-    def call(self, x, training=None, mask=None):
-        for layer in self.layer_objects:
-            x = layer(x)
-        return x
 
 
 class SideTunedBackbone(ApplicationBackbone):

@@ -40,11 +40,37 @@ class VRSConvolution(VRSLayerStack):
         if activation is not None:
             self.layer_objects.append(layer_utils.get_activation(activation, as_layer=True))
 
+        self.output_width = width
+
     # @tf.function(experimental_relax_shapes=True)
     def call(self, x, training=None, mask=None):
         for layer in self.layer_objects:
             x = layer(x, training=training)
         return x
+
+
+class VRSConvolutionStrideStage(VRSLayerStack):
+
+    def __init__(self, input_width: int, final_width: int, depth: int):
+
+        layers = [VRSConvolution(final_width, activation="leakyrelu", stride=2)]
+        for _ in range(depth - 1):
+            layers.append(VRSConvolution(final_width, activation="leakyrelu", stride=1))
+
+        super().__init__(layers=layers)
+
+
+class VRSConvolutionStridedResidualStage(VRSLayerStack):
+
+    def __init__(self, input_width: int, final_width: int, depth: int):
+        layers = [VRSResidualBottleneck(width=final_width, input_width=input_width, stride=2)]
+        if depth > 1:
+            processing_layers = []
+            for _ in range(depth - 1):
+                processing_layers.append(
+                    VRSResidualBottleneck(width=final_width, input_width=final_width, stride=1))
+            layers.extend(processing_layers)
+        super().__init__(layers=layers)
 
 
 class VRSHead(VRSLayerStack):
@@ -93,9 +119,8 @@ class VRSRescaler(VRSLayerStack):
                 assert base_width % (2 ** i) == 0
                 width = base_width * (2 ** i)
             self.layer_objects.append(resampler_type())
-            # print(f" [Verres.Rescaler] - Added {resampler_type.__name__}")
             self.layer_objects.append(VRSConvolution(width, activation, batch_normalize, kernel_size))
-            # print(f" [Verres.Rescaler] - Added Convolution of width {width}")
+            self.output_width = width
 
     @classmethod
     def from_strides(cls,
@@ -116,7 +141,7 @@ class VRSRescaler(VRSLayerStack):
             stride = target_stride // feature_stride
             return cls(stride, base_width, cls.MODE_DOWN, kernel_size, batch_normalize, activation, **kwargs)
         else:
-            assert False
+            return VRSConvolution(base_width, activation, batch_normalize, **kwargs)
 
 
 class VRSUpscale(VRSRescaler):
