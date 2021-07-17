@@ -37,16 +37,16 @@ training:
         full: False
         split: run
   epochs: 120
-  steps_per_epoch: 1000
-  batch_size: 64
+  steps_per_epoch: 5000
+  batch_size: 32
   criteria_spec:
     name: ctdet_od
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
-    boundaries: [30000]
-    values: [0.01, 0.001]
+    boundaries: [20000, 40000]
+    values: [0.01, 0.001, 0.0001]
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }

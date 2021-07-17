@@ -25,7 +25,6 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.artifactory = artifactory
         self.detection_tmp = str((artifactory.detections / "detections.json"))
         self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}.h5"))
-        self.file_writer = tf.summary.create_file_writer(str(artifactory.tensorboard))
         self.last_map = -1.
         self.last_chkp = ""
         self.checkpoint_best = checkpoint_best
@@ -48,9 +47,6 @@ class ObjectMAP(tf.keras.callbacks.Callback):
                     os.remove(self.last_chkp)
                 self.last_map = mAP
                 self.last_chkp = checkpoint_path
-        with self.file_writer.as_default():
-            tf.summary.scalar("cocodoom_val/mAP", mAP, step=epoch)
-            tf.summary.scalar("cocodoom_val/mAR", result[6], step=epoch)
 
         logs["cocodoom_val/mAP"] = mAP
         logs["cocodoom_val/mAR"] = result[6]
