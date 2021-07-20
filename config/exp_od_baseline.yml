@@ -31,7 +31,7 @@ training:
       filtered_num_objects: 0
       transformations:
         - { name: image, stride: 1 }
-        - { name: uniform_heatmap, stride: 4 }
+        - { name: variable_heatmap, stride: 4 }
         - { name: regression, stride: 4 }
       kwargs:
         full: False

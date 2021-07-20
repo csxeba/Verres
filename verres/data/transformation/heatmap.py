@@ -114,18 +114,20 @@ class VariableSigmaHeatmapProcessor(_HeatmapProcessor):
         c3 = (min_overlap - 1) * width * height
         sq3 = np.sqrt(b3 ** 2 - 4 * a3 * c3)
         r3 = (b3 + sq3) / 2
-        return min(r1, r2, r3)
+        return int(min(r1, r2, r3))
 
     def draw_gaussian(self, heatmap, center, radius):
         diameter = 2 * radius + 1
         gaussian = self.gaussian2D((diameter, diameter), sigma=diameter / 6)
 
-        x, y = int(center[0]), int(center[1])
+        y, x = int(center[0]), int(center[1])
 
         height, width = heatmap.shape[0:2]
 
-        left, right = min(x, radius), min(width - x, radius + 1)
-        top, bottom = min(y, radius), min(height - y, radius + 1)
+        left = int(min(x, radius))
+        right = int(min(width - x, radius + 1))
+        top = int(min(y, radius))
+        bottom = int(min(height - y, radius + 1))
 
         masked_heatmap = heatmap[y-top:y+bottom, x-left:x+right]
         masked_gaussian = gaussian[radius-top:radius+bottom, radius-left:radius+right]
@@ -138,7 +140,7 @@ class VariableSigmaHeatmapProcessor(_HeatmapProcessor):
     def call(self, bboxes, types):
         shape = np.array(self.full_tensor_shape[-1:] + self.full_tensor_shape[:-1])
         heatmap_tensor = np.zeros(shape, dtype=self.cfg.context.float_precision)
-        for box, type_id in zip(bboxes, types):
+        for box, type_id in zip(np.array(bboxes), types):
             x0y0 = box[:2]
             center = x0y0 + box[2:] / 2
             radius = self.calculate_radius(box)
