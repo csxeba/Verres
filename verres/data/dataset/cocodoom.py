@@ -101,7 +101,7 @@ class COCODoomDataset(Dataset):
                 "_validity_flag": True}
 
         for anno in annotations:
-            types = [self.descriptor["enemy_type_ids"].index(anno["category_id"])]
+            types = self.descriptor["enemy_type_ids"].index(anno["category_id"])
             meta["bboxes"].append(anno["bbox"])
             meta["segmentations"].append(anno["segmentation"])
             meta["types"].append(types)

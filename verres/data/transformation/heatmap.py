@@ -120,9 +120,9 @@ class VariableSigmaHeatmapProcessor(_HeatmapProcessor):
         diameter = 2 * radius + 1
         gaussian = self.gaussian2D((diameter, diameter), sigma=diameter / 6)
 
-        y, x = int(center[0]), int(center[1])
+        x, y = int(center[0]), int(center[1])
 
-        height, width = heatmap.shape[0:2]
+        height, width = heatmap.shape[:2]
 
         left = int(min(x, radius))
         right = int(min(width - x, radius + 1))
@@ -141,6 +141,7 @@ class VariableSigmaHeatmapProcessor(_HeatmapProcessor):
         shape = np.array(self.full_tensor_shape[-1:] + self.full_tensor_shape[:-1])
         heatmap_tensor = np.zeros(shape, dtype=self.cfg.context.float_precision)
         for box, type_id in zip(np.array(bboxes), types):
+            box = box / self.stride
             x0y0 = box[:2]
             center = x0y0 + box[2:] / 2
             radius = self.calculate_radius(box)
