@@ -29,9 +29,10 @@ class VRSConvolution(VRSLayerStack):
                  batch_normalize: bool = True,
                  kernel_size: int = 3,
                  stride: int = 1,
-                 initializer: str = "he_uniform"):
+                 initializer: str = "he_uniform",
+                 **kwargs):
 
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer,
                                          strides=stride)]

@@ -58,3 +58,6 @@ class VRSBackbone(tf.keras.layers.Layer):
 
     def preprocess_input(self, inputs):
         raise NotImplementedError
+
+    def call(self, inputs, **kwargs):
+        raise NotImplementedError
