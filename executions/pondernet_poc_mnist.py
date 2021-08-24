@@ -62,6 +62,7 @@ class ExperimentParameters(NamedTuple):
     epochs: int
     steps_per_epoch: int
     learning_rate: float
+    l2_regularization: float
     ponder_loss_component_weight: float
     training_metrics_smoothing_window_size: int
 
@@ -86,7 +87,8 @@ class PonderVGG19(tf.keras.Model):
     def __init__(self,
                  pondernet: bool = True,
                  ponder_prior_p: float = 1. / 10.,
-                 l2_reg: float = 0.):
+                 l2_reg: float = 0.,
+                 maximum_steps: int = 10):
 
         super().__init__()
 
@@ -99,41 +101,31 @@ class PonderVGG19(tf.keras.Model):
                                  kernel_regularizer=regularizer),
             tfl.MaxPool2D(name="block1_pool")]
 
-        if pondernet:
-            self.ponder_layer = \
-                ponder.PonderConvolution(width=32, activation="relu", batch_normalize=False, name="block2_conv1",
-                                         kernel_regularizer=regularizer)
-        else:
-            self.ponder_layer = \
-                block.VRSConvolution(width=32, activation="relu", batch_normalize=False, name="block2_conv1",
-                                     kernel_regularizer=regularizer)
+        self.ponder_layer = \
+            ponder.PonderConvolution(width=32, activation="relu", batch_normalize=False, name="block2_conv1",
+                                     kernel_regularizer=regularizer, maximum_ponder_steps=maximum_steps)
 
-        self.classifier = tfl.Dense(10, activation="softmax", name="dense_classifier")
+        self.classifier = tfl.Dense(10, name="dense_classifier")
 
         self.is_pondernet = pondernet
         self.prior_p = tf.convert_to_tensor(ponder_prior_p)
+        self.max_steps = maximum_steps
 
     def call(self, x, **kwargs):
         x = x / 255.
         for layer in self.layer_objects:
             x = layer(x)
-        im_result = self.ponder_layer(x)
-        if self.is_pondernet:
-            features = im_result.outputs["output"]
-            ponder_loss = (tf.math.log(self.prior_p / im_result.outputs["lambda"])
-                           + ((1. - self.prior_p) / self.prior_p)
-                           * tf.math.log((1. - self.prior_p) / (1. - im_result.outputs["lambda"])))
-            mean_steps = im_result.metrics["avg_steps"]
-            probabilities = im_result.outputs["probs"]  # [ponder]
 
-        else:
-            features = im_result[None, ...]
-            ponder_loss = 0.
-            mean_steps = 1.
-            probabilities = tf.ones(shape=[1], dtype=tf.float32)
+        im_result = self.ponder_layer(x)
+        features = im_result.outputs["output"]
+        ponder_loss = (tf.math.log(self.prior_p / im_result.outputs["lambda"])
+                       + ((1. - self.prior_p) / self.prior_p)
+                       * tf.math.log((1. - self.prior_p) / (1. - im_result.outputs["lambda"])))
+        mean_steps = im_result.metrics["avg_steps"]
+        probabilities = im_result.outputs["probs"]  # [ponder]
 
         # GlobalAveragePooling of the spatial dimensions
-        features = tf.reduce_mean(features, axis=(2, 3))  # [ponder, batch, channel] or [batch, channel]
+        features = tf.reduce_mean(features, axis=(2, 3))
         predictions = self.classifier(features)
 
         return IntermediateResult(outputs={"predictions": predictions, "probabilities": probabilities},
@@ -143,7 +135,7 @@ class PonderVGG19(tf.keras.Model):
 
 def broadcasted_weighted_cross_entropy(y_true, y_pred, probs):
     onehots = tf.keras.utils.to_categorical(y_true, num_classes=10)[None, ...]  # shape: [1, batch, dim]
-    cross_entropies = tf.reduce_mean(onehots * -tf.math.log(y_pred), axis=-1)
+    cross_entropies = tf.reduce_mean(onehots * -tf.nn.log_softmax(y_pred), axis=-1)
     return tf.reduce_mean(cross_entropies * probs)
 
 
@@ -156,12 +148,16 @@ def broadcasted_accuracy(y_true, y_pred):
 
 def experiment(params: ExperimentParameters):
     data = MNIST.load_from_keras()
-    model = PonderVGG19(pondernet=params.ponder, ponder_prior_p=params.ponder_prior_p)
+    model = PonderVGG19(pondernet=params.ponder,
+                        ponder_prior_p=params.ponder_prior_p,
+                        l2_reg=params.l2_regularization)
 
     optimizer = tf.keras.optimizers.Adam(params.learning_rate)
     data_iterator = iter(data.stream(batch_size=params.batch_size, subset=SubsetEnum.TRAIN, shuffle=True))
     val_x = tf.convert_to_tensor(data.test_x[..., None], dtype=tf.float32)
     val_y = tf.convert_to_tensor(data.test_y)
+
+    pondernet_switch = tf.convert_to_tensor(params.ponder, dtype=tf.float32)
 
     for epoch in range(1, params.epochs+1):
         print(f"\nEpoch {epoch}/{params.epochs}")
@@ -169,11 +165,17 @@ def experiment(params: ExperimentParameters):
         for step in range(1, params.steps_per_epoch+1):
             batch = next(data_iterator)
             with tf.GradientTape() as tape:
+
                 result = model(batch.x)
-                softmaxes = result.outputs["predictions"]  # shape: [ponder, batch, num_classes]
+
+                classification_weighting = tf.cond(
+                    pondernet_switch > 0,
+                    true_fn=lambda: result.outputs["probabilities"],
+                    false_fn=lambda: tf.ones_like(result.outputs["probabilities"]))
+
                 final_classification_loss = broadcasted_weighted_cross_entropy(
-                    batch.y, result.outputs["predictions"], result.outputs["probabilities"])
-                ponder_loss = tf.reduce_mean(result.losses["ponder_loss"])
+                    batch.y, result.outputs["predictions"], classification_weighting)
+                ponder_loss = tf.reduce_mean(result.losses["ponder_loss"]) * pondernet_switch
                 l2 = sum(model.losses)
                 total_loss = (final_classification_loss
                               + tf.convert_to_tensor(params.ponder_loss_component_weight) * ponder_loss
@@ -188,11 +190,12 @@ def experiment(params: ExperimentParameters):
 
             optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
-            accuracy = broadcasted_accuracy(batch.y, softmaxes)
+            accuracy = broadcasted_accuracy(batch.y, result.outputs["predictions"])
 
             metric_accumulator.add("loss", total_loss)
             metric_accumulator.add("xent", final_classification_loss)
             metric_accumulator.add("ponder", ponder_loss)
+            metric_accumulator.add("l2", l2)
             metric_accumulator.add("acc", accuracy)
             metric_accumulator.add("E_steps", result.metrics["avg_steps"])
 
@@ -206,6 +209,7 @@ def experiment(params: ExperimentParameters):
                      f" - loss: {metrics['loss']:.4f}"\
                      f" - xent: {metrics['xent']:.4f}"\
                      f" - ponder: {metrics['ponder']:.4f}"\
+                     f" - l2: {metrics['l2']:.4f}"\
                      f" - E_steps: {metrics['E_steps']:.2f} - "
             logstr += " - ".join(f"step_{i}_acc: {metrics[f'step_{i}_acc']:>6.2%}" for i in range(1, ponders))
 
@@ -228,18 +232,20 @@ def experiment(params: ExperimentParameters):
               f" - loss: {total_loss:.4f}"
               f" - xent: {final_classification_loss:.4f}"
               f" - ponder: {ponder_loss:.4f}"
+              f" - l2: {l2:.4f}"
               f" - acc: {accuracy:>6.2%}"
               f" - E_steps: {tf.reduce_mean(result.metrics['avg_steps']):>2}")
 
 
 def main():
     params = ExperimentParameters(
-        ponder=True,
+        ponder=False,
         ponder_prior_p=1/3,
         batch_size=64,
         epochs=30,
         steps_per_epoch=1000,
         learning_rate=3e-4,
+        l2_regularization=1e-4,
         ponder_loss_component_weight=0.01,
         training_metrics_smoothing_window_size=10
     )

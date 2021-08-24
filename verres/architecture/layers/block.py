@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Optional
 
 import tensorflow as tf
 import tensorflow.keras.layers as tfl
@@ -30,12 +30,13 @@ class VRSConvolution(VRSLayerStack):
                  kernel_size: int = 3,
                  stride: int = 1,
                  initializer: str = "he_uniform",
+                 kernel_regularizer: Optional[str] = None,
                  **kwargs):
 
         super().__init__(**kwargs)
 
         self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer,
-                                         strides=stride)]
+                                         strides=stride, kernel_regularizer=kernel_regularizer)]
         if batch_normalize:
             self.layer_objects.append(tfl.BatchNormalization())
         if activation is not None:
