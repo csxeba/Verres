@@ -4,7 +4,6 @@ context:
   artifactory_root: ./artifactory
   execution_type: training
   verbose: 2
-  debug: True
 
 model:
   input_shape: [200, 320]
