@@ -25,7 +25,7 @@ class TrainingExecutor:
         if config.context.debug:
             self.model.train_step = self.train_step
         else:
-            self.model.train_step = tf.function(self.train_step)
+            self.model.train_step = tf.function(self.train_step, experimental_relax_shapes=True)
 
     @classmethod
     def factory(cls, config: V.Config):

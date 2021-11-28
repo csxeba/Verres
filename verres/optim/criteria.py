@@ -13,8 +13,12 @@ class VRSCriteria(tf.Module):
         self.cfg = config
         self.spec = spec
         self.nan_guard = spec.get("nan_guard", False)
+        feature_names = [loss_spec["feature"] for loss_spec in spec["losses"]]
+        if len(set(feature_names)) != len(feature_names):
+            raise RuntimeError(f"Multiple losses are defined for the same feature: {feature_names}")
         self.loss_functions: Dict[str, losses.LossFunction] = {
-            losses_spec["feature"]: losses.factory(losses_spec) for losses_spec in spec["losses"]}
+            losses_spec["feature"]: losses.factory(losses_spec)
+            for feature_name, losses_spec in zip(feature_names, spec["losses"])}
 
     def call(self, y_true: Dict[str, tf.Tensor], y_pred: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
 
