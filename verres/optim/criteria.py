@@ -6,7 +6,7 @@ import verres as V
 from ..operation import losses
 
 
-class VRSCriteria(tf.Module):
+class VRSCriteria:
 
     def __init__(self, config: V.Config, spec: dict):
         super().__init__()
