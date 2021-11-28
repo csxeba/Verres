@@ -4,17 +4,22 @@ context:
   artifactory_root: ./artifactory
   execution_type: training
   verbose: 2
+  debug: True
 
 model:
   input_shape: [200, 320]
   maximum_stride: 8
   backbone_spec:
-    name: SmallFCNN
-    strides: [8]
-    width_base: 32
+    name: ResNet50
+    feature_layers:
+      - conv2_block3_out  # stride: 4 width: 256
+      - conv3_block4_out  # stride: 8 width: 512
+#      - conv4_block6_out  # stride: 16 width: 1024
+#      - conv5_block3_out  # stride: 32 width: 2048
   neck_spec:
-    name: Rescaler
+    name: AutoFusion
     output_stride: 4
+    output_width: 128
   head_spec:
     name: OD
     num_classes: 17
@@ -34,10 +39,22 @@ training:
         full: False
         split: run
   epochs: 120
-  steps_per_epoch: 500
-  batch_size: 10
+  steps_per_epoch: 1000
+  batch_size: 32
   criteria_spec:
-    name: od
+    losses:
+      - name: focal
+        feature: heatmap
+        weight: 1.
+      - name: mean_absolute_error
+        feature: refinement
+        weight: 10.
+        sparse_location_feature: regression_mask
+      - name: mean_absolute_error
+        feature: box_wh
+        weight: 1.
+        sparse_location_feature: regression_mask
+
   optimizer_spec:
     name: Adam
   lr_schedule_spec:

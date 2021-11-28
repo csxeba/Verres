@@ -21,14 +21,17 @@ class TrainingExecutor:
         self.criteria = criteria
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.loss_tracker = V.operation.losses.Tracker(criteria.OUTPUT_KEYS)
-        self.model.train_step = self.train_step
+        self.loss_tracker = V.operation.losses.Tracker(criteria.get_output_keys())
+        if config.context.debug:
+            self.model.train_step = self.train_step
+        else:
+            self.model.train_step = tf.function(self.train_step)
 
     @classmethod
     def factory(cls, config: V.Config):
         model = V.architecture.VRSArchitecture.factory(config)
-        criteria = V.optim.criteria.factory(config)
-        scheduler = V.optim.schedule.factory(config)
+        criteria = V.optim.criteria.VRSCriteria(config, config.training.criteria_spec)
+        scheduler = V.optim.schedule.factory(config.training.lr_schedule_spec)
         optimizer = V.optim.optimizers.factory(config, scheduler)
         return cls(config, model, criteria, optimizer, scheduler)
 
@@ -50,7 +53,6 @@ class TrainingExecutor:
                        epochs=self.cfg.training.epochs,
                        callbacks=callback_factory(self.cfg))
 
-    @tf.function
     def train_step(self, batch):
         image = batch["image"]
         image = self.model.preprocess_input(image)

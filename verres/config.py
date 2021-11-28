@@ -11,6 +11,7 @@ class ContextConfig:
     experiment_set: str = ""
     experiment_name: str = ""
     verbose: int = 1
+    debug: bool = False
 
 
 @dataclasses.dataclass

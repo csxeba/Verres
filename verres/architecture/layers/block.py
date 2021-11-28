@@ -110,7 +110,7 @@ class VRSRescaler(VRSLayerStack):
             stride = target_stride // feature_stride
             return cls(stride, base_width, cls.MODE_DOWN, kernel_size, batch_normalize, activation, **kwargs)
         else:
-            assert False
+            return VRSConvolution(base_width, activation, batch_normalize, kernel_size=1)
 
 
 class VRSUpscale(VRSRescaler):

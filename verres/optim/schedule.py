@@ -19,9 +19,8 @@ class ConstantSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         return dict(learning_rate=self.learning_rate)
 
 
-def factory(config: V.Config) -> tf.optimizers.schedules.LearningRateSchedule:
+def factory(spec: dict) -> tf.optimizers.schedules.LearningRateSchedule:
 
-    spec = config.training.lr_schedule_spec.copy()
     name = spec.pop("name", "default").lower()
 
     if name in {"default", "constant"}:
@@ -29,8 +28,7 @@ def factory(config: V.Config) -> tf.optimizers.schedules.LearningRateSchedule:
     else:
         scheduler_type = getattr(tf.optimizers.schedules, name)
         scheduler = scheduler_type(**spec)
-    if config.context.verbose > 1:
-        print(f" [Verres.schedule] - Factory built: {name}")
+    print(f" [Verres.schedule] - Factory built: {name}")
 
     return scheduler
 

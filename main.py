@@ -1,5 +1,7 @@
 import argparse
 
+import tensorflow as tf
+
 import verres as V
 
 
@@ -47,6 +49,9 @@ def main(config_path: str = None,
 
     if model_weights not in {"_unset", None}:
         cfg.model.weights = model_weights
+
+    if cfg.context.debug:
+        tf.config.run_functions_eagerly(True)
 
     if execution_type == V.execution.ExecutionType.TRAINING:
         execute_training(cfg)
