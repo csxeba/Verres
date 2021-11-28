@@ -103,7 +103,7 @@ class PanopticSegmentor(tf.keras.Model):
             hmap, rreg, iseg, sseg = self(img)
 
             hmap_loss = L.sse(hmap_gt, hmap)
-            rreg_loss = L.sparse_vector_field_sae(rreg_sparse, rreg, locations)
+            rreg_loss = L.sparse_sae(rreg_sparse, rreg, locations)
             iseg_loss = L.mae(iseg_gt, iseg * iseg_mask)
             sseg_loss = L.mean_of_cxent_sparse_from_logits(sseg_gt, sseg)
 

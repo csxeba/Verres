@@ -16,7 +16,7 @@ def sae(y_true, y_pred):
     return tf.reduce_mean(d)
 
 
-def sparse_vector_field_sae(y_true, y_pred, locations):
+def sparse_sae(y_true, y_pred, locations):
     pred_x = tf.gather_nd(y_pred[..., 0::2], locations)
     pred_y = tf.gather_nd(y_pred[..., 1::2], locations)
     d = tf.abs(y_true - tf.stack([pred_x, pred_y], axis=-1))
@@ -30,6 +30,13 @@ def mse(y_true, y_pred):
 
 def mae(y_true, y_pred):
     return tf.reduce_mean(tf.abs(y_true - y_pred))
+
+
+def sparse_mae(y_true, y_pred, locations):
+    pred_x = tf.gather_nd(y_pred[..., 0::2], locations)
+    pred_y = tf.gather_nd(y_pred[..., 1::2], locations)
+    d = tf.abs(y_true - tf.stack([pred_x, pred_y], axis=-1))
+    return tf.reduce_mean(d)
 
 
 def focal_loss(y_true, y_pred, alpha: float = 4., beta: float = 2.):
@@ -86,10 +93,8 @@ class Tracker:
 dense_losses = {"mse": mse,
                 "mean_square_error": mse,
                 "mean_squared_error": mse,
-                "l2": mse,
                 "mae": mae,
                 "mean_absolute_error": mae,
-                "l1": mae,
                 "sse": sse,
                 "sum_of_squared_errors": sse,
                 "sae": sae,
@@ -97,13 +102,13 @@ dense_losses = {"mse": mse,
                 "focal_loss": focal_loss,
                 "focal": focal_loss}
 
-sparse_losses = {"sparse_vector_field_sae": sparse_vector_field_sae,
-                 "sparse_vector_field_sum_of_absolute_errors": sparse_vector_field_sae,
-                 "sparse_sae": sparse_vector_field_sae,
-                 "sum_of_absolute_errors": sparse_vector_field_sae,
-                 "sum_of_absolute_error": sparse_vector_field_sae,
-                 "sae": sparse_vector_field_sae,
-                 "l1": sparse_vector_field_sae}
+sparse_losses = {"sparse_sae": sparse_sae,
+                 "sum_of_absolute_errors": sparse_sae,
+                 "sum_of_absolute_error": sparse_sae,
+                 "sae": sparse_sae,
+                 "mean_absolute_error": sparse_mae,
+                 "sparse_mean_absolute_error": sparse_mae,
+                 "mae": sparse_mae}
 
 
 def factory(params: dict):
