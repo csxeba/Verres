@@ -1,4 +1,3 @@
-import functools
 from typing import List, NamedTuple, Optional
 
 import tensorflow as tf
@@ -131,7 +130,6 @@ def factory(params: dict):
 
     loss_weight = tf.Variable([weight], trainable=is_trainable_weight)
 
-    partial_loss_fn = functools.partial(loss_fn, **params)
-    loss_object = LossFunction(name, feature, partial_loss_fn, loss_weight, is_sparse_loss, sparse_location_feature)
+    loss_object = LossFunction(name, feature, loss_fn, loss_weight, is_sparse_loss, sparse_location_feature)
     print(f" [Verres.losses] - Factory built: {name}({str(params)})")
     return loss_object
