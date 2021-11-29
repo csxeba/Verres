@@ -39,7 +39,7 @@ training:
         split: run
   epochs: 120
   steps_per_epoch: 1000
-  batch_size: 32
+  batch_size: 8
   criteria_spec:
     losses:
       - name: focal
@@ -58,7 +58,7 @@ training:
     name: Adam
   lr_schedule_spec:
     name: constant
-    learning_rate: 1e-3
+    learning_rate: 1e-4
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }

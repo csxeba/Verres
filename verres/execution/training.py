@@ -58,7 +58,7 @@ class TrainingExecutor:
         image = self.model.preprocess_input(image)
 
         with tf.GradientTape() as tape:
-            prediction = self.model(image)
+            prediction = self.model(image, training=True)
             losses = self.criteria(batch, prediction)
 
         grads = tape.gradient(losses["loss"], self.model.trainable_weights)

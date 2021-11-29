@@ -50,7 +50,7 @@ class InferenceExecutor:
                     elif mode == Mode.PANOPTIC:
                         output = self.model.detect(tensor)
                     else:
-                        output = self.model(self.model.preprocess_input(tensor))
+                        output = self.model(self.model.preprocess_input(tensor), training=False)
 
                 with timer.time("visualizer"):
                     if mode == Mode.RAW_HEATMAP:
