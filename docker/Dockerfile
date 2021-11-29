@@ -1,7 +1,8 @@
 FROM continuumio/miniconda3:latest
 
 ARG uid
-ARG accelerator=mkl
+ARG user
+ARG accelerator
 
 ENV PYTHONPATH=/workspace
 
@@ -15,7 +16,7 @@ COPY ./conda /conda
 
 RUN conda env update --file /conda/conda-env-${accelerator}.yml --name base
 
-RUN useradd -m -s /bin/bash -u $uid --no-log-init user
+RUN useradd -m -s /bin/bash -u $uid --no-log-init ${user}
 
 RUN mkdir /workspace && \
     mkdir /artifactory && \

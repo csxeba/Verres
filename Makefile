@@ -1,12 +1,12 @@
 include .env
 export
 
-run : build
+run :
 	docker run -it --rm --network host \
     --name verres_environment \
-	-v ${host_artifactory_root}:/artifactory \
-	-v ${host_models_root}:/models \
-	-v ${host_data_root}:/data \
+	-v $(realpath host_artifactory_root):/artifactory \
+	-v $(realpath host_models_root):/models \
+	-v $(realpath host_data_root):/data \
 	-v $(shell pwd):/workspace \
 	-u $(shell id -u) \
 	trickster/environment:latest \
@@ -17,6 +17,7 @@ build :
 	--tag trickster/environment:latest \
 	--network host \
 	--build-arg uid=$(shell id -u) \
+	--build-arg user=${{USERNAME}} \
 	--build-arg accelerator=${compute_accelerator} \
 	-f docker/Dockerfile \
 	.
