@@ -6,6 +6,8 @@ ARG accelerator
 ARG http_proxy
 ARG https_proxy
 ENV PYTHONPATH=/workspace
+ENV http_proxy=${http_proxy}
+ENV https_proxy=${https_proxy}
 
 RUN apt-get update && apt-get install -y \
     "libgtk2.0-dev" \
