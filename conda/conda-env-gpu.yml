@@ -8,9 +8,9 @@ dependencies:
   - tensorboard
   - tensorflow-gpu
   - tqdm
-  - yaml
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
     - opencv-python
     - pycocotools-fix
     - pydot-ng
+    - pyyaml
