@@ -17,7 +17,7 @@ build :
 	--tag trickster/environment:latest \
 	--network host \
 	--build-arg uid=$(shell id -u) \
-	--build-arg username=${{USERNAME}} \
+	--build-arg username=$${USERNAME} \
 	--build-arg accelerator=${compute_accelerator} \
 	--build-arg http_proxy=${http_proxy} \
 	--build-arg https_proxy=${https_proxy} \
