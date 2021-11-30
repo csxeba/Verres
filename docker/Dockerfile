@@ -1,9 +1,10 @@
 FROM continuumio/miniconda3:latest
 
 ARG uid
-ARG user
+ARG username
 ARG accelerator
-
+ARG http_proxy
+ARG https_proxy
 ENV PYTHONPATH=/workspace
 
 RUN apt-get update && apt-get install -y \
@@ -16,7 +17,7 @@ COPY ./conda /conda
 
 RUN conda env update --file /conda/conda-env-${accelerator}.yml --name base
 
-RUN useradd -m -s /bin/bash -u $uid --no-log-init ${user}
+RUN useradd -m -s /bin/bash -u $uid --no-log-init ${username}
 
 RUN mkdir /workspace && \
     mkdir /artifactory && \

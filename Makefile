@@ -17,8 +17,10 @@ build :
 	--tag trickster/environment:latest \
 	--network host \
 	--build-arg uid=$(shell id -u) \
-	--build-arg user=${{USERNAME}} \
+	--build-arg username=${{USERNAME}} \
 	--build-arg accelerator=${compute_accelerator} \
+	--build-arg http_proxy=${http_proxy} \
+	--build_arg https_proxy=${https_proxy} \
 	-f docker/Dockerfile \
 	.
 
