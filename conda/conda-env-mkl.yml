@@ -1,17 +1,16 @@
-channels:
-  - defaults
 dependencies:
+  - jupyter
   - matplotlib
   - numpy
   - pillow
+  - pip
   - scipy
+  - tensorboard
   - tensorflow-mkl
   - tqdm
-  - pyyaml
-  - jupyter
+  - yaml
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
-    - cython==0.29.21
-    - opencv-python==4.4.0.46
-    - pycocotools-fix==2.0.0.9
-    - pydot-ng==2.0.0
+    - opencv-python
+    - pycocotools-fix
+    - pydot-ng
