@@ -14,7 +14,7 @@ run :
 
 build :
 	docker build \
-	--tag trickster/environment:latest \
+	--tag verres/environment:latest \
 	--network host \
 	--build-arg uid=$(shell id -u) \
 	--build-arg username=$${USERNAME} \
@@ -53,3 +53,7 @@ jupyter : build
 	--ip 0.0.0.0
 	sleep 2
 	docker logs verres_jupyter
+
+clean :
+	docker rmi verres_environment || 0
+	docker rmi verres_jupyter || 0
