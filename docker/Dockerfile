@@ -10,16 +10,17 @@ ENV http_proxy=${http_proxy}
 ENV https_proxy=${https_proxy}
 
 RUN apt-get update && apt-get install -y \
-    "libgtk2.0-dev" \
-    "libgl1-mesa-glx" \
     "vim" \
-    "graphviz"
+    "graphviz" \
+    "gcc"
 
 COPY ./conda /conda
 
 RUN conda env update --file /conda/conda-env-${accelerator}.yml --name base
 
-RUN useradd -m -s /bin/bash -u $uid --no-log-init ${username}
+RUN echo "username=${username}"
+
+RUN useradd -m -s /bin/bash -u $uid --no-log-init $username
 
 RUN mkdir /workspace && \
     mkdir /artifactory && \

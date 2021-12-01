@@ -3,11 +3,11 @@ dependencies:
   - matplotlib
   - numpy
   - pillow
-  - pip
   - scipy
   - tensorboard
   - tensorflow-gpu
   - tqdm
+  - gcc
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
     - opencv-python
