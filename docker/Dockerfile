@@ -10,6 +10,8 @@ ENV http_proxy=${http_proxy}
 ENV https_proxy=${https_proxy}
 
 RUN apt-get update && apt-get install -y \
+    "libgtk2.0-dev" \
+    "libgl1-mesa-glx" \
     "vim" \
     "graphviz" \
     "gcc"

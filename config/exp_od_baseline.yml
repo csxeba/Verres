@@ -27,7 +27,7 @@ model:
 training:
   data:
     - name: cocodoom
-      root: /data/Datasets/cocodoom
+      root: /data/cocodoom
       subset: train
       sampling_probability: 1.0
       transformations:
@@ -67,7 +67,7 @@ training:
 evaluation:
   data:
     - name: cocodoom
-      root: /data/Datasets/cocodoom
+      root: /data/cocodoom
       subset: val-mini
       transformations:
         - { name: image, stride: 1 }

@@ -19,5 +19,5 @@ docker run --rm --network host \
 	-v ${host_data_root}:/data \
 	-v $(pwd):/workspace \
 	-u $(id -u) \
-	trickster/environment:latest \
-	/opt/conda/bin/python $@
+	verres/environment:latest \
+	/opt/conda/bin/python /workspace/main.py $@
