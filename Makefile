@@ -9,7 +9,7 @@ run :
 	-v $(realpath host_data_root):/data \
 	-v $(shell pwd):/workspace \
 	-u $(shell id -u) \
-	trickster/environment:latest \
+	verres/environment:latest \
 	/bin/bash
 
 build :
