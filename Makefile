@@ -1,51 +1,57 @@
-include .env
+include environment_setup.sh
 export
 
-run :
+run-env : environment_setup.sh
 	docker run -it --rm --network host \
     --name verres_environment \
-	-v $(realpath host_artifactory_root):/artifactory \
-	-v $(realpath host_models_root):/models \
-	-v $(realpath host_data_root):/data \
+	-v $(realpath ${VERRES_ARTIFACTORY}):/artifactory \
+	-v $(realpath ${VERRES_MODELS}):/models \
+	-v $(realpath ${VERRES_DATA}):/data \
 	-v $(shell pwd):/workspace \
 	-u $(shell id -u) \
 	verres/environment:latest \
 	/bin/bash
 
-build :
+run : run-env
+
+build-env : environment_setup.sh
 	docker build \
 	--tag verres/environment:latest \
 	--network host \
 	--build-arg uid=$(shell id -u) \
 	--build-arg username=$${USER} \
-	--build-arg accelerator=${compute_accelerator} \
+	--build-arg accelerator=${VERRES_ACCELERATOR} \
 	--build-arg http_proxy=${http_proxy} \
 	--build-arg https_proxy=${https_proxy} \
 	-f docker/Dockerfile \
 	.
 
-tensorboard : build
+build-environment: build-env
+
+build : build-env
+
+run-tensorboard : environment_setup.sh
 	docker run --rm -d \
 	--name verres_tensorboard \
 	--hostname $(shell cat /etc/hostname) \
-	-v ${host_artifactory_root}:/artifactory \
+	-v ${VERRES_ARTIFACTORY}:/artifactory \
 	-u $(shell id -u) \
-	-p ${host_tensorboard_port}:6006 \
+	-p ${VERRES_TENSORBOARD_PORT}:6006 \
 	trickster/environment:latest \
 	tensorboard \
 	--logdir /artifacotry \
 	--bind_all
 
-jupyter : build
+run-jupyter : environment_setup_sample.sh
 	docker run --rm -d \
 	--name verres_jupyter \
 	--hostname $(shell cat /etc/hostname) \
-	-v ${host_artifactory_root}:/artifactory \
-	-v ${host_models_root}:/models \
-	-v ${host_data_root}:/data \
+	-v ${VERRES_ARTIFACTORY}:/artifactory \
+	-v ${VERRES_MODELS}:/models \
+	-v ${VERRES_DATA}:/data \
 	-v $(shell pwd):/workspace \
 	-u $(shell id -u) \
-	-p ${host_jupyter_port}:8888 \
+	-p ${VERRES_JUPYTER_PORT}:8888 \
 	trickster/environment:latest \
 	/opt/conda/bin/jupyter notebook \
 	--no-browser \
@@ -55,5 +61,8 @@ jupyter : build
 	docker logs verres_jupyter
 
 clean :
-	docker rmi verres_environment || 0
-	docker rmi verres_jupyter || 0
+	-docker kill verres_environment
+	-docker kill verres_tensorboard
+	-docker kill verres_jupyter > /dev/null
+	-docker rmi verres/environment:latest
+	docker system prune -f

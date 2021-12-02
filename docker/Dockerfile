@@ -31,6 +31,8 @@ RUN mkdir /workspace && \
     chmod -R a+rw /artifactory && \
     chmod -R a+rw /data
 
+COPY ./environment_setup.sh /etc/environment
+
 WORKDIR /workspace
 
 CMD ["/bin/bash"]
