@@ -8,7 +8,6 @@ dependencies:
   - tensorboard
   - tensorflow-mkl
   - tqdm
-  - gcc
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
     - Cython
