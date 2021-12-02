@@ -3,6 +3,7 @@ dependencies:
   - matplotlib
   - numpy
   - pillow
+  - pip
   - scipy
   - tensorboard
   - tensorflow-gpu
@@ -10,6 +11,7 @@ dependencies:
   - gcc
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
+    - Cython
     - opencv-python
     - pycocotools-fix
     - pydot-ng
