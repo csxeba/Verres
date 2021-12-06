@@ -40,8 +40,8 @@ class RegressionTensor(Transformation):
 
         self.stride = transformation_params["stride"]
         self.num_classes = num_classes
-        self.tensor_shape = np.array([config.model.input_shape[0] // self.stride,
-                                      config.model.input_shape[1] // self.stride])
+        self.tensor_shape = np.array([config.model.input_shape[1] // self.stride,
+                                      config.model.input_shape[0] // self.stride])
 
     @classmethod
     def from_descriptors(cls, config: V.Config, data_descriptor, transformation_params):

@@ -65,6 +65,5 @@ class HeatmapProcessor(abstract.Transformation):
             heatmap_tensor = cv2.GaussianBlur(heatmap_tensor, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_CONSTANT)
             heatmap_tensor /= heatmap_tensor.max()
 
-        heatmap_tensor[..., -1] = np.max(heatmap_tensor[..., :-1], axis=-1)  # add background
-
         return heatmap_tensor
+

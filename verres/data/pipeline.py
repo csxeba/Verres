@@ -51,7 +51,7 @@ class Pipeline:
 
     def stream(self,
                shuffle: bool,
-               batch_size: int = None,
+               batch_size: int,
                collate_batch="default"):
 
         if collate_batch == "default":

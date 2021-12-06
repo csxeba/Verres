@@ -76,7 +76,7 @@ evaluation:
 inference:
   data:
     - name: cocodoom
-      root: /data/Datasets/cocodoom
+      root: /data/cocodoom
       subset: val
       transformations:
         - { name: image, stride: 1 }
@@ -84,8 +84,8 @@ inference:
         full: True
         split: run
 
-  visualization_mode: detection
+  visualization_mode: raw_heatmap
   to_screen: True
-  output_video_path: None
+  output_video_path: 
   fps: 25
   total_num_frames: 200

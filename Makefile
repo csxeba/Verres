@@ -9,6 +9,9 @@ run-env : environment_setup.sh
 	-v $(realpath ${VERRES_DATA}):/data \
 	-v $(shell pwd):/workspace \
 	-u $(shell id -u) \
+	-e DISPLAY \
+	-v /tmp/.X11-unix/:/tmp/.X11-unix \
+	-v /home/$${USER}/.Xauthority:/home/$${USER}/.Xauthority \
 	verres/environment:latest \
 	/bin/bash
 
@@ -37,7 +40,7 @@ run-tensorboard : environment_setup.sh
 	-v ${VERRES_ARTIFACTORY}:/artifactory \
 	-u $(shell id -u) \
 	-p ${VERRES_TENSORBOARD_PORT}:6006 \
-	trickster/environment:latest \
+	verres/environment:latest \
 	tensorboard \
 	--logdir /artifacotry \
 	--bind_all
@@ -52,7 +55,7 @@ run-jupyter : environment_setup_sample.sh
 	-v $(shell pwd):/workspace \
 	-u $(shell id -u) \
 	-p ${VERRES_JUPYTER_PORT}:8888 \
-	trickster/environment:latest \
+	verres/environment:latest \
 	/opt/conda/bin/jupyter notebook \
 	--no-browser \
 	--port 8888 \
