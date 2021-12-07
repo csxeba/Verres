@@ -143,7 +143,7 @@ class DataVisualizer:
         image = np.copy(image)
         color = tuple(map(int, self.COLORS[type_id]))
         canvas = cv2.rectangle(image, pt1[::-1], pt2[::-1], color=color, thickness=2)
-        # canvas = cv2.addWeighted(image, 1. - alpha, canvas, alpha, 1.)
+        canvas = cv2.addWeighted(image, 1. - alpha, canvas, alpha, 1.)
         return canvas
 
     def overlay_boxes(self, image, boxes: np.ndarray, types: np.ndarray, alpha=0.4):
@@ -179,8 +179,7 @@ class PredictionVisualizer:
         return canvas
 
     def draw_raw_heatmap(self, image, model_output, alpha=0.5, write: bool = True):
-        heatmap = tf.nn.sigmoid(model_output["heatmap"])
-        canvas = self.visualizer.overlay_heatmap(image=image, hmap=heatmap, alpha=alpha)
+        canvas = self.visualizer.overlay_heatmap(image=image, hmap=model_output["heatmap"], alpha=alpha)
         if write:
             self.device.write(canvas)
         return canvas

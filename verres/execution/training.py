@@ -1,3 +1,5 @@
+import time
+
 import tensorflow as tf
 
 import verres as V
@@ -21,11 +23,7 @@ class TrainingExecutor:
         self.criteria = criteria
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.loss_tracker = V.operation.losses.Tracker(criteria.get_output_keys())
-        if config.context.debug:
-            self.train_step = self._train_step_function
-        else:
-            self.train_step = tf.function(self._train_step_function, experimental_relax_shapes=True)
+        self.loss_tracker = V.optim.losses.Tracker(criteria.get_output_keys())
         self.model.train_step = self.train_step
 
     @classmethod
@@ -36,36 +34,101 @@ class TrainingExecutor:
         optimizer = V.optim.optimizers.factory(config, scheduler)
         return cls(config, model, criteria, optimizer, scheduler)
 
+    def _train_loop_custom(self, stream):
+        epochs = self.cfg.training.epochs
+        steps = self.cfg.training.steps_per_epoch
+        if self.cfg.context.verbose:
+            print(" [Verres.training] - Executing in DEBUG mode.")
+        for epoch in range(1, epochs + 1):
+            for i, data in enumerate(stream, start=1):
+                logs = self.train_step(data)
+                if self.cfg.context.verbose:
+                    print("-" * 100)
+                    print(f" [Verres.training] - Epoch {epoch}/{epochs} - Step {i}/{steps}")
+                    for key, value in logs.items():
+                        print(f" {key}: {value:.6f}")
+
     def execute(self, stream=None):
+
+        artifactory = V.Artifactory.get_default(self.cfg)
+        self.cfg.copy(artifactory.root)
 
         if stream is None:
             pipes = V.data.factory(self.cfg, specs=self.cfg.training.data)
 
-            stream = streaming.get_tf_dataset(
+            if self.cfg.context.debug:
+                stream_provider = streaming.stream
+            else:
+                stream_provider = streaming.get_tf_dataset
+
+            stream = stream_provider(
                 self.cfg,
                 pipes,
                 batch_size=self.cfg.training.batch_size,
                 shuffle=True,
                 collate="default")
 
-        self.model.compile(optimizer=self.optimizer)
-        self.model.fit(stream,
-                       steps_per_epoch=self.cfg.training.steps_per_epoch,
-                       epochs=self.cfg.training.epochs,
-                       callbacks=callback_factory(self.cfg))
+        if not self.cfg.context.debug:
+            self.model.compile(optimizer=self.optimizer)
+            self.model.fit(stream,
+                           steps_per_epoch=self.cfg.training.steps_per_epoch,
+                           epochs=self.cfg.training.epochs,
+                           callbacks=callback_factory(self.cfg),
+                           initial_epoch=self.cfg.training.initial_epoch)
+        else:
+            self._train_loop_custom(stream)
 
-    def _train_step_function(self, batch):
+    # @tf.function
+    def train_step(self, batch):
+        dbg = self.cfg.context.debug
+        verbose = self.cfg.context.verbose
+
+        times = {"prep": 0.,
+                 "forw": 0.,
+                 "crit": 0.,
+                 "back": 0.,
+                 "updt": 0.}
+
+        if dbg:
+            times["prep"] = time.time()
         image = batch["image"]
         image = self.model.preprocess_input(image)
+        if dbg:
+            times["prep"] = time.time() - times["prep"]
+            if verbose > 1:
+                print(f" [Verres.train_step] - prep: {times['prep']:.4f}")
 
         with tf.GradientTape() as tape:
+            if dbg:
+                times["forw"] = time.time()
             prediction = self.model(image, training=True)
+            if dbg:
+                times["forw"] = time.time() - times["forw"]
+                if verbose > 1:
+                    print(f" [Verres.train_step] - forw: {times['forw']:.4f}")
+
+            if dbg:
+                times["crit"] = time.time()
             losses = self.criteria(batch, prediction)
+            if dbg:
+                times["crit"] = time.time() - times["crit"]
+                if verbose > 1:
+                    print(f" [Verres.train_step] - crit: {times['crit']:.4f}")
 
+        if dbg:
+            times["back"] = time.time()
         grads = tape.gradient(losses["loss"], self.model.trainable_weights)
-        grad_norm = tf.reduce_sum([tf.math.reduce_euclidean_norm(grad) for grad in grads])
-        self.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
+        if dbg:
+            times["back"] = time.time() - times["back"]
+            if verbose > 1:
+                print(f" [Verres.train_step] - back: {times['back']:.4f}")
 
-        losses["grad_norm"] = grad_norm
+        if dbg:
+            times["updt"] = time.time()
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
+        if dbg:
+            times["updt"] = time.time() - times["updt"]
+            if verbose > 1:
+                print(f" [Verres.train_step] - updt: {times['updt']:.4f}")
 
         return losses

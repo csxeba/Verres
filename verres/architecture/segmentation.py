@@ -1,7 +1,8 @@
 import tensorflow as tf
 
 from verres.architecture import backbone as _backbone, head as _head
-from verres.operation import losses as L, numeric as T
+from verres.operation import numeric as T
+from verres.optim import losses as L
 
 
 class PanopticSegmentor(tf.keras.Model):

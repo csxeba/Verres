@@ -19,7 +19,8 @@ class AutoFusion(VRSNeck):
                          output_stride=spec["output_stride"])
 
         self.branches = []
-        self.final_width = spec["output_width"]
+        self.final_width = spec.get("output_width", None)
+        self.concat_width = 0
         for ftr in backbone.feature_specs:
             self.branches.append(block.VRSRescaler.from_strides(
                 feature_stride=ftr.working_stride,
@@ -28,11 +29,14 @@ class AutoFusion(VRSNeck):
                 kernel_size=3,
                 batch_normalize=spec.get("batch_normalize", True),
                 activation=spec.get("activation", "leakyrelu")))
+            self.concat_width += self.branches[-1].output_width
         if self.final_width is not None:
             self.final_conv = block.VRSConvolution(self.final_width,
                                                    spec.get("activation", "leakyrelu"),
                                                    spec.get("batch_normalize", True),
                                                    kernel_size=1)
+        else:
+            print(f" [Verres.AutoFusion] - Final width not specified. Output feature width will be {self.concat_width}")
 
     def call(self, inputs, training=None, mask=None):
         features = self.backbone(inputs)

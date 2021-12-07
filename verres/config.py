@@ -12,6 +12,7 @@ class ContextConfig:
     experiment_name: str = ""
     verbose: int = 1
     debug: bool = False
+    float_precision: str = "float32"
 
 
 @dataclasses.dataclass
@@ -20,12 +21,17 @@ class DatasetSpec:
     root: str = ""
     subset: str = ""
     sampling_probability: float = 1.0
+    filtered_types: List[int] = "default"
+    filtered_map_numbers: List[int] = "default"
+    filtered_num_objects: int = 0
     transformations: List[dict] = dataclasses.field(default_factory=list)
     kwargs: dict = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
 class ModelSpec:
+    input_width: int = -1
+    input_height: int = -1
     input_shape: Tuple[int, int] = (0, 0)
     backbone_spec: dict = dataclasses.field(default_factory=dict)
     neck_spec: dict = dataclasses.field(default_factory=dict)
@@ -47,7 +53,8 @@ class TrainingConfig:
                  criteria_spec: dict = None,
                  optimizer_spec: dict = None,
                  lr_schedule_spec: dict = None,
-                 callbacks: List[dict] = None):
+                 callbacks: List[dict] = None,
+                 initial_epoch: int = 0):
 
         self.data = [DatasetSpec(**spec) for spec in data]
         self.epochs = epochs
@@ -58,6 +65,7 @@ class TrainingConfig:
         self.optimizer_spec = optimizer_spec
         self.lr_schedule_spec = lr_schedule_spec
         self.callbacks = callbacks
+        self.initial_epoch = initial_epoch
 
 
 class EvaluationConfig:
@@ -115,6 +123,7 @@ class Config:
         config_dict = yaml.load(open(config_path), Loader=yaml.FullLoader)
         self.context = ContextConfig(**config_dict["context"])
         self.model = ModelSpec(**config_dict["model"])
+        self.model.input_shape = self.model.input_height, self.model.input_width
         self.training = TrainingConfig(**config_dict["training"])
         self.evaluation = EvaluationConfig(**config_dict["evaluation"])
         self.inference = InferenceConfig(**config_dict["inference"])
@@ -122,3 +131,7 @@ class Config:
 
         # noinspection PyUnresolvedReferences
         print(" [Verres] - Read config from", config_path)
+
+    def copy(self, path):
+        import shutil
+        shutil.copy(self.config_path, path)

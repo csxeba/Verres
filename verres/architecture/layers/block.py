@@ -28,21 +28,49 @@ class VRSConvolution(VRSLayerStack):
                  activation: str = None,
                  batch_normalize: bool = True,
                  kernel_size: int = 3,
+                 stride: int = 1,
                  initializer: str = "he_uniform"):
 
         super().__init__()
 
-        self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer)]
+        self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer,
+                                         strides=stride)]
         if batch_normalize:
             self.layer_objects.append(tfl.BatchNormalization())
         if activation is not None:
             self.layer_objects.append(layer_utils.get_activation(activation, as_layer=True))
 
+        self.output_width = width
+
     # @tf.function(experimental_relax_shapes=True)
     def call(self, x, training=None, mask=None):
         for layer in self.layer_objects:
-            x = layer(x)
+            x = layer(x, training=training)
         return x
+
+
+class VRSConvolutionStrideStage(VRSLayerStack):
+
+    def __init__(self, input_width: int, final_width: int, depth: int):
+
+        layers = [VRSConvolution(final_width, activation="leakyrelu", stride=2)]
+        for _ in range(depth - 1):
+            layers.append(VRSConvolution(final_width, activation="leakyrelu", stride=1))
+
+        super().__init__(layers=layers)
+
+
+class VRSConvolutionStridedResidualStage(VRSLayerStack):
+
+    def __init__(self, input_width: int, final_width: int, depth: int):
+        layers = [VRSResidualBottleneck(width=final_width, input_width=input_width, stride=2)]
+        if depth > 1:
+            processing_layers = []
+            for _ in range(depth - 1):
+                processing_layers.append(
+                    VRSResidualBottleneck(width=final_width, input_width=final_width, stride=1))
+            layers.extend(processing_layers)
+        super().__init__(layers=layers)
 
 
 class VRSHead(VRSLayerStack):
@@ -52,11 +80,13 @@ class VRSHead(VRSLayerStack):
                  output_width: int,
                  pre_activation: str = "leakyrelu",
                  output_activation: str = "linear",
-                 output_initializer: str = "he_uniform",
+                 output_initializer: str = "default",
                  batch_normalize: bool = True,
                  **kwargs):
 
         super().__init__(**kwargs)
+        if output_initializer == "default":
+            output_initializer = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.1)
         self.layer_objects = [VRSConvolution(pre_width, pre_activation, batch_normalize, kernel_size=3),
                               VRSConvolution(output_width, output_activation, batch_normalize=False, kernel_size=1,
                                              initializer=output_initializer)]
@@ -84,12 +114,13 @@ class VRSRescaler(VRSLayerStack):
         steps = int(math.log2(stride))
         for i in range(steps):
             if self.MODE_UP:
-                width = base_width * (2 ** i)
+                width = base_width // (2 ** i)
             else:
                 assert base_width % (2 ** i) == 0
-                width = base_width // (2 ** i)
+                width = base_width * (2 ** i)
             self.layer_objects.append(resampler_type())
             self.layer_objects.append(VRSConvolution(width, activation, batch_normalize, kernel_size))
+            self.output_width = width
 
     @classmethod
     def from_strides(cls,
@@ -110,7 +141,7 @@ class VRSRescaler(VRSLayerStack):
             stride = target_stride // feature_stride
             return cls(stride, base_width, cls.MODE_DOWN, kernel_size, batch_normalize, activation, **kwargs)
         else:
-            return VRSConvolution(base_width, activation, batch_normalize, kernel_size=1)
+            return VRSConvolution(base_width, activation, batch_normalize, **kwargs)
 
 
 class VRSUpscale(VRSRescaler):
@@ -164,7 +195,7 @@ class VRSResidualBottleneck(tf.keras.layers.Layer):
             self.resampler = None
 
         self.residual_path = [VRSConvolution(width, activation, batch_normalize, kernel_size=1),
-                              VRSConvolution(width, activation, batch_normalize, kernel_size=3),
+                              VRSConvolution(width, activation, batch_normalize, kernel_size=3, stride=stride),
                               VRSConvolution(output_width, "linear", batch_normalize, kernel_size=1)]
 
     # @tf.function(experimental_relax_shapes=True)
@@ -173,6 +204,6 @@ class VRSResidualBottleneck(tf.keras.layers.Layer):
         for layer in self.residual_path:
             x = layer(x, training=training, mask=mask)
         if self.has_resampling_path:
-            inputs = self.resampler(inputs)
+            inputs = self.resampler(inputs, training=training)
         x = inputs + x
         return x

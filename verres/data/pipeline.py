@@ -17,11 +17,11 @@ class Pipeline:
 
         self.cfg = config
         self.dataset = dataset
-        self.transformations = TransformationList(config, transformations)
+        self.transformation_list = TransformationList(config, transformations)
 
     @property
     def output_features(self):
-        return self.transformations.output_features
+        return self.transformation_list.output_features
 
     def steps_per_epoch(self, batch_size: int = None):
         if batch_size is None:
@@ -34,7 +34,7 @@ class Pipeline:
                       collate_batch="default",
                       prefetch: int = 5):
 
-        features = [ftr for ftr in self.transformations.output_features]
+        features = [ftr for ftr in self.transformation_list.output_features]
         types = {ftr.name: ftr.dtype for ftr in features}
         shapes = {}
         for ftr in features:
@@ -63,11 +63,12 @@ class Pipeline:
 
         while 1:
             meta_list = []
-            for i, meta in enumerate(stream):
-                meta["batch_idx"] = i
-                meta = self.transformations.process(meta)
+            for meta in stream:
+                meta = self.transformation_list.process(meta)
+                if not meta.get("_validity_flag"):
+                    continue
                 meta_list.append(meta)
-                if i == batch_size - 1:
+                if len(meta_list) == batch_size:
                     break
             if collate_batch is not None:
                 batch = collate_batch.process(meta_list)

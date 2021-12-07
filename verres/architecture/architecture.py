@@ -37,7 +37,7 @@ class VRSArchitecture(tf.keras.Model):
         fused = _neck.factory(config, backbone)
         if fused is None:
             fused = backbone
-        detector = _head.factory(config)
+        detector = _head.factory(config, fused.feature_specs)
         architecture = cls(config, fused, detector)
         return architecture
 
@@ -45,10 +45,13 @@ class VRSArchitecture(tf.keras.Model):
         return self.backbone.preprocess_input(inputs)
 
     def call(self, inputs, training=None, mask=None):
-        features = self.backbone(inputs)
+        if training is None:
+            training = False
+        training = tf.cast(training, tf.bool)
+        features = self.backbone(inputs, training=training)
         if self.single_backbone_mode:
             features = [features[0], features[0]]
-        output = self.head(features)
+        output = self.head(features, training=training)
         return output
 
     def postprocess(self, predictions):

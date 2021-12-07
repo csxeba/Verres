@@ -3,7 +3,7 @@ from typing import Dict
 import tensorflow as tf
 
 import verres as V
-from ..operation import losses
+from . import losses
 
 
 class VRSCriteria:
@@ -41,7 +41,7 @@ class VRSCriteria:
             loss += current_loss * loss_fn.loss_weight
             all_losses[feature_name] = current_loss
 
-        total_loss = loss / len(self.loss_functions)
+        total_loss = tf.reduce_mean(loss) / len(self.loss_functions)
         all_losses["loss"] = total_loss
         return all_losses
 

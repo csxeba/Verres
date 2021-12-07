@@ -10,7 +10,7 @@ class ConstantSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
     def __init__(self, learning_rate: float):
         super().__init__()
-        self.learning_rate = learning_rate
+        self.learning_rate = float(learning_rate)
 
     def __call__(self, step):
         return self.learning_rate
