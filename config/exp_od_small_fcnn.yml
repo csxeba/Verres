@@ -1,7 +1,7 @@
 context:
   experiment_set: od
   experiment_name: baseline
-  artifactory_root: ./artifactory
+  artifactory_root: /artifactory
   execution_type: training
   verbose: 2
 
@@ -55,7 +55,7 @@ training:
     name: Adam
   lr_schedule_spec:
     name: constant
-    learning_rate: 1e-4
+    learning_rate: 3e-4
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True }

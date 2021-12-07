@@ -23,9 +23,10 @@ class TrainingExecutor:
         self.scheduler = scheduler
         self.loss_tracker = V.operation.losses.Tracker(criteria.get_output_keys())
         if config.context.debug:
-            self.model.train_step = self.train_step
+            self.train_step = self._train_step_function
         else:
-            self.model.train_step = tf.function(self.train_step, experimental_relax_shapes=True)
+            self.train_step = tf.function(self._train_step_function, experimental_relax_shapes=True)
+        self.model.train_step = self.train_step
 
     @classmethod
     def factory(cls, config: V.Config):
@@ -53,7 +54,7 @@ class TrainingExecutor:
                        epochs=self.cfg.training.epochs,
                        callbacks=callback_factory(self.cfg))
 
-    def train_step(self, batch):
+    def _train_step_function(self, batch):
         image = batch["image"]
         image = self.model.preprocess_input(image)
 
@@ -62,6 +63,9 @@ class TrainingExecutor:
             losses = self.criteria(batch, prediction)
 
         grads = tape.gradient(losses["loss"], self.model.trainable_weights)
+        grad_norm = tf.reduce_sum([tf.math.reduce_euclidean_norm(grad) for grad in grads])
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
+
+        losses["grad_norm"] = grad_norm
 
         return losses

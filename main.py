@@ -10,6 +10,7 @@ def get_args():
     parser.add_argument("--config", "-c", type=str)
     parser.add_argument("--execution_type", "-e", type=str, default="_unset")
     parser.add_argument("--model_weights", "-w", type=str, default="_unset")
+    parser.add_argument("--debug", action="store_true", default="_unset")
     return parser.parse_args()
 
 
@@ -34,13 +35,15 @@ def execute_evaluation(cfg: V.Config):
 
 def main(config_path: str = None,
          execution_type: str = None,
-         model_weights: str = None):
+         model_weights: str = None,
+         debug: bool = None):
 
     if config_path is None:
         args = get_args()
         config_path = args.config
         execution_type = args.execution_type
         model_weights = args.model_weights
+        debug = args.debug
 
     cfg = V.Config(config_path)
 
@@ -49,6 +52,9 @@ def main(config_path: str = None,
 
     if model_weights not in {"_unset", None}:
         cfg.model.weights = model_weights
+
+    if debug not in {"_unset", None}:
+        cfg.context.debug = debug
 
     if cfg.context.debug:
         tf.config.run_functions_eagerly(True)

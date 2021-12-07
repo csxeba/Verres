@@ -179,7 +179,8 @@ class PredictionVisualizer:
         return canvas
 
     def draw_raw_heatmap(self, image, model_output, alpha=0.5, write: bool = True):
-        canvas = self.visualizer.overlay_heatmap(image=image, hmap=model_output["heatmap"], alpha=alpha)
+        heatmap = tf.nn.sigmoid(model_output["heatmap"])
+        canvas = self.visualizer.overlay_heatmap(image=image, hmap=heatmap, alpha=alpha)
         if write:
             self.device.write(canvas)
         return canvas

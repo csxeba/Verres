@@ -32,8 +32,10 @@ def mae(y_true, y_pred):
 
 
 def sparse_mae(y_true, y_pred, locations):
-    pred_x = tf.gather_nd(y_pred[..., 0::2], locations)
-    pred_y = tf.gather_nd(y_pred[..., 1::2], locations)
+    locations_yx = tf.stack([locations[:, 0], locations[:, 2], locations[:, 1], locations[:, 3]],
+                            axis=1)
+    pred_x = tf.gather_nd(y_pred[..., 0::2], locations_yx)
+    pred_y = tf.gather_nd(y_pred[..., 1::2], locations_yx)
     d = tf.abs(y_true - tf.stack([pred_x, pred_y], axis=-1))
     return tf.reduce_mean(d)
 

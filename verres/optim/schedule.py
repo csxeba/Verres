@@ -19,20 +19,6 @@ class ConstantSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         return dict(learning_rate=self.learning_rate)
 
 
-def factory(spec: dict) -> tf.optimizers.schedules.LearningRateSchedule:
-
-    name = spec.pop("name", "default").lower()
-
-    if name in {"default", "constant"}:
-        scheduler = ConstantSchedule(float(spec["learning_rate"]))
-    else:
-        scheduler_type = getattr(tf.optimizers.schedules, name)
-        scheduler = scheduler_type(**spec)
-    print(f" [Verres.schedule] - Factory built: {name}")
-
-    return scheduler
-
-
 class LinearLRSchedule(tf.keras.callbacks.Callback):
 
     def __init__(self,
@@ -81,3 +67,19 @@ class LinearLRSchedule(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs["lr"] = self.schedule[self.pointer]
+
+
+def factory(spec: dict) -> tf.optimizers.schedules.LearningRateSchedule:
+
+    name = spec.pop("name", "default").lower()
+
+    if name in {"default", "constant"}:
+        scheduler = ConstantSchedule(float(spec["learning_rate"]))
+    else:
+        scheduler_type = getattr(tf.optimizers.schedules, name, None)
+        if scheduler_type is None:
+            raise KeyError(f"No such scheduler: {name}")
+        scheduler = scheduler_type(**spec)
+    print(f" [Verres.schedule] - Factory built: {name}")
+
+    return scheduler

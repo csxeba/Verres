@@ -37,6 +37,7 @@ class HeatmapProcessor(abstract.Transformation):
         self.full_tensor_shape = (config.model.input_shape[0] // self.stride,
                                   config.model.input_shape[1] // self.stride,
                                   num_classes)
+        assert self.full_tensor_shape[:2] == output_feature.shape[:2]
 
     @classmethod
     def from_descriptors(cls, config, data_descriptor, transformation_params):
