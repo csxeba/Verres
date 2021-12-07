@@ -10,7 +10,6 @@ class ContextConfig:
     artifactory_root: str = ""
     experiment_set: str = ""
     experiment_name: str = ""
-    environment_definition_file: str = ""
     verbose: int = 1
     debug: bool = False
 
