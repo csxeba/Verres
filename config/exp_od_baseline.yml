@@ -22,8 +22,8 @@ model:
     output_width: 128
   head_spec:
     name: OD
-    num_classes: 17
-    peak_nms: 0.1
+    num_classes: 16
+    peak_nms: 0.3
 
 training:
   data:
@@ -83,7 +83,7 @@ evaluation:
 inference:
   data:
     - name: cocodoom
-      root: /data/Datasets/cocodoom
+      root: /data/cocodoom
       subset: val
       transformations:
         - { name: image, stride: 1 }

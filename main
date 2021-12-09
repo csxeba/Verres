@@ -1,8 +1,9 @@
 #! /bin/bash
 
 echo " [Verres] - Attempting to build docker environment"
+make build
 
-if [ "$(make build)" -ne 0 ]
+if [ $? -ne 0 ]
 then
   echo " [Verres] - ERROR: Couldn't build environment..."
   exit 1
