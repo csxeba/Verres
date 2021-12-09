@@ -1,13 +1,20 @@
 import argparse
+import os
+from typing import Dict, Any
+
+import tensorflow as tf
 
 import verres as V
 
 
 def get_args():
     parser = argparse.ArgumentParser(prog="Verres")
-    parser.add_argument("--config", "-c", type=str)
+    parser.add_argument("--config", "-c", type=str, default="_unset")
+    parser.add_argument("--continue_training", type=str, default="_unset")
     parser.add_argument("--execution_type", "-e", type=str, default="_unset")
     parser.add_argument("--model_weights", "-w", type=str, default="_unset")
+    parser.add_argument("--debug", action="store_true", default=False)
+    parser.add_argument("--config_updates", "-u", nargs="+", default={})
     return parser.parse_args()
 
 
@@ -30,23 +37,72 @@ def execute_evaluation(cfg: V.Config):
         evaluator.execute()
 
 
-def main(config_path: str = None,
-         execution_type: str = None,
-         model_weights: str = None):
+def update_config(config: V.Config, field_path: str, value):
+    field_name_list = field_path.split(".")
+    field = config
+    for field_name in field_name_list[:-1]:
+        if isinstance(field, dict):
+            field = field.get(field_name, None)
+        else:
+            field = getattr(field, field_name, None)
+        if field is None:
+            raise RuntimeError(f"No such config field: {field_path}")
+    if isinstance(value, str):
+        if "." in value and value.replace(".", "").isnumeric():
+            print(f" [Verres] - Update config value {value} was automatically cast to float")
+            value = float(value)
+        elif value.isnumeric():
+            print(f" [Verres] - Update config value {value} was automatically cast to int")
+            value = int(value)
+        else:
+            pass
+    if isinstance(field, dict):
+        field[field_name_list[-1]] = value
+    else:
+        setattr(field, field_name_list[-1], value)
+    print(f" [Verres] - Set config.{field_path} to {value}")
 
-    if config_path is None:
+
+def main(config_path: str = None,
+         continue_train: str = None,
+         execution_type: str = None,
+         model_weights: str = None,
+         debug: bool = False,
+         config_updates: Dict[str, Any] = None):
+
+    on_cluster = "COLAB_GPU" in os.environ
+
+    if not on_cluster:
         args = get_args()
         config_path = args.config
+        continue_train = args.continue_training
         execution_type = args.execution_type
         model_weights = args.model_weights
+        debug = args.debug
+        config_updates = dict(line.split("=") for line in args.config_updates)
+
+    if continue_train not in {None, "_unset"}:
+        config_path = os.path.join(continue_train, "config.yml")
+        config_updates["model.weights"] = os.path.join(continue_train, "checkpoints", "latest.h5")
+        config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(continue_train)
 
     cfg = V.Config(config_path)
+
+    if config_updates:
+        for field_name, value in config_updates.items():
+            update_config(cfg, field_name, value)
+
+    cfg.context.debug = cfg.context.debug or debug
 
     if execution_type in {"_unset", None}:
         execution_type = cfg.context.execution_type
 
     if model_weights not in {"_unset", None}:
         cfg.model.weights = model_weights
+
+    tf.keras.backend.set_floatx(cfg.context.float_precision)
+    if cfg.context.verbose:
+        print(" [Verres] - Float precision set to", cfg.context.float_precision)
 
     if execution_type == V.execution.ExecutionType.TRAINING:
         execute_training(cfg)

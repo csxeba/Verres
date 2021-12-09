@@ -23,9 +23,8 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.cfg = config
         self.evaluator: Union[V.execution.EvaluationExecutor, None] = None
         self.artifactory = artifactory
-        self.detection_tmp = str((artifactory.detections / "detections_epoch_{epoch}.json"))
+        self.detection_tmp = str((artifactory.detections / "detections.json"))
         self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}.h5"))
-        self.file_writer = tf.summary.create_file_writer(str(artifactory.tensorboard))
         self.last_map = -1.
         self.last_chkp = ""
         self.checkpoint_best = checkpoint_best
@@ -48,9 +47,6 @@ class ObjectMAP(tf.keras.callbacks.Callback):
                     os.remove(self.last_chkp)
                 self.last_map = mAP
                 self.last_chkp = checkpoint_path
-        with self.file_writer.as_default():
-            tf.summary.scalar("cocodoom_val/mAP", mAP, step=epoch)
-            tf.summary.scalar("cocodoom_val/mAR", result[6], step=epoch)
 
         logs["cocodoom_val/mAP"] = mAP
         logs["cocodoom_val/mAR"] = result[6]
@@ -106,10 +102,18 @@ class BestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
 
 class CSVLogger(tf.keras.callbacks.CSVLogger):
 
-    def __init__(self, config: V.Config):
+    def __init__(self, config: V.Config, **kwargs):
         artifactory = V.Artifactory.get_default(config)
         filename = artifactory.logfile_path
-        super().__init__(filename)
+        super().__init__(filename, **kwargs)
+
+
+class TensorBoard(tf.keras.callbacks.TensorBoard):
+
+    def __init__(self, config: V.Config, **kwargs):
+        artifactory = V.Artifactory.get_default(config)
+        profile_batch = kwargs.pop("profile_batch", 0)
+        super().__init__(log_dir=artifactory.tensorboard, profile_batch=profile_batch, **kwargs)
 
 
 _mapping = {
@@ -118,7 +122,8 @@ _mapping = {
     "LossAggregator": LossAggregator,
     "LatestModelCheckpoint": LatestModelCheckpoint,
     "BestModelCheckpoint": BestModelCheckpoint,
-    "CSVLogger": CSVLogger}
+    "CSVLogger": CSVLogger,
+    "TensorBoard": TensorBoard}
 
 
 def factory(config: V.Config) -> List[tf.keras.callbacks.Callback]:

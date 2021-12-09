@@ -197,4 +197,4 @@ models/
 *.json
 
 # Your environment setup
-./.env
+environment_setup.sh

@@ -1,3 +1,4 @@
+import warnings
 from typing import List, Tuple
 
 import verres as V
@@ -24,6 +25,8 @@ class Feature:
         self.parent = None
         self.depth: int = depth
         self.shape: Tuple[int] = shape
+        if not self.sparse and self.shape[1] < self.shape[0]:
+            warnings.warn(f"Non-sparse feature {name} might have erroneous height-first shape definition: {self.shape}")
 
 
 class MultiFeature:

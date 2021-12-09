@@ -45,7 +45,7 @@ class ApplicationBackbone(VRSBackbone):
         return shapes
 
     def preprocess_input(self, inputs):
-        inputs = tf.cast(inputs, tf.float32)
+        inputs = tf.cast(inputs, tf.keras.backend.floatx())
         inputs = self._preprocess_input_base(inputs)
         inputs = V.operation.padding.pad_to_stride(inputs, model_stride=self.cfg.model.maximum_stride)
         return inputs

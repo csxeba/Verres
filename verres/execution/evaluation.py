@@ -2,6 +2,7 @@ import io
 import json
 import pickle
 from typing import List
+from collections import deque
 
 import numpy as np
 from pycocotools.coco import COCO
@@ -38,9 +39,9 @@ class EvaluationExecutor:
     def _execute_detection(self):
 
         detections = []
-        data_time = []
-        model_time = []
-        postproc_time = []
+        data_time = deque(maxlen=10)
+        model_time = deque(maxlen=10)
+        postproc_time = deque(maxlen=10)
         timer = V.utils.profiling.Timer()
 
         N = len(self.pipeline)
@@ -55,7 +56,7 @@ class EvaluationExecutor:
 
             with timer:
                 network_input = self.model.preprocess_input(image[None, ...])
-                model_output = self.model(network_input)
+                model_output = self.model(network_input, training=False)
             model_time.append(timer.result)
 
             with timer:
@@ -71,13 +72,11 @@ class EvaluationExecutor:
 
             print("\r [Verres] - COCO eval "
                   f"progress: {i / N:>7.2%} "
-                  f"Data: {np.mean(data_time[-10:]) * 100:.2f} ms - "
-                  f"MTime: {np.mean(model_time[-10:]) * 100:.2f} ms - "
-                  f"PTime: {np.mean(postproc_time[-10:]) * 100:.2f} ms", end="")
+                  f"Data: {1 / np.mean(data_time):.2f} FPS - "
+                  f"MTime: {1 / np.mean(model_time):.2f} FPS - "
+                  f"PTime: {1 / np.mean(postproc_time):.2f} FPS", end="")
 
         print()
-        with open("_cache.pkl", "wb") as handle:
-            pickle.dump(detections, handle)
 
         return detections
 

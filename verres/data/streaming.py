@@ -6,6 +6,7 @@ import tensorflow as tf
 
 import verres as V
 from .pipeline import Pipeline
+from .transformation.abstract import InvalidDataPoint
 
 
 def stream(config: V.Config,
@@ -34,12 +35,17 @@ def stream(config: V.Config,
 
     while 1:
         meta_list = []
-        for i in range(batch_size):
+        while len(meta_list) < batch_size:
+
             iterator = random.choices(meta_iterators, sampling_probabilities)[0]
-            meta = next(iterator)
+
+            try:
+                meta = next(iterator)
+            except InvalidDataPoint:
+                continue
+
             meta_list.extend(meta)
-            if i == batch_size - 1:
-                break
+
         if collate is not None:
             batch = collate.process(meta_list)
             yield batch
@@ -54,7 +60,7 @@ def get_tf_dataset(config: V.Config,
                    sampling_probabilities: List[float] = "uniform",
                    collate: callable = "default"):
 
-    features = [ftr for ftr in pipelines[0].transformations.output_features]
+    features = [ftr for ftr in pipelines[0].transformation_list.output_features]
     types = {ftr.name: ftr.dtype for ftr in features}
     shapes = {}
     for ftr in features:

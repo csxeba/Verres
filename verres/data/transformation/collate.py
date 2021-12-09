@@ -35,5 +35,5 @@ class CollateBatch:
                         collated,
                         self.cfg.model.maximum_stride,
                         tensor_stride=ftr.stride)
-            result[ftr.name] = tf.convert_to_tensor(collated, dtype=ftr.dtype)
+            result[ftr.name] = tf.cast(collated, ftr.dtype)
         return result

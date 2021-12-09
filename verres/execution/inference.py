@@ -50,7 +50,7 @@ class InferenceExecutor:
                     elif mode == Mode.PANOPTIC:
                         output = self.model.detect(tensor)
                     else:
-                        output = self.model(self.model.preprocess_input(tensor))
+                        output = self.model(self.model.preprocess_input(tensor), training=False)
 
                 with timer.time("visualizer"):
                     if mode == Mode.RAW_HEATMAP:
@@ -68,12 +68,12 @@ class InferenceExecutor:
                     else:
                         raise NotImplementedError(f"Mode `{mode}` is not implemented!")
 
-                if i >= self.cfg.inference.total_num_frames:
-                    break
-
                 logstr = (
                         f"\r [Verres] - Inference P: {i / self.cfg.inference.total_num_frames:>7.2%} - " +
                         " - ".join(f"{k}: {1/v:.4f} FPS" for k, v in timer.get_results(reset=True).items()))
                 print(logstr, end="")
+
+                if i >= self.cfg.inference.total_num_frames:
+                    break
 
         print()

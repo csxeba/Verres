@@ -10,6 +10,9 @@ models/
 # Just that: data
 data/
 
+# Temporaries
+tmp/
+
 # Please don't put these into the docker image
 *.avi
 *.mp4
