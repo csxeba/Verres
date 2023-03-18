@@ -177,7 +177,7 @@ fabric.properties
 #####################
 
 # Training outputs and checkpoints
-artifactory/
+verres-artifactory/
 
 # Custom scripts
 experiments/

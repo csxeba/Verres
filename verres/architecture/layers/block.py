@@ -87,9 +87,14 @@ class VRSHead(VRSLayerStack):
         super().__init__(**kwargs)
         if output_initializer == "default":
             output_initializer = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.1)
-        self.layer_objects = [VRSConvolution(pre_width, pre_activation, batch_normalize, kernel_size=3),
-                              VRSConvolution(output_width, output_activation, batch_normalize=False, kernel_size=1,
-                                             initializer=output_initializer)]
+        if pre_width > 0:
+            self.layer_objects = [VRSConvolution(pre_width, pre_activation, batch_normalize, kernel_size=3)]
+        else:
+            self.layer_objects = []
+        self.layer_objects.append(
+            VRSConvolution(output_width, output_activation,
+                           batch_normalize=False, kernel_size=1, initializer=output_initializer)
+        )
 
 
 class VRSRescaler(VRSLayerStack):

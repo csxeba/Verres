@@ -28,10 +28,10 @@ RUN useradd -m -s /bin/bash -u ${uid} --no-log-init ${username}
 RUN echo "PS1='[\u@verres-environment \W]\$ '" >> /home/${username}/.bashrc
 
 RUN mkdir /workspace && \
-    mkdir /artifactory && \
+    mkdir /verres-artifactory && \
     mkdir /data && \
     chmod -R a+rw /workspace && \
-    chmod -R a+rw /artifactory && \
+    chmod -R a+rw /verres-artifactory && \
     chmod -R a+rw /data
 
 COPY ./environment_setup.sh /etc/environment

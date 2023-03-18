@@ -1,6 +1,7 @@
 import time
 
 import tensorflow as tf
+import yaml
 
 import verres as V
 from verres.data import streaming
@@ -51,7 +52,8 @@ class TrainingExecutor:
     def execute(self, stream=None):
 
         artifactory = V.Artifactory.get_default(self.cfg)
-        self.cfg.copy(artifactory.root)
+        with open(artifactory.root / "config.yml", "w") as handle:
+            yaml.dump(self.cfg.dict(), handle)
 
         if stream is None:
             pipes = V.data.factory(self.cfg, specs=self.cfg.training.data)

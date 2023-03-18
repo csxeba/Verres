@@ -14,7 +14,7 @@ _builders = {"cocodoom": cocodoom.COCODoomDataset,
              "cifar100": inmemory.CIFAR100}
 
 
-def factory(config: V.Config, specs: List[dict] = None) -> List[abstract.Dataset]:
+def factory(config: V.Config, specs: List[V.config.DatasetSpec] = None) -> List[abstract.Dataset]:
 
     if specs is None:
         specs = {"training": config.training.data, "inference": config.inference.data}[config.context.execution_type]

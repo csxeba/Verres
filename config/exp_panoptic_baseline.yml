@@ -1,30 +1,101 @@
 context:
-  experiment_name: "panoptic_baseline"
-  artifactory_root: /artifactory
-
-data:
-  dataset: cocodoom
-  dataset_root: /data/cocodoom
-  transformations:
-    - {name: image, stride: 1}
-    - {name: heatmap, stride: 8}
-    - {name: regression, stride: 8}
-    - {name: panoptic_seg, stride: 1}
+  experiment_set: od
+  experiment_name: baseline
+  artifactory_root: ./artifactory
+  execution_type: training
+  verbose: 2
 
 model:
-  input_shape: [200, 320]
-  output_features:
-    - {name: heatmap, stride: 8}
-    - {name: refinement, stride: 8}
-    - {name: semantic_seg, stride: 1}
-    - {name: instance_seg, stride: 1}
+  input_width: 320
+  input_height: 200
+  maximum_stride: 8
+  backbone_spec:
+    name: ResNet50
+    feature_layers:
+      - conv2_block3_out  # stride: 4 width: 256
+      - conv3_block4_out  # stride: 8 width: 512
+#      - conv4_block6_out  # stride: 16 width: 1024
+#      - conv5_block3_out  # stride: 32 width: 2048
+  neck_spec:
+    name: AutoFusion
+    output_stride: 4
+    output_width: 128
+  head_spec:
+    name: panoptic
+    num_classes: 16
 
 training:
+  data:
+    - name: cocodoom
+      root: /data/cocodoom
+      subset: train
+      sampling_probability: 1.0
+      image_level_filters:
+        - { name: Comparison, attr_path: [metadata, num_objects], gt: 1 }
+      transformations:
+        - { name: image, stride: 1 }
+        - { name: heatmap, stride: 4, num_classes:}
+        - { name: refinement, stride: 4}
+        - { name: semantic_seg, stride: 1 }
+        - { name: instance_seg, stride: 1 }
+      kwargs:
+        full: False
+        split: run
   epochs: 120
+  steps_per_epoch: 1000
   batch_size: 8
-  validation_increase_factor: 1
+  criteria_spec:
+    losses:
+      - name: focal
+        feature: heatmap
+        weight: 1.
+      - name: mean_absolute_error
+        feature: refinement
+        weight: 10.
+        sparse_location_feature: regression_mask
+      - name: mean_absolute_error
+        feature: box_wh
+        weight: 1.
+        sparse_location_feature: regression_mask
+
+  optimizer_spec:
+    name: Adam
+  lr_schedule_spec:
+    name: PiecewiseConstantDecay
+    boundaries: [20000, 40000]
+    values: [0.01, 0.001, 0.0001]
+  callbacks:
+    - { name: LatestModelCheckpoint }
+    - { name: ObjectMAP, checkpoint_best: True }
+    - { name: CSVLogger }
+    - { name: TensorBoard }
+
+evaluation:
+  data:
+    - name: cocodoom
+      root: /data/cocodoom
+      subset: val-mini
+      transformations:
+        - { name: image, stride: 1 }
+      kwargs:
+        full: False
+        split: run
+  detection_output_file : default
 
 inference:
-  to_screen: False
-  output_video_path: /data
+  data:
+    - name: cocodoom
+      root: /data/cocodoom
+      subset: val
+      transformations:
+        - { name: image, stride: 1 }
+      kwargs:
+        full: True
+        split: run
+
+  visualization_mode: detection
+  to_screen: True
+  output_video_path: None
   fps: 25
+  total_num_frames: 400
+  output_upscale_factor: 2

@@ -12,7 +12,7 @@ def factory(config: V.Config, specs: List[V.config.DatasetSpec] = None) -> List[
     pipes = []
 
     for ds in datasets:
-        transformations = transformation.factory(config, ds.descriptor, ds.dataset_spec.transformations)
+        transformations = transformation.factory(config, ds.dataset_spec.transformations)
         pipes.append(Pipeline(config, ds, transformations))
         if config.context.verbose > 1:
             print(f" [Verres.pipeline] - Factory built: COCODoomTrainingPipeline for training")

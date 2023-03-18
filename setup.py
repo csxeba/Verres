@@ -17,6 +17,8 @@ setup(
                       "tensorflow>=2.2",
                       "IPython",
                       "tqdm",
+                      "pyyaml",
+                      "pydantic",
                       "git+https://github.com/csxeba/Artifactorium.git"],
     extras_require={"all": ["tfkerassurgeon"],
                     "pruning": ["tfkerassurgeon"],

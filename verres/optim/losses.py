@@ -1,26 +1,24 @@
+import dataclasses
 from typing import List, NamedTuple, Optional
 
 import tensorflow as tf
+from tensorflow.keras.losses import binary_crossentropy, categorical_crossentropy
 
 
 def sse(y_true, y_pred):
     d = tf.square(y_true - y_pred)
-    d = tf.reduce_sum(d, axis=(1, 2, 3))
-    return tf.reduce_mean(d)
+    d = tf.reduce_sum(d)
+    return d
 
 
 def sae(y_true, y_pred):
     d = tf.abs(y_true - y_pred)
-    d = tf.reduce_sum(d, axis=(1, 2, 3))
-    return tf.reduce_mean(d)
+    d = tf.reduce_sum(d)
+    return d
 
 
 def sparse_sae(y_true, y_pred, locations):
-    pred_x = tf.gather_nd(y_pred[..., 0::2], locations)
-    pred_y = tf.gather_nd(y_pred[..., 1::2], locations)
-    d = tf.abs(y_true - tf.stack([pred_x, pred_y], axis=-1))
-    d = tf.reduce_sum(d, axis=-1)
-    return tf.reduce_mean(d)
+    return sae(y_true, tf.gather_nd(y_pred, locations))
 
 
 def mse(y_true, y_pred):
@@ -32,39 +30,35 @@ def mae(y_true, y_pred):
 
 
 def sparse_mae(y_true, y_pred, locations):
-    pred_x = tf.gather_nd(y_pred[..., 1::2], locations)
-    pred_y = tf.gather_nd(y_pred[..., 0::2], locations)
-    d = tf.abs(y_true - tf.stack([pred_x, pred_y], axis=-1))
-    return tf.reduce_mean(d)
+    return mae(y_true, tf.gather_nd(y_pred, locations))
 
 
-def focal_loss(y_true, y_pred, alpha: float = 4., beta: float = 2.):
-    pos_mask = y_true == 1
-    neg_mask = tf.cast(tf.logical_not(pos_mask), tf.float32)
-    pos_mask = tf.cast(pos_mask, tf.float32)
-    num_peaks = tf.maximum(tf.reduce_sum(pos_mask), 1.)
+def focal_loss(y_true: tf.Tensor, y_pred: tf.Tensor, alpha: float = 2., beta: float = 4.):
+    pos_inds = tf.cast(y_true == 1., tf.float32)
+    neg_inds = tf.cast(y_true < 1., tf.float32)
 
-    bxent = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, logits=y_pred)
+    neg_weights = tf.pow(1. - y_true, beta)
 
-    probabilities = tf.nn.sigmoid(y_pred)
+    y_prob = tf.nn.sigmoid(y_pred)
 
-    pos_loss = bxent * pos_mask * tf.pow(1. - probabilities, beta)
-    neg_loss = bxent * neg_mask * tf.pow(probabilities, beta) * tf.pow(1. - y_true, alpha)
+    pos_loss = tf.math.log(y_prob) * tf.pow(1. - y_prob, alpha) * pos_inds
+    neg_loss = tf.math.log(1. - y_prob) * tf.pow(y_prob, alpha) * neg_weights * neg_inds
 
-    loss = tf.reduce_sum(pos_loss, axis=(1, 2, 3)) + tf.reduce_sum(neg_loss, axis=(1, 2, 3))
-    loss = tf.reduce_mean(loss) / num_peaks
+    pos_loss = tf.reduce_sum(pos_loss)
+    neg_loss = tf.reduce_sum(neg_loss)
 
-    return loss
+    loss = pos_loss + neg_loss
+    return -loss
 
 
-class LossFunction(NamedTuple):
+@dataclasses.dataclass
+class LossFunction:
 
     name: str
     feature_name: str
     loss_fn: callable
     loss_weight: tf.Variable
     is_sparse_loss: bool
-    sparse_location_feature_name: Optional[str]
 
     def call(self, *args, **kwargs):
         return self.loss_fn(*args, **kwargs)
@@ -99,7 +93,9 @@ dense_losses = {"mse": mse,
                 "sae": sae,
                 "sum_of_absolute_errors": sae,
                 "focal_loss": focal_loss,
-                "focal": focal_loss}
+                "focal": focal_loss,
+                "binary_crossentropy": binary_crossentropy,
+                "categorical_crossentropy": categorical_crossentropy}
 
 sparse_losses = {"sparse_sae": sparse_sae,
                  "sum_of_absolute_errors": sparse_sae,
@@ -119,8 +115,7 @@ def factory(params: dict):
 
     weight = params.pop("weight", 1.)
     is_trainable_weight = params.pop("is_trainable_weight", False)
-    is_sparse_loss = "sparse_location_feature" in params
-    sparse_location_feature = params.pop("sparse_location_feature", None)
+    is_sparse_loss = params.pop("sparse", False)
     if is_sparse_loss:
         loss_fn = sparse_losses.get(name, None)
     else:
@@ -130,6 +125,6 @@ def factory(params: dict):
 
     loss_weight = tf.Variable([weight], trainable=is_trainable_weight)
 
-    loss_object = LossFunction(name, feature, loss_fn, loss_weight, is_sparse_loss, sparse_location_feature)
+    loss_object = LossFunction(name, feature, loss_fn, loss_weight, is_sparse_loss)
     print(f" [Verres.losses] - Factory built: {name}({str(params)})")
     return loss_object

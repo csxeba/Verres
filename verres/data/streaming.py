@@ -6,7 +6,6 @@ import tensorflow as tf
 
 import verres as V
 from .pipeline import Pipeline
-from .transformation.abstract import InvalidDataPoint
 
 
 def stream(config: V.Config,
@@ -36,15 +35,8 @@ def stream(config: V.Config,
     while 1:
         meta_list = []
         while len(meta_list) < batch_size:
-
             iterator = random.choices(meta_iterators, sampling_probabilities)[0]
-
-            try:
-                meta = next(iterator)
-            except InvalidDataPoint:
-                continue
-
-            meta_list.extend(meta)
+            meta_list.extend(next(iterator))
 
         if collate is not None:
             batch = collate.process(meta_list)
