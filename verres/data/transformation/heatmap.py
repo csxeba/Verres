@@ -1,20 +1,21 @@
+from typing import Dict, Optional
+
 import numpy as np
-import cv2
+import tensorflow as tf
 
 import verres as V
+from verres.operation import numeric as T
 from .. import feature
+from ..sample import Sample, Label
 from . import abstract
 
 
-class _HeatmapProcessor(abstract.Transformation):
+class UniformSigmaHeatmapProcessor(abstract.Transformation):
 
-    def __init__(self,
-                 config: V.Config,
-                 transformation_spec: dict,
-                 num_classes: int):
+    def __init__(self, config: V.Config, transformation_spec: dict):
 
         padded_shape = V.operation.padding.calculate_padded_output_shape(
-            input_shape=config.model.input_shape,
+            input_shape=config.model.input_shape_hw,
             model_stride=config.model.maximum_stride,
             tensor_stride=transformation_spec["stride"])
 
@@ -23,7 +24,7 @@ class _HeatmapProcessor(abstract.Transformation):
             stride=transformation_spec["stride"],
             sparse=False,
             dtype=config.context.float_precision,
-            depth=num_classes,
+            depth=config.class_mapping.num_classes,
             shape=padded_shape)
 
         super().__init__(config,
@@ -32,57 +33,49 @@ class _HeatmapProcessor(abstract.Transformation):
                          output_features=[output_feature])
 
         self.stride = transformation_spec["stride"]
-        self.num_classes = num_classes
+        self.num_classes = config.class_mapping.num_classes
         self.tensor_depth = self.num_classes + 1  # bg
-        self.full_tensor_shape = (config.model.input_shape[0] // self.stride,
-                                  config.model.input_shape[1] // self.stride,
-                                  num_classes)  # Format: image
+        self.full_tensor_shape = (config.model.input_shape_hw[0] // self.stride,
+                                  config.model.input_shape_hw[1] // self.stride,
+                                  self.num_classes)  # Format: matrix
 
-    @classmethod
-    def from_descriptors(cls, config, data_descriptor, transformation_spec):
-        return cls(config,
-                   transformation_spec,
-                   num_classes=data_descriptor["num_classes"])
+    def call(self, sample: Sample) -> Dict[str, np.ndarray]:
+        gauss = np.zeros(self.full_tensor_shape, dtype=np.float32)
+        centers = np.floor(T.upscale_coordinates(sample.label.object_centers[:, ::-1], self.full_tensor_shape[:2]))
+        for type_id in range(self.full_tensor_shape[-1]):
+            object_mask = sample.label.object_types == type_id
+            if not np.any(object_mask):
+                continue
+            centers_of_type = centers[object_mask]
+            sigma = np.full_like(centers_of_type, fill_value=2.35482004503)
+            gauss[..., type_id] = T.gauss_2D(center_xy=centers_of_type, sigma_xy=sigma, tensor_shape=gauss.shape[:2])
+        if self.cfg.context.debug:
+            x, y, c = tuple(centers[:, 0].astype(int)), tuple(centers[:, 1].astype(int)), sample.label.object_types
+            np.testing.assert_array_equal(gauss[x, y, c], 1)
+            assert not np.any(np.isnan(gauss))
+        return {self.output_fields[0]: gauss}
 
-    def call(self, *args, **kwargs):
-        raise NotImplementedError
+    def decode(self, tensors: Dict[str, tf.Tensor], label_instance: Optional[Label] = None) -> Label:
+        hmap = tensors[self.output_fields[0]]
 
+        peaks, scores = T.peakfind(hmap, 0.1)
 
-class UniformSigmaHeatmapProcessor(_HeatmapProcessor):
+        output_shape = tf.cast(tf.shape(hmap)[1:3], tf.float32)
 
-    def call(self, bboxes, types):
-        """
-        :param bboxes: np.ndarray
-            Stacked MSCOCO-format (image csystem) bounding box representations [x0, y0, w, h]
-        :param types: np.ndarray
-            MSCOCO category_ids of interest mapped to 0..N
-        """
-        shape = np.array(self.full_tensor_shape)
-        heatmap_tensor = np.zeros(shape, dtype="float32")
-        if bboxes is None or len(bboxes) == 0:
-            return heatmap_tensor
+        centroids = tf.cast(peaks[:, :2], tf.float32) / output_shape
+        types = peaks[:, 2]
 
-        assert len(bboxes) == len(types)
+        if label_instance is None:
+            label_instance = Label()
 
-        hit = 0
-        for bbox, class_idx in zip(bboxes, types):
-            hit = 1
-            box = np.array(bbox) / self.stride
-            centroid = box[:2] + box[2:] / 2
-            centroid_rounded = np.round(centroid).astype(int)[::-1]
-            assert centroid_rounded[0] <= shape[0] and centroid_rounded[1] <= shape[1]
-            centroid_rounded = np.clip(centroid_rounded, [0, 0], shape[:2]-1)
-            heatmap_tensor[centroid_rounded[0], centroid_rounded[1], class_idx] = 1
+        label_instance.object_centers = centroids.as_numpy()
+        label_instance.object_types = types.as_numpy()
+        label_instance.object_scores = scores.as_numpy()
 
-        if hit:
-            kernel_size = 5
-            heatmap_tensor = cv2.GaussianBlur(heatmap_tensor, (kernel_size, kernel_size), 0, borderType=cv2.BORDER_CONSTANT)
-            heatmap_tensor /= heatmap_tensor.max()
-
-        return heatmap_tensor
+        return label_instance
 
 
-class VariableSigmaHeatmapProcessor(_HeatmapProcessor):
+class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
 
     @staticmethod
     def gaussian2D(shape, sigma=1):
@@ -137,14 +130,54 @@ class VariableSigmaHeatmapProcessor(_HeatmapProcessor):
 
         return heatmap
 
-    def call(self, bboxes, types):
+    def call(self, sample: Sample) -> Dict[str, np.ndarray]:
         shape = np.array(self.full_tensor_shape[-1:] + self.full_tensor_shape[:-1])
         heatmap_tensor = np.zeros(shape, dtype=self.cfg.context.float_precision)
-        for box, type_id in zip(np.array(bboxes), types):
-            box = box / self.stride
-            x0y0 = box[:2]
-            center = x0y0 + box[2:] / 2
+
+        centers = sample.label.object_centers
+        types = sample.label.object_types
+        keypoints_x1y1 = sample.label.object_keypoint_coords[:, 2:4]
+        keypoints_x0y0 = sample.label.object_keypoint_coords[:, 0:2]
+        normed_boxes = (keypoints_x1y1 - keypoints_x0y0) / self.stride
+        for center, box, type_id in zip(centers, normed_boxes, types):
             radius = self.calculate_radius(box)
             self.draw_gaussian(heatmap_tensor[type_id], center, radius)
+        return {self.output_fields[0]: heatmap_tensor.transpose((1, 2, 0))}
 
-        return heatmap_tensor.transpose((1, 2, 0))
+    def decode(self, tensors: Dict[str, tf.Tensor], label: Optional[Label] = None) -> Label:
+        hm_out = tensors[self.output_fields[0]]
+
+        outshape = tf.shape(hm_out)  # Format: matrix
+        width = outshape[2]
+        cat = outshape[3]
+
+        hmax = tf.nn.max_pool2d(hm_out, (3, 3), strides=(1, 1), padding='SAME')
+        keep = tf.cast(hmax == hm_out, tf.float32)
+        hm = hm_out * keep
+
+        _hm = tf.reshape(hm[0], (-1,))
+
+        _scores, _inds = tf.math.top_k(_hm, k=100, sorted=True)
+        _classes = _inds % cat
+        _inds = tf.cast(_inds / cat, tf.int32)
+        _xs = tf.cast(_inds % width, tf.float32)
+        _ys = tf.cast(tf.floor(_inds / width), tf.float32)  # xy format: Image
+
+        scx = hm_out.shape[3]
+        scy = hm_out.shape[2]  # note: transpose
+
+        _xs = _xs / scx
+        _ys = _ys / scy
+
+        centroids = tf.stack([_xs, _ys], axis=1)
+
+        if label is None:
+            label = Label()
+
+        valid_score = _scores > 0.1
+
+        label.object_centers = centroids[valid_score]
+        label.object_types = _classes[valid_score]
+        label.object_scores = _scores[valid_score]
+
+        return label

@@ -1,11 +1,10 @@
-import dataclasses
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any, Optional
 
 import yaml
+import pydantic
 
 
-@dataclasses.dataclass
-class ContextConfig:
+class ContextConfig(pydantic.BaseModel):
     execution_type: str = ""
     artifactory_root: str = ""
     experiment_set: str = ""
@@ -15,123 +14,105 @@ class ContextConfig:
     float_precision: str = "float32"
 
 
-@dataclasses.dataclass
-class DatasetSpec:
+class DatasetSpec(pydantic.BaseModel):
     name: str = ""
     root: str = ""
     subset: str = ""
     sampling_probability: float = 1.0
-    filtered_types: List[int] = "default"
-    filtered_map_numbers: List[int] = "default"
-    filtered_num_objects: int = 0
-    transformations: List[dict] = dataclasses.field(default_factory=list)
-    kwargs: dict = dataclasses.field(default_factory=dict)
+    object_level_filters: List[dict] = []
+    image_level_filters: List[dict] = []
+    transformations: List[dict] = []
+    kwargs: dict = {}
 
 
-@dataclasses.dataclass
-class ModelSpec:
+class ClassMapping(pydantic.BaseModel):
+    class_order: List[str]
+    class_colors_rgb: Dict[str, Tuple[int, int, int]]
+    class_mapping: Dict[str, str]
+
+    @classmethod
+    def from_path(cls, path: str) -> "ClassMapping":
+        return cls(**yaml.load(open(path, "r"), Loader=yaml.FullLoader))
+
+    def map_name_to_name(self, category_name: str) -> str:
+        return self.class_mapping[category_name]
+
+    def map_name_to_index(self, category_name: str) -> int:
+        return self.class_order.index(self.map_name_to_name(category_name))
+
+    @property
+    def num_classes(self) -> int:
+        return len(self.class_order)
+
+    def __contains__(self, item):
+        return item in self.class_mapping
+
+
+class ModelSpec(pydantic.BaseModel):
     input_width: int = -1
     input_height: int = -1
-    input_shape: Tuple[int, int] = (0, 0)
-    backbone_spec: dict = dataclasses.field(default_factory=dict)
-    neck_spec: dict = dataclasses.field(default_factory=dict)
-    head_spec: dict = dataclasses.field(default_factory=dict)
+    backbone_spec: dict = {}
+    neck_spec: dict = {}
+    head_spec: dict = {}
     output_features: Tuple[str] = ()
     output_strides: Tuple[int] = ()
     maximum_stride: int = 0
-    weights: str = None
+    weights: Optional[str] = None
+
+    @property
+    def input_shape_wh(self) -> Tuple[int, int]:
+        return self.input_width, self.input_height
+
+    @property
+    def input_shape_hw(self):
+        return self.input_height, self.input_width
 
 
-class TrainingConfig:
-
-    def __init__(self,
-                 data: List[dict] = None,
-                 epochs: int = 0,
-                 batch_size: int = 0,
-                 steps_per_epoch: int = -1,
-                 prefetch_batches: int = 5,
-                 criteria_spec: dict = None,
-                 optimizer_spec: dict = None,
-                 lr_schedule_spec: dict = None,
-                 callbacks: List[dict] = None,
-                 initial_epoch: int = 0):
-
-        self.data = [DatasetSpec(**spec) for spec in data]
-        self.epochs = epochs
-        self.batch_size = batch_size
-        self.steps_per_epoch = steps_per_epoch
-        self.prefetch_batches = prefetch_batches
-        self.criteria_spec = criteria_spec
-        self.optimizer_spec = optimizer_spec
-        self.lr_schedule_spec = lr_schedule_spec
-        self.callbacks = callbacks
-        self.initial_epoch = initial_epoch
+class TrainingConfig(pydantic.BaseModel):
+    data: List[DatasetSpec]
+    epochs: int = 0
+    batch_size: int = 0
+    steps_per_epoch: int = -1
+    prefetch_batches: int = 5
+    criteria_spec: Optional[dict] = None
+    optimizer_spec: Optional[dict] = None
+    lr_schedule_spec: Optional[dict] = None
+    callbacks: List[dict] = []
+    initial_epoch: int = 0
 
 
-class EvaluationConfig:
-
-    def __init__(self,
-                 data: List[dict] = None,
-                 detection_output_file: str = "temporary"):
-
-        self.data = [DatasetSpec(**spec) for spec in data]
-        self.detection_output_file = detection_output_file
+class EvaluationConfig(pydantic.BaseModel):
+    data: List[DatasetSpec]
+    detection_output_file: str = "temporary"
 
 
-class InferenceConfig:
-
-    def __init__(self,
-                 data: List[dict] = None,
-                 to_screen: bool = False,
-                 output_video_path: str = "",
-                 fps: int = -1,
-                 total_num_frames: int = -1,
-                 output_upscale_factor: int = 1,
-                 visualization_mode: str = ""):
-
-        self.data = [DatasetSpec(**spec) for spec in data]
-        self.to_screen = to_screen
-        self.output_video_path = output_video_path
-        self.fps = fps
-        self.total_num_frames = total_num_frames
-        self.output_upscale_factor = output_upscale_factor
-        self.visualization_mode = visualization_mode
+class InferenceConfig(pydantic.BaseModel):
+    data: List[DatasetSpec]
+    to_screen: bool = False
+    output_video_path: str = ""
+    fps: int = -1
+    total_num_frames: int = -1
+    output_upscale_factor: int = 1
+    visualization_mode: str = ""
 
 
-class Config:
-
-    _instance: "Config" = None
-
-    def __new__(cls, config_path: str):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.__init__(config_path)
-        else:
-            if cls._instance.config_path != config_path:
-                raise RuntimeError(f"Config is a singleton. "
-                                   f"You tried to reinitialize it with config_path = {config_path}")
-        return cls._instance
+class Config(pydantic.BaseModel):
+    config_path: str
+    class_mapping_path: str
+    class_mapping: ClassMapping
+    context: ContextConfig
+    model: ModelSpec
+    training: TrainingConfig
+    evaluation: EvaluationConfig
+    inference: InferenceConfig
+    whiteboard: Dict[str, Any] = {}
 
     @classmethod
-    def get_instance(cls):
-        if cls._instance is None:
-            raise RuntimeError("Config is not yet initialized.")
-        return cls._instance
-
-    def __init__(self, config_path: str):
-        self.config_path = config_path
+    def from_paths(cls, config_path: str, class_mapping_path: str):
+        class_mapping = yaml.load(open(class_mapping_path), Loader=yaml.FullLoader)
         config_dict = yaml.load(open(config_path), Loader=yaml.FullLoader)
-        self.context = ContextConfig(**config_dict["context"])
-        self.model = ModelSpec(**config_dict["model"])
-        self.model.input_shape = self.model.input_height, self.model.input_width
-        self.training = TrainingConfig(**config_dict["training"])
-        self.evaluation = EvaluationConfig(**config_dict["evaluation"])
-        self.inference = InferenceConfig(**config_dict["inference"])
-        self.whiteboard = {}  # This is populated with runtime descriptors and info
-
-        # noinspection PyUnresolvedReferences
-        print(" [Verres] - Read config from", config_path)
-
-    def copy(self, path):
-        import shutil
-        shutil.copy(self.config_path, path)
+        config_dict["config_path"] = config_path
+        config_dict["class_mapping_path"] = class_mapping_path
+        config_dict["class_mapping"] = class_mapping
+        print(f" [Verres] - Read config from {config_path} and class mapping from {class_mapping_path}")
+        return cls(**config_dict)

@@ -1,94 +1,127 @@
+from typing import Dict, Optional
+
 import numpy as np
+import tensorflow as tf
 
 import verres as V
+from verres.operation import numeric as T
 from .. import feature
+from ..sample import Sample, Label
 from .abstract import Transformation
 
 
-class RegressionTensor(Transformation):
+class RefinementTensor(Transformation):
 
-    def __init__(self,
-                 config: V.Config,
-                 transformation_spec: dict,
-                 num_classes: int):
-
-        output_features = [
-            feature.Feature("regression_mask",
-                            stride=transformation_spec["stride"],
-                            sparse=True,
-                            dtype="int64",
-                            depth=4,
-                            shape=(None,)),
-            feature.Feature("box_wh",
-                            stride=transformation_spec["stride"],
-                            sparse=True,
-                            dtype=config.context.float_precision,
-                            depth=2,
-                            shape=(None,)),
-            feature.Feature("refinement",
-                            stride=transformation_spec["stride"],
-                            sparse=True,
-                            dtype=config.context.float_precision,
-                            depth=2,
-                            shape=(None,))]
-        output_feature = feature.MultiFeature("regression", feature_list=output_features)
-
+    def __init__(self, config: V.Config, transformation_spec: dict):
+        output_feature = feature.Feature(
+            name="refinement",
+            stride=transformation_spec["stride"],
+            sparse=True,
+            dtype="float32",
+            depth=2,
+            shape=(None,),
+        )
         super().__init__(
             config,
             transformation_spec,
-            input_fields=["bboxes", "types"],
+            input_fields=[],
             output_features=[output_feature])
+        self.stride: int = transformation_spec["stride"]
 
+    def call(self, sample: Sample) -> Dict[str, np.ndarray]:
+        label_shape = tuple(s // self.stride for s in sample.input.shape_whc[:2])
+        scale_01_precise_coords = sample.label.object_centers
+        scale_01_quantized_coords = T.quantize_coordinates(scale_01_precise_coords, label_shape)
+        scale_01_refinements = scale_01_precise_coords - scale_01_quantized_coords
+        return {self.output_fields[0]: scale_01_refinements}
+
+    def decode(self, tensors: Dict[str, tf.Tensor], label: Label) -> Label:
+        if len(label.object_centers) == 0:
+            return label
+
+        rreg = tensors[self.output_fields[0]]
+        assert len(rreg.shape) == 3
+
+        centers = label.object_centers
+        output_shape = tf.cast(rreg.shape[:2], tf.float32)
+        object_locations = tf.cast(tf.floor(centers * output_shape), tf.int32)
+        refinements = tf.gather_nd(rreg, object_locations)
+        refined_centroids = centers + refinements
+        label.object_centers = refined_centroids
+        return label
+
+
+class BoxWHTensor(Transformation):
+
+    def __init__(self, config: V.Config, transformation_spec: dict):
+        output_feature = feature.Feature(
+            name="box_wh",
+            stride=transformation_spec["stride"],
+            sparse=True,
+            dtype="float32",
+            depth=2,
+            shape=(None,),
+        )
+        super().__init__(
+            config,
+            transformation_spec,
+            input_fields=[],
+            output_features=[output_feature],
+        )
         self.stride = transformation_spec["stride"]
-        self.num_classes = num_classes
-        self.tensor_shape = np.array([config.model.input_shape[0] // self.stride,
-                                      config.model.input_shape[1] // self.stride])
 
-    @classmethod
-    def from_descriptors(cls, config: V.Config, data_descriptor, transformation_spec):
-        return cls(config,
-                   transformation_spec,
-                   num_classes=data_descriptor["num_classes"])
+    def call(self, sample: Sample) -> Dict[str, np.ndarray]:
+        box_corners = sample.label.object_keypoint_coords
+        box_whs = box_corners[:, 2:] - box_corners[:, :2]
+        return {self.output_fields[0]: box_whs}
 
-    def call(self, bboxes, types):
-        shape = np.array(self.tensor_shape[:2])
-        _01 = [0, 1]
-        _10 = [1, 0]
-        result_locations = []
-        result_box_whs = []
-        result_refinements = []
-        for class_idx, bbox in zip(types, bboxes):
-            box = np.array(bbox) / self.stride
-            centroid = box[:2] + box[2:] / 2
-            centroid_floored = np.round(centroid).astype(int)[::-1]
-            assert centroid_floored[0] <= shape[0] and centroid_floored[1] <= shape[1]
+    def decode(self, tensors: Dict[str, tf.Tensor], label: Label) -> Label:
+        if len(label.object_centers) == 0:
+            return label
 
-            augmented_coords = np.stack([
-                centroid_floored, centroid_floored + _01, centroid_floored + _10, centroid_floored + 1
-            ], axis=0)
+        tensor = tensors[self.output_fields[0]]
+        assert len(tensor.shape) == 3
 
-            in_frame = np.all([augmented_coords >= 0,
-                               augmented_coords < shape[None, :]],
-                              axis=(0, 2))
+        centers = label.object_centers
+        output_shape = tf.cast(tensor.shape[:2], tf.float32)
+        object_locations = tf.cast(tf.floor(centers * output_shape), tf.int32)
+        box_params = tf.gather_nd(tensor, object_locations)
+        box_corners = tf.concat([centers + box_params / 2., centers - box_params / 2.], axis=1)
+        label.object_keypoint_coords = box_corners
+        return label
 
-            augmented_coords = augmented_coords[in_frame]
-            augmented_locations = np.concatenate([
-                augmented_coords,
-                np.full((len(augmented_coords), 1), class_idx, dtype=augmented_coords.dtype)
-            ], axis=1)
-            augmented_refinements = centroid[::-1][None, :] - augmented_coords
-            augmented_box_whs = np.stack([box[2:][::-1]]*4, axis=0)[in_frame]
 
-            result_locations.append(augmented_locations)
-            result_box_whs.append(augmented_box_whs)
-            result_refinements.append(augmented_refinements)
+class BoxCornerTensor(Transformation):
 
-        if len(result_locations) > 0:
-            result = tuple(map(
-                lambda a: np.concatenate(a, axis=0), [result_locations, result_box_whs, result_refinements]))
-        else:
-            result = [np.zeros([0, 3], dtype=int),
-                      np.zeros([0, 2], dtype=float),
-                      np.zeros([0, 2], dtype=float)]
+    def __init__(self, config: V.Config, transformation_spec: dict):
+        output_feature = feature.Feature(
+            name="box_corners",
+            stride=transformation_spec["stride"],
+            sparse=True,
+            dtype="float32",
+            depth=4,
+            shape=(),
+        )
+        super().__init__(
+            config,
+            transformation_spec,
+            input_fields=[],
+            output_features=[output_feature],
+        )
+        self.stride = transformation_spec["stride"]
 
-        return result
+    def call(self, sample: Sample) -> Dict[str, np.ndarray]:
+        return {"box_corners": sample.label.object_keypoint_coords}
+
+    def decode(self, tensors: Dict[str, tf.Tensor], label: Label) -> Label:
+        if len(label.object_centers) == 0:
+            return label
+        tensor = tensors[self.output_fields[0]]
+        assert len(tensor.shape) == 3
+
+        centers = label.object_centers
+        output_shape = tf.cast(tensor.shape[:2], tf.float32)
+        object_locations = tf.cast(tf.floor(centers * output_shape), tf.int32)
+        box_corners = tf.gather_nd(tensor, object_locations)
+        label.object_keypoint_coords = box_corners
+        return label

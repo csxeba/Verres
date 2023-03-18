@@ -13,7 +13,7 @@ class ApplicationBackbone(VRSBackbone):
 
         base_model = keras_utils.ApplicationCatalogue().make_model(
             config.model.backbone_spec["name"],
-            input_shape=config.model.input_shape,
+            input_shape=config.model.input_shape_hw,
             weights=config.model.backbone_spec.get("weights", None))
 
         feature_layers = config.model.backbone_spec.get("feature_layers", "default")

@@ -1,14 +1,11 @@
 import time
-from typing import Union, List, Tuple, Optional
+from typing import Union, List, Tuple, Optional, Dict
 
 import numpy as np
 
 import verres as V
 from .. import feature
-
-
-class InvalidDataPoint(RuntimeError):
-    ...
+from ..sample import Sample
 
 
 def _as_tuple(value) -> tuple:
@@ -21,7 +18,7 @@ def _as_tuple(value) -> tuple:
     return value
 
 
-def _unpack_output_features(output_features) -> Tuple[feature.Feature]:
+def _unpack_output_features(output_features: Tuple[feature.Feature]) -> Tuple[feature.Feature]:
     features = []
     for ftr in output_features:
         if ftr is None:
@@ -31,7 +28,6 @@ def _unpack_output_features(output_features) -> Tuple[feature.Feature]:
         else:
             features.append(ftr)
 
-    # noinspection PyTypeChecker
     return tuple(features)
 
 
@@ -55,36 +51,25 @@ class Transformation:
         if output_fields == "default":
             self.output_fields = tuple(ftr.meta_field for ftr in self.output_features)
 
-    @classmethod
-    def from_descriptors(cls, config: V.Config, data_descriptor, transformation_params):
-        raise NotImplementedError
+    def _write_result_to_sample(self, sample: Sample, results: dict) -> Sample:
+        for field in self.output_fields:
+            sample.encoded_tensors[field] = results[field]
+        return sample
 
-    def _read_parameters_from_metadata(self, metadata: dict):
-        return [metadata[field] for field in self.input_fields]
-
-    def _write_result_to_metadata(self, metadata: dict, results: list):
-        results = _as_tuple(results)
-        for i, field in enumerate(self.output_fields):
-            metadata[field] = results[i]
-        return metadata
-
-    def process(self, metadata: dict):
-        if not metadata.get("_validity_flag", True):
-            return metadata
-        call_parameters = self._read_parameters_from_metadata(metadata)
+    def process_sample(self, sample: Sample):
         process_start_timestamp = time.time()
-        results = self.call(*call_parameters)
+        results = self.call(sample)
         self._net_processing_time += process_start_timestamp - time.time()
         self._num_calls += 1
-        metadata = self._write_result_to_metadata(metadata, results)
-        return metadata
+        self._write_result_to_sample(sample, results)
+        return sample
 
     def report_runtime(self):
         if self._num_calls == 0:
             return np.inf
         return self._net_processing_time / self._num_calls
 
-    def call(self, *args, **kwargs):
+    def call(self, sample: Sample) -> Dict[str, np.ndarray]:
         raise NotImplementedError
 
 
@@ -100,14 +85,10 @@ class TransformationList(Transformation):
         for transformation in transformation_list:
             self.output_features.extend(list(transformation.output_features))
 
-    @classmethod
-    def from_descriptors(cls, config: V.Config, data_descriptor, feature_descriptor):
-        raise NotImplementedError
-
-    def process(self, metadata: dict):
+    def process_sample(self, sample: Sample) -> Sample:
         for transformation in self.transformation_list:
-            metadata = transformation.process(metadata)
-        return metadata
+            sample = transformation.process_sample(sample)
+        return sample
 
     def call(self, *args, **kwargs):
         raise NotImplementedError

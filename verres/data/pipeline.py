@@ -5,6 +5,7 @@ import tensorflow as tf
 
 import verres as V
 from .dataset import Dataset
+from .sample import Sample
 from .transformation import Transformation, TransformationList, CollateBatch
 
 
@@ -62,19 +63,17 @@ class Pipeline:
         stream = self.dataset.meta_stream(shuffle, infinite=True)
 
         while 1:
-            meta_list = []
-            for meta in stream:
-                meta = self.transformation_list.process(meta)
-                if not meta.get("_validity_flag"):
-                    continue
-                meta_list.append(meta)
-                if len(meta_list) == batch_size:
+            sample_list: List[Sample] = []
+            for sample in stream:
+                sample = self.transformation_list.process_sample(sample)
+                sample_list.append(sample)
+                if len(sample_list) == batch_size:
                     break
             if collate_batch is not None:
-                batch = collate_batch.process(meta_list)
+                batch = collate_batch.process(sample_list)
                 yield batch
             else:
-                yield meta_list
+                yield sample_list
 
     def __len__(self):
         return len(self.dataset)

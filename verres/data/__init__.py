@@ -1,3 +1,5 @@
+from . import filters
+from . import sample
 from . import feature
 from . import dataset
 from . import transformation
@@ -6,3 +8,4 @@ from .transformation import Transformation
 from .pipeline import Pipeline
 from .factory import factory
 from . import streaming
+from .sample import Sample

@@ -64,15 +64,16 @@ def update_config(config: V.Config, field_path: str, value):
 
 
 def main(config_path: str = None,
+         class_mapping_path: str = None,
          continue_train: str = None,
          execution_type: str = None,
          model_weights: str = None,
          debug: bool = False,
          config_updates: Dict[str, Any] = None):
 
-    on_cluster = "COLAB_GPU" in os.environ
+    on_colab = "COLAB_GPU" in os.environ
 
-    if not on_cluster:
+    if not on_colab:
         args = get_args()
         config_path = args.config
         continue_train = args.continue_training
@@ -86,7 +87,8 @@ def main(config_path: str = None,
         config_updates["model.weights"] = os.path.join(continue_train, "checkpoints", "latest.h5")
         config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(continue_train)
 
-    cfg = V.Config(config_path)
+    class_mapping_path = class_mapping_path or "config/class_mappings/cocodoom.yml"
+    cfg = V.Config.from_paths(config_path, class_mapping_path)
 
     if config_updates:
         for field_name, value in config_updates.items():
@@ -111,7 +113,7 @@ def main(config_path: str = None,
     elif execution_type == V.execution.ExecutionType.EVALUATION:
         execute_evaluation(cfg)
     else:
-        assert False
+        raise RuntimeError(f"Unknown execution type: {execution_type}")
 
 
 if __name__ == '__main__':

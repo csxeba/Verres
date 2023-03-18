@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 import verres as V
+from ..sample import Sample
 from .. import feature
 
 
@@ -20,13 +21,11 @@ class CollateBatch:
         self.cfg = config
         self.features = features
 
-    def process(self, meta_list: List[dict]):
+    def process(self, sample_list: List[Sample]):
         result = {}
         for ftr in self.features:
-            tensor_list = [meta[ftr.meta_field] for meta in meta_list]
+            tensor_list = [sample.encoded_tensors[ftr.meta_field] for sample in sample_list]
             if ftr.sparse:
-                if ftr.name == "regression_mask":
-                    _concatenate_batch_index(tensor_list)
                 collated = np.concatenate(tensor_list, axis=0)
             else:
                 collated = np.stack(tensor_list, axis=0)

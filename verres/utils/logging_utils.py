@@ -6,7 +6,7 @@ import verres as V
 def extract_last_epoch(artifactory_root) -> int:
     logfile = os.path.join(artifactory_root, "training_logs.csv")
     if not os.path.exists(logfile):
-        print(" [Verres] - Cannot file CSV logs under artifactory root", artifactory_root)
+        print(" [Verres] - Cannot file CSV logs under verres-artifactory root", artifactory_root)
         print(" [Verres] - Training cannot continue, initial_epoch is forced to be 0")
         last_epoch = 0
     else:

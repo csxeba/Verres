@@ -1,14 +1,14 @@
-from typing import List, Union
+import dataclasses
+from typing import List, Union, Optional
 
 import tensorflow as tf
 
 
+@dataclasses.dataclass(repr=True)
 class FeatureSpec:
-
-    def __init__(self, layer_name: str, working_stride: int = None, width: int = -1):
-        self.layer_name = layer_name
-        self.working_stride = working_stride
-        self.width = width
+    layer_name: str
+    working_stride: Optional[int] = None
+    width: int = -1
 
     @classmethod
     def from_last_tensor(cls, model: Union[tf.keras.Model, tf.keras.layers.Layer]):
