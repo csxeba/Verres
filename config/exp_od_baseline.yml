@@ -4,6 +4,7 @@ context:
   artifactory_root: ./artifactory
   execution_type: training
   verbose: 2
+  debug: False
 
 model:
   input_width: 320
@@ -19,23 +20,25 @@ model:
   neck_spec:
     name: AutoFusion
     output_stride: 4
-    output_width: 128
+    output_width: 64
   head_spec:
-    name: OD
-    num_classes: 16
-    peak_nms: 0.3
+    name: od
 
 training:
   data:
     - name: cocodoom
-      root: /data/cocodoom
+      root: /data/Datasets/cocodoom
       subset: train
       sampling_probability: 1.0
-      filtered_num_objects: 0
+      image_level_filters:
+        - { name: Comparison, attr_path: [metadata, num_objects], gt: 1 }
       transformations:
         - { name: image, stride: 1 }
-        - { name: heatmap, stride: 4 }
-        - { name: regression, stride: 4 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
+#        - { name: semantic_seg, stride: 1 }
+#        - { name: instance_seg, stride: 1 }
       kwargs:
         full: False
         split: run
@@ -47,32 +50,32 @@ training:
       - name: focal
         feature: heatmap
         weight: 1.
-      - name: mean_absolute_error
+      - name: sae
         feature: refinement
         weight: 10.
-        sparse_location_feature: regression_mask
-      - name: mean_absolute_error
+        sparse: True
+      - name: sae
         feature: box_wh
         weight: 1.
-        sparse_location_feature: regression_mask
+        sparse: True
 
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
     boundaries: [20000, 40000]
-    values: [0.01, 0.001, 0.0001]
+    values: [0.1, 0.01, 0.001]
   callbacks:
     - { name: LatestModelCheckpoint }
-    - { name: ObjectMAP, checkpoint_best: True }
+#    - { name: ObjectMAP, checkpoint_best: True }
     - { name: CSVLogger }
     - { name: TensorBoard }
 
 evaluation:
   data:
     - name: cocodoom
-      root: /data/cocodoom
-      subset: val-mini
+      root: /data/Datasets/cocodoom
+      subset: val
       transformations:
         - { name: image, stride: 1 }
       kwargs:
@@ -83,14 +86,13 @@ evaluation:
 inference:
   data:
     - name: cocodoom
-      root: /data/cocodoom
+      root: /data/Datasets/cocodoom
       subset: val
       transformations:
         - { name: image, stride: 1 }
       kwargs:
         full: True
         split: run
-
   visualization_mode: detection
   to_screen: True
   output_video_path: None
