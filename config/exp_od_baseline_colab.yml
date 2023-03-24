@@ -6,19 +6,22 @@ context:
   verbose: 2
 
 model:
-  input_shape: [200, 320]
+  input_width: 320
+  input_height: 200
   maximum_stride: 8
   backbone_spec:
-    name: SmallFCNN
-    strides: [8]
-    width_base: 32
+    name: ResNet50
+    feature_layers:
+      - conv2_block3_out  # stride: 4 width: 256
+      - conv3_block4_out  # stride: 8 width: 512
+#      - conv4_block6_out  # stride: 16 width: 1024
+#      - conv5_block3_out  # stride: 32 width: 2048
   neck_spec:
-    name: Rescaler
+    name: AutoFusion
     output_stride: 4
+    output_width: 64
   head_spec:
-    name: OD
-    num_classes: 17
-    peak_nms: 0.1
+    name: od
 
 training:
   data:
@@ -28,31 +31,45 @@ training:
       sampling_probability: 1.0
       transformations:
         - { name: image, stride: 1 }
-        - { name: heatmap, stride: 4 }
-        - { name: regression, stride: 4 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
       kwargs:
         full: False
         split: run
   epochs: 120
-  steps_per_epoch: 500
-  batch_size: 10
+  steps_per_epoch: 1000
+  batch_size: 8
   criteria_spec:
-    name: od
+    losses:
+      - name: focal
+        feature: heatmap
+        weight: 1.
+      - name: sae
+        feature: refinement
+        weight: 10.
+        sparse: True
+      - name: sae
+        feature: box_wh
+        weight: 1.
+        sparse: True
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
-    name: constant
-    learning_rate: 1e-3
+    name: PiecewiseConstantDecay
+    boundaries: [20000, 40000]
+    values: [0.1, 0.01, 0.001]
   callbacks:
     - { name: LatestModelCheckpoint }
-    - { name: ObjectMAP, checkpoint_best: True }
+#    - { name: ObjectMAP, checkpoint_best: True }
     - { name: CSVLogger }
+    - { name: TensorBoard }
 
 evaluation:
   data:
     - name: cocodoom
       root: /data/Datasets/cocodoom
-      subset: val-mini
+      subset: val
       transformations:
         - { name: image, stride: 1 }
       kwargs:
