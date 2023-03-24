@@ -5,7 +5,7 @@ import tensorflow as tf
 
 import verres as V
 from verres.operation import numeric as T
-from .. import feature
+from ... import feature
 from ..sample import Sample, Label
 from . import abstract
 
@@ -47,7 +47,7 @@ class UniformSigmaHeatmapProcessor(abstract.Transformation):
             if not np.any(object_mask):
                 continue
             centers_of_type = centers[object_mask]
-            sigma = np.full_like(centers_of_type, fill_value=2.35482004503)
+            sigma = np.full_like(centers_of_type, fill_value=1.)
             gauss[..., type_id] = T.gauss_2D(center_xy=centers_of_type, sigma_xy=sigma, tensor_shape=gauss.shape[:2])
         if self.cfg.context.debug:
             x, y, c = tuple(centers[:, 0].astype(int)), tuple(centers[:, 1].astype(int)), sample.label.object_types
@@ -60,7 +60,7 @@ class UniformSigmaHeatmapProcessor(abstract.Transformation):
 
         peaks, scores = T.peakfind(hmap, 0.1)
 
-        output_shape = tf.cast(tf.shape(hmap)[1:3], tf.float32)
+        output_shape = tf.cast(tf.shape(hmap)[:2], tf.float32)
 
         centroids = tf.cast(peaks[:, :2], tf.float32) / output_shape
         types = peaks[:, 2]
@@ -68,9 +68,9 @@ class UniformSigmaHeatmapProcessor(abstract.Transformation):
         if label_instance is None:
             label_instance = Label()
 
-        label_instance.object_centers = centroids.as_numpy()
-        label_instance.object_types = types.as_numpy()
-        label_instance.object_scores = scores.as_numpy()
+        label_instance.object_centers = centroids.numpy()[..., ::-1]
+        label_instance.object_types = types.numpy()
+        label_instance.object_scores = scores.numpy()
 
         return label_instance
 
@@ -88,7 +88,7 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
 
     @staticmethod
     def calculate_radius(bbox, min_overlap=0.7):
-        width, height = np.ceil(bbox[2:])
+        width, height = np.ceil(bbox)
 
         a1 = 1
         b1 = (height + width)
@@ -131,31 +131,30 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
         return heatmap
 
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
-        shape = np.array(self.full_tensor_shape[-1:] + self.full_tensor_shape[:-1])
+        shape = np.array(self.full_tensor_shape)
         heatmap_tensor = np.zeros(shape, dtype=self.cfg.context.float_precision)
 
         centers = sample.label.object_centers
         types = sample.label.object_types
-        keypoints_x1y1 = sample.label.object_keypoint_coords[:, 2:4]
-        keypoints_x0y0 = sample.label.object_keypoint_coords[:, 0:2]
-        normed_boxes = (keypoints_x1y1 - keypoints_x0y0) / self.stride
-        for center, box, type_id in zip(centers, normed_boxes, types):
-            radius = self.calculate_radius(box)
-            self.draw_gaussian(heatmap_tensor[type_id], center, radius)
-        return {self.output_fields[0]: heatmap_tensor.transpose((1, 2, 0))}
+        box_whs = sample.label.object_keypoint_coords[:, 2:] - sample.label.object_keypoint_coords[:, :2]
+        for center, whs, type_id in zip(centers, box_whs, types):
+            scale_xy = heatmap_tensor.shape[:2][::-1]
+            radius = self.calculate_radius(whs * scale_xy)
+            heatmap_tensor[..., type_id] = self.draw_gaussian(heatmap_tensor[..., type_id], center * scale_xy, radius)
+        return {self.output_fields[0]: heatmap_tensor}
 
     def decode(self, tensors: Dict[str, tf.Tensor], label: Optional[Label] = None) -> Label:
         hm_out = tensors[self.output_fields[0]]
 
         outshape = tf.shape(hm_out)  # Format: matrix
-        width = outshape[2]
-        cat = outshape[3]
+        width = outshape[1]
+        cat = outshape[2]
 
-        hmax = tf.nn.max_pool2d(hm_out, (3, 3), strides=(1, 1), padding='SAME')
+        hmax = tf.nn.max_pool2d(hm_out[None, ...], (3, 3), strides=(1, 1), padding='SAME')[0]
         keep = tf.cast(hmax == hm_out, tf.float32)
         hm = hm_out * keep
 
-        _hm = tf.reshape(hm[0], (-1,))
+        _hm = tf.reshape(tf.transpose(hm, (1, 2, 0)), (-1,))
 
         _scores, _inds = tf.math.top_k(_hm, k=100, sorted=True)
         _classes = _inds % cat
@@ -163,8 +162,8 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
         _xs = tf.cast(_inds % width, tf.float32)
         _ys = tf.cast(tf.floor(_inds / width), tf.float32)  # xy format: Image
 
-        scx = hm_out.shape[3]
-        scy = hm_out.shape[2]  # note: transpose
+        scx = hm_out.shape[1]
+        scy = hm_out.shape[0]  # note: transpose
 
         _xs = _xs / scx
         _ys = _ys / scy

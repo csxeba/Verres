@@ -6,7 +6,7 @@ import tensorflow as tf
 
 import verres as V
 from verres.operation import numeric as T
-from .. import feature
+from ... import feature
 from ..sample import Sample, Label
 from .abstract import Transformation
 from verres.operation import masking

@@ -1,11 +1,11 @@
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 import tensorflow as tf
 
 import verres as V
 from verres.operation import numeric as T
-from .. import feature
+from ... import feature
 from ..sample import Sample, Label
 from .abstract import Transformation
 
@@ -42,12 +42,12 @@ class RefinementTensor(Transformation):
         rreg = tensors[self.output_fields[0]]
         assert len(rreg.shape) == 3
 
-        centers = label.object_centers
-        output_shape = tf.cast(rreg.shape[:2], tf.float32)
-        object_locations = tf.cast(tf.floor(centers * output_shape), tf.int32)
-        refinements = tf.gather_nd(rreg, object_locations)
-        refined_centroids = centers + refinements
-        label.object_centers = refined_centroids
+        centers = label.object_centers  # Format: image
+        output_shape = tf.cast(rreg.shape[:2], tf.float32)  # format: matrix
+        object_locations = tf.cast(tf.floor(centers[:, ::-1] * output_shape[None, :]), tf.int64)  # format: matrix
+        refinements = tf.gather_nd(rreg, object_locations).numpy()  # format: image
+        refined_centroids = centers + refinements  # format: image
+        label.object_centers = refined_centroids  # format: image
         return label
 
 
@@ -71,7 +71,7 @@ class BoxWHTensor(Transformation):
         self.stride = transformation_spec["stride"]
 
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
-        box_corners = sample.label.object_keypoint_coords
+        box_corners = sample.label.object_keypoint_coords  # format: image
         box_whs = box_corners[:, 2:] - box_corners[:, :2]
         return {self.output_fields[0]: box_whs}
 
@@ -82,11 +82,11 @@ class BoxWHTensor(Transformation):
         tensor = tensors[self.output_fields[0]]
         assert len(tensor.shape) == 3
 
-        centers = label.object_centers
-        output_shape = tf.cast(tensor.shape[:2], tf.float32)
-        object_locations = tf.cast(tf.floor(centers * output_shape), tf.int32)
-        box_params = tf.gather_nd(tensor, object_locations)
-        box_corners = tf.concat([centers + box_params / 2., centers - box_params / 2.], axis=1)
+        centers = label.object_centers  # format: image
+        output_shape = tf.cast(tensor.shape[:2], tf.float32)  # format: matrix
+        object_locations = tf.cast(tf.floor(centers[..., ::-1] * output_shape), tf.int32)  # format: matrix
+        box_params = tf.gather_nd(tensor, object_locations).numpy()  # format: image
+        box_corners = tf.concat([centers + box_params / 2., centers - box_params / 2.], axis=1)  # format: image
         label.object_keypoint_coords = box_corners
         return label
 
@@ -119,9 +119,9 @@ class BoxCornerTensor(Transformation):
         tensor = tensors[self.output_fields[0]]
         assert len(tensor.shape) == 3
 
-        centers = label.object_centers
-        output_shape = tf.cast(tensor.shape[:2], tf.float32)
-        object_locations = tf.cast(tf.floor(centers * output_shape), tf.int32)
-        box_corners = tf.gather_nd(tensor, object_locations)
+        centers = label.object_centers  # format: image
+        output_shape = tf.cast(tensor.shape[:2], tf.float32)  # format: matrix
+        object_locations = tf.cast(tf.floor(centers[..., ::-1] * output_shape), tf.int32)  # format: matrix
+        box_corners = tf.gather_nd(tensor, object_locations)  # format: image
         label.object_keypoint_coords = box_corners
         return label

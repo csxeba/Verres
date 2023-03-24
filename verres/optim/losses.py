@@ -40,14 +40,16 @@ def focal_loss(y_true: tf.Tensor, y_pred: tf.Tensor, alpha: float = 2., beta: fl
     neg_weights = tf.pow(1. - y_true, beta)
 
     y_prob = tf.nn.sigmoid(y_pred)
+    y_prob = tf.clip_by_value(y_prob, 0.01, 0.99)
 
     pos_loss = tf.math.log(y_prob) * tf.pow(1. - y_prob, alpha) * pos_inds
     neg_loss = tf.math.log(1. - y_prob) * tf.pow(y_prob, alpha) * neg_weights * neg_inds
 
-    pos_loss = tf.reduce_sum(pos_loss)
-    neg_loss = tf.reduce_sum(neg_loss)
+    pos_loss_red = tf.reduce_sum(pos_loss)
+    neg_loss_red = tf.reduce_sum(neg_loss)
 
-    loss = pos_loss + neg_loss
+    loss = pos_loss_red + neg_loss_red
+
     return -loss
 
 

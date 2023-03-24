@@ -1,6 +1,5 @@
 import io
 import json
-import pickle
 from typing import List
 from collections import deque
 
@@ -9,6 +8,7 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
 import verres as V
+from verres.data import Sample
 
 
 class EvaluationExecutor:
@@ -50,8 +50,8 @@ class EvaluationExecutor:
 
         for i in range(1, N+1):
             with timer:
-                meta = next(iterator)[0]
-                image = meta["image_tensor"]
+                meta: Sample = next(iterator)[0]
+                image = meta.encoded_tensors["image"]
             data_time.append(timer.result)
 
             with timer:
@@ -60,15 +60,15 @@ class EvaluationExecutor:
             model_time.append(timer.result)
 
             with timer:
-                result = self.model.postprocess(model_output)
+                det_label = self.pipeline.codec.decode(model_output)
             postproc_time.append(timer.result)
 
             detections.extend(V.utils.cocodoom.generate_coco_detections(
-                boxes=result["boxes"],
-                types=result["types"],
-                scores=result["scores"],
-                image_shape=image.shape[:2],
-                image_id=meta["image_id"]))
+                boxes_xy_01=det_label.object_keypoint_coords,
+                types=det_label.object_types,
+                scores=det_label.object_scores,
+                image_shape_xy=image.shape[:2],
+                image_id=meta.ID))
 
             print("\r [Verres] - COCO eval "
                   f"progress: {i / N:>7.2%} "
@@ -88,17 +88,13 @@ class EvaluationExecutor:
             print(" [Verres] - No detections were generated.")
             return np.zeros(12, dtype=float)
 
-        if detection_output_file is None:
-            if self.cfg.evaluation.detection_output_file == "default":
-                artifactory = V.artifactory.Artifactory.get_default(self.cfg)
-                detection_output_file = str(artifactory.detections / "OD-detections.json")
-            elif self.cfg.evaluation.detection_output_file in {"tmp", "temp", "temporary"}:
-                detection_output_file = io.StringIO()
-            else:
-                detection_output_file = self.cfg.evaluation.detection_output_file
+        artifactory = V.artifactory.Artifactory.get_default(self.cfg)
+        detection_output_file = str(artifactory.detections / "OD-detections.json")
+        gt_file = str(artifactory.detections / "OD-gt.json")
 
         with open(detection_output_file, "w") as file:
             json.dump(detections, file)
+
 
         coco = COCO(self.pipeline.dataset.descriptor.annotation_file_path)
         det_coco = coco.loadRes(detection_output_file)

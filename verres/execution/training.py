@@ -1,4 +1,5 @@
 import time
+from typing import List
 
 import tensorflow as tf
 import yaml
@@ -35,11 +36,12 @@ class TrainingExecutor:
         optimizer = V.optim.optimizers.factory(config, scheduler)
         return cls(config, model, criteria, optimizer, scheduler)
 
-    def _train_loop_custom(self, stream):
+    def _train_loop_custom(self, stream, callbacks: List[tf.keras.callbacks.Callback]):
         epochs = self.cfg.training.epochs
         steps = self.cfg.training.steps_per_epoch
         if self.cfg.context.verbose:
             print(" [Verres.training] - Executing in DEBUG mode.")
+        logs = {}
         for epoch in range(1, epochs + 1):
             for i, data in enumerate(stream, start=1):
                 logs = self.train_step(data)
@@ -48,6 +50,10 @@ class TrainingExecutor:
                     print(f" [Verres.training] - Epoch {epoch}/{epochs} - Step {i}/{steps}")
                     for key, value in logs.items():
                         print(f" {key}: {value:.6f}")
+                if i >= steps:
+                    break
+            for callback in callbacks:
+                callback.on_epoch_end(epoch, logs)
 
     def execute(self, stream=None):
 
@@ -69,16 +75,18 @@ class TrainingExecutor:
                 batch_size=self.cfg.training.batch_size,
                 shuffle=True,
                 collate="default")
-
+        callbacks = callback_factory(self.cfg)
         if not self.cfg.context.debug:
             self.model.compile(optimizer=self.optimizer)
-            self.model.fit(stream,
-                           steps_per_epoch=self.cfg.training.steps_per_epoch,
-                           epochs=self.cfg.training.epochs,
-                           callbacks=callback_factory(self.cfg),
-                           initial_epoch=self.cfg.training.initial_epoch)
+            self.model.fit(
+                stream,
+                steps_per_epoch=self.cfg.training.steps_per_epoch,
+                epochs=self.cfg.training.epochs,
+                callbacks=callbacks,
+                initial_epoch=self.cfg.training.initial_epoch,
+            )
         else:
-            self._train_loop_custom(stream)
+            self._train_loop_custom(stream, callbacks)
 
     # @tf.function
     def train_step(self, batch):

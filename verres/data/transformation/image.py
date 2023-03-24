@@ -1,7 +1,7 @@
 import cv2
 
 import verres as V
-from .. import feature
+from ... import feature
 from ..sample import Sample
 from . abstract import Transformation
 
@@ -27,3 +27,6 @@ class ImageProcessor(Transformation):
             raise RuntimeError(f"No image found @ {sample.input.image_path}")
         assert image.shape[:2] == sample.input.shape_whc[:2][::-1] == self.cfg.model.input_shape_hw[:2]
         return {self.output_fields[0]: image}
+
+    def decode(self, tensors, label):
+        return label

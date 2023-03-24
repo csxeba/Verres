@@ -23,7 +23,8 @@ class Label:
     instance_pixel_affiliations: Optional[np.ndarray] = None
 
 
-class Sample(NamedTuple):
+@dataclasses.dataclass
+class Sample:
     ID: int
     input: Input
     label: Optional[Label] = None

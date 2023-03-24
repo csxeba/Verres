@@ -1,6 +1,5 @@
 from . import filters
 from . import sample
-from . import feature
 from . import dataset
 from . import transformation
 from .dataset import Dataset

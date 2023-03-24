@@ -2,8 +2,8 @@ from typing import List
 
 import verres as V
 from .pipeline import Pipeline
+from .codec import Codec
 from . import dataset
-from . import transformation
 
 
 def factory(config: V.Config, specs: List[V.config.DatasetSpec] = None) -> List[Pipeline]:
@@ -12,8 +12,7 @@ def factory(config: V.Config, specs: List[V.config.DatasetSpec] = None) -> List[
     pipes = []
 
     for ds in datasets:
-        transformations = transformation.factory(config, ds.dataset_spec.transformations)
-        pipes.append(Pipeline(config, ds, transformations))
+        pipes.append(Pipeline(config, ds, codec=Codec(config, ds.dataset_spec.transformations)))
         if config.context.verbose > 1:
             print(f" [Verres.pipeline] - Factory built: COCODoomTrainingPipeline for training")
 

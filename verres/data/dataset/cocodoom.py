@@ -12,7 +12,7 @@ from ..sample import Input, Label, Sample
 from .. import filters
 
 
-def _generate_annotation_path(split: str, full: bool, subset: str):
+def _generate_annotation_name(split: str, full: bool, subset: str):
     if split not in ["map", "run"]:
         raise RuntimeError('COCODoom split must either be one of "map", "run".')
     if subset not in ["train", "val", "test", "val-mini"]:
@@ -87,13 +87,32 @@ class COCODoomDataset(Dataset):
     def __init__(self, config: V.Config, spec: V.config.DatasetSpec):
         self.annotation_file_path = os.path.join(
             spec.root,
-            _generate_annotation_path(
+            "verres_class_map_caches",
+            _generate_annotation_name(
                 spec.kwargs["split"],
                 spec.kwargs["full"],
                 spec.subset,
-        ))
-        data = json.load(open(self.annotation_file_path))
+            )
+        )
+        if not os.path.exists(self.annotation_file_path):
+            orig_annotation_file_path = os.path.join(
+                spec.root,
+                _generate_annotation_name(
+                    spec.kwargs["split"],
+                    spec.kwargs["full"],
+                    spec.subset,
+                )
+            )
+            if not os.path.exists(orig_annotation_file_path):
+                raise RuntimeError(f"Couldn't find specified annotation file: {orig_annotation_file_path}")
+            V.utils.cocodoom.generate_class_mapped_dataset(
+                orig_annotation_file_path,
+                self.annotation_file_path,
+                class_mapping=config.class_mapping,
+            )
 
+        data = json.load(open(self.annotation_file_path))
+        assert len(data["annotations"]) > 0
         category_index = {cat["id"]: cat for cat in data["categories"]}
 
         image_id_to_anno_list = defaultdict(list)
@@ -101,11 +120,10 @@ class COCODoomDataset(Dataset):
         num_valid_annos = 0
         for anno in data["annotations"]:
             category_meta = category_index[anno["category_id"]]
-            if category_meta["name"] not in config.class_mapping:
-                continue  # Skip unmapped classes
             if not all(filt(anno) for filt in object_level_filters):
                 continue
-            anno["verres_type_id"] = config.class_mapping.map_name_to_index(category_meta['name'])
+            anno["verres_type_id"] = category_meta["id"]
+            assert category_meta["name"] in config.class_mapping.class_order
             image_id_to_anno_list[anno["image_id"]].append(anno)
             num_valid_annos += 1
 

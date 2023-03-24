@@ -34,11 +34,11 @@ class ClassMapping(pydantic.BaseModel):
     def from_path(cls, path: str) -> "ClassMapping":
         return cls(**yaml.load(open(path, "r"), Loader=yaml.FullLoader))
 
-    def map_name_to_name(self, category_name: str) -> str:
+    def coco_name_to_verres_name(self, category_name: str) -> str:
         return self.class_mapping[category_name]
 
-    def map_name_to_index(self, category_name: str) -> int:
-        return self.class_order.index(self.map_name_to_name(category_name))
+    def coco_name_to_verres_index(self, category_name: str) -> int:
+        return self.class_order.index(self.coco_name_to_verres_name(category_name))
 
     @property
     def num_classes(self) -> int:
@@ -54,8 +54,6 @@ class ModelSpec(pydantic.BaseModel):
     backbone_spec: dict = {}
     neck_spec: dict = {}
     head_spec: dict = {}
-    output_features: Tuple[str] = ()
-    output_strides: Tuple[int] = ()
     maximum_stride: int = 0
     weights: Optional[str] = None
 

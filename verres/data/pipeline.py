@@ -1,12 +1,13 @@
 import math
-from typing import List
+from typing import List, Iterable, Optional, Dict
 
 import tensorflow as tf
 
 import verres as V
 from .dataset import Dataset
 from .sample import Sample
-from .transformation import Transformation, TransformationList, CollateBatch
+from .transformation import CollateBatch
+from .codec import Codec
 
 
 class Pipeline:
@@ -14,58 +15,38 @@ class Pipeline:
     def __init__(self,
                  config: V.Config,
                  dataset: Dataset,
-                 transformations: List[Transformation]):
+                 codec: Codec):
 
         self.cfg = config
         self.dataset = dataset
-        self.transformation_list = TransformationList(config, transformations)
+        self.codec = codec
 
     @property
     def output_features(self):
-        return self.transformation_list.output_features
+        return self.codec.output_features
 
     def steps_per_epoch(self, batch_size: int = None):
         if batch_size is None:
             batch_size = self.cfg.training.batch_size
         return math.ceil(len(self.dataset) / batch_size)
 
-    def as_tf_dataset(self,
-                      shuffle: bool,
-                      batch_size: int = None,
-                      collate_batch="default",
-                      prefetch: int = 5):
-
-        features = [ftr for ftr in self.transformation_list.output_features]
-        types = {ftr.name: ftr.dtype for ftr in features}
-        shapes = {}
-        for ftr in features:
-            if ftr.sparse:
-                shape = ftr.shape + (ftr.depth,)
-            else:
-                shape = (batch_size,) + ftr.shape + (ftr.depth,)
-            shapes[ftr.name] = shape
-        dataset = tf.data.Dataset.from_generator(lambda: self.stream(shuffle, batch_size, collate_batch),
-                                                 output_types=types,
-                                                 output_shapes=shapes)
-        dataset = dataset.prefetch(prefetch)
-        return dataset
-
-    def stream(self,
-               shuffle: bool,
-               batch_size: int,
-               collate_batch="default"):
-
+    def stream(
+        self,
+        shuffle: bool,
+        batch_size: int,
+        collate_batch: Optional[CollateBatch] = None,
+    ) -> Iterable[List[Sample]]:
         if collate_batch == "default":
             collate_batch = CollateBatch(
                 self.cfg,
-                features=self.output_features)
+                features=self.codec.output_features,
+            )
 
         stream = self.dataset.meta_stream(shuffle, infinite=True)
-
         while 1:
             sample_list: List[Sample] = []
             for sample in stream:
-                sample = self.transformation_list.process_sample(sample)
+                sample = self.codec.encode_sample(sample)
                 sample_list.append(sample)
                 if len(sample_list) == batch_size:
                     break

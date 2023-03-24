@@ -29,14 +29,14 @@ class VRSCriteria:
         loss = 0.
         all_losses = {}
 
-        object_locations = tf.where(y_true["heatmap"] == 1)[:, :3]
-        N = tf.cast(tf.shape(object_locations)[0], tf.float32)
+        object_center_locations = tf.convert_to_tensor(y_true["object_center_locations"])
+        N = tf.cast(tf.shape(object_center_locations)[0], tf.float32)
 
         for feature_name, loss_fn in self.loss_functions.items():
             if loss_fn.is_sparse_loss:
                 current_loss = loss_fn.call(y_true=y_true[feature_name],
                                             y_pred=y_pred[feature_name],
-                                            locations=object_locations)
+                                            locations=object_center_locations)
             else:
                 current_loss = loss_fn.call(y_true=y_true[feature_name],
                                             y_pred=y_pred[feature_name])

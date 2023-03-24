@@ -52,22 +52,30 @@ def get_tf_dataset(config: V.Config,
                    sampling_probabilities: List[float] = "uniform",
                    collate: callable = "default"):
 
-    features = [ftr for ftr in pipelines[0].transformation_list.output_features]
+    features = [ftr for ftr in pipelines[0].output_features]
     types = {ftr.name: ftr.dtype for ftr in features}
     shapes = {}
     for ftr in features:
         if ftr.sparse:
             shape = ftr.shape + (ftr.depth,)
+            if "object_center_locations" not in types:
+                types["object_center_locations"] = tf.int64
+            if "object_center_locations" not in shapes:
+                shapes["object_center_locations"] = (None, 3)
         else:
             shape = (batch_size,) + ftr.shape + (ftr.depth,)
         shapes[ftr.name] = shape
-    dataset = tf.data.Dataset.from_generator(lambda: stream(config,
-                                                            pipelines,
-                                                            shuffle,
-                                                            batch_size,
-                                                            sampling_probabilities,
-                                                            collate),
-                                             output_types=types,
-                                             output_shapes=shapes)
+    dataset = tf.data.Dataset.from_generator(
+        lambda: stream(
+            config,
+            pipelines,
+            shuffle,
+            batch_size,
+            sampling_probabilities,
+            collate,
+        ),
+        output_types=types,
+        output_shapes=shapes,
+    )
     dataset = dataset.prefetch(5)
     return dataset

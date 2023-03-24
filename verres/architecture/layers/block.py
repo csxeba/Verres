@@ -4,6 +4,7 @@ from typing import List
 import tensorflow as tf
 import tensorflow.keras.layers as tfl
 
+from verres.feature import Feature
 from verres.utils import layer_utils
 
 
@@ -77,7 +78,7 @@ class VRSHead(VRSLayerStack):
 
     def __init__(self,
                  pre_width: int,
-                 output_width: int,
+                 output_feature: Feature,
                  pre_activation: str = "leakyrelu",
                  output_activation: str = "linear",
                  output_initializer: str = "default",
@@ -92,9 +93,15 @@ class VRSHead(VRSLayerStack):
         else:
             self.layer_objects = []
         self.layer_objects.append(
-            VRSConvolution(output_width, output_activation,
-                           batch_normalize=False, kernel_size=1, initializer=output_initializer)
+            VRSConvolution(
+                width=output_feature.depth,
+                activation=output_activation,
+                batch_normalize=False,
+                kernel_size=1,
+                initializer=output_initializer
+            )
         )
+        self.output_feature = output_feature
 
 
 class VRSRescaler(VRSLayerStack):

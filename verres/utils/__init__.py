@@ -7,3 +7,4 @@ from . import path_utils
 from . import profiling
 from . import cocodoom
 from . import logging_utils
+from . import testing_utils

@@ -15,8 +15,8 @@ class SampleVisualizer:
         sample: V.data.Sample,
         alpha: float = 0.5,
     ):
-        canvas = sample.encoded_tensors["image_tensor"].copy()
-        heatmap = sample.encoded_tensors["heatmap_tensor"]
+        canvas = sample.encoded_tensors["image"].copy()
+        heatmap = sample.encoded_tensors["heatmap"]
         for i, class_name in enumerate(config.class_mapping.class_order):
             class_color_bgr = np.array(config.class_mapping.class_colors_rgb[class_name])[::-1]
             class_heatmap = cv2.resize(heatmap[..., i], canvas.shape[:2][::-1], interpolation=cv2.INTER_NEAREST)
@@ -78,3 +78,10 @@ class SampleVisualizer:
                     canvas[bool_mask] * (1. - alpha) + class_color_bgr[None, :] * class_segmentation[bool_mask][:, None] * alpha
             )
         return canvas
+
+    def visualize_boxes(
+        self,
+        config: V.Config,
+        sample: V.data.Sample,
+        alpha: float = 0.5,
+    ):

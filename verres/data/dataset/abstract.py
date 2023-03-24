@@ -21,6 +21,7 @@ class Dataset:
 
     def meta_stream(self, shuffle: bool, infinite: bool) -> Iterable[Sample]:
         IDs = self.IDs.copy()
+        assert len(IDs) > 0
         while 1:
             if shuffle:
                 random.shuffle(IDs)

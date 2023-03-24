@@ -1,11 +1,12 @@
 import time
-from typing import Union, List, Tuple, Optional, Dict
+from typing import Union, Tuple, Optional, Dict
 
 import numpy as np
+import tensorflow as tf
 
 import verres as V
-from .. import feature
-from ..sample import Sample
+from ... import feature
+from ..sample import Sample, Label
 
 
 def _as_tuple(value) -> tuple:
@@ -72,23 +73,5 @@ class Transformation:
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
         raise NotImplementedError
 
-
-class TransformationList(Transformation):
-
-    def __init__(self, config: V.Config, transformation_list: List[Transformation]):
-        super().__init__(config,
-                         transformation_spec=None,
-                         input_fields=(),
-                         output_features=())
-        self.transformation_list = transformation_list
-        self.output_features = []
-        for transformation in transformation_list:
-            self.output_features.extend(list(transformation.output_features))
-
-    def process_sample(self, sample: Sample) -> Sample:
-        for transformation in self.transformation_list:
-            sample = transformation.process_sample(sample)
-        return sample
-
-    def call(self, *args, **kwargs):
+    def decode(self, tensors: Dict[str, tf.Tensor], label: Optional[Label] = None) -> Label:
         raise NotImplementedError
