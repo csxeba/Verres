@@ -12,16 +12,13 @@ setup(
     description='Curiosity',
     install_requires=["opencv-python>=4.0",
                       "numpy",
-                      "scipy",
                       "matplotlib",
                       "tensorflow>=2.2",
                       "IPython",
-                      "tqdm",
+                      "pycocotools",
                       "pyyaml",
                       "pydantic",
-                      "git+https://github.com/csxeba/Artifactorium.git"],
-    extras_require={"all": ["tfkerassurgeon"],
-                    "pruning": ["tfkerassurgeon"],
-                    "gpu": ["tensorflow-gpu>=2.2"]}
+                      "artifactorium @ git+https://github.com/csxeba/Artifactorium.git"],
+    extras_require={"gpu": ["tensorflow-gpu>=2.2"]}
 
 )

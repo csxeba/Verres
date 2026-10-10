@@ -14,6 +14,7 @@ class Input:
 @dataclasses.dataclass
 class Label:
     object_centers: Optional[np.ndarray] = None
+    object_center_cells: Optional[np.ndarray] = None
     object_types: Optional[np.ndarray] = None
     object_scores: Optional[np.ndarray] = None
     object_keypoint_coords: Optional[np.ndarray] = None

@@ -56,7 +56,7 @@ class UniformSigmaHeatmapProcessor(abstract.Transformation):
         return {self.output_fields[0]: gauss}
 
     def decode(self, tensors: Dict[str, tf.Tensor], label_instance: Optional[Label] = None) -> Label:
-        hmap = tensors[self.output_fields[0]]
+        hmap = tf.nn.sigmoid(tensors[self.output_fields[0]])  # head outputs logits
 
         peaks, scores = T.peakfind(hmap, 0.1)
 
@@ -144,7 +144,7 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
         return {self.output_fields[0]: heatmap_tensor}
 
     def decode(self, tensors: Dict[str, tf.Tensor], label: Optional[Label] = None) -> Label:
-        hm_out = tensors[self.output_fields[0]]
+        hm_out = tf.nn.sigmoid(tensors[self.output_fields[0]])  # head outputs logits
 
         outshape = tf.shape(hm_out)  # Format: matrix
         width = outshape[1]
@@ -154,7 +154,7 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
         keep = tf.cast(hmax == hm_out, tf.float32)
         hm = hm_out * keep
 
-        _hm = tf.reshape(tf.transpose(hm, (1, 2, 0)), (-1,))
+        _hm = tf.reshape(hm, (-1,))
 
         _scores, _inds = tf.math.top_k(_hm, k=100, sorted=True)
         _classes = _inds % cat
@@ -163,7 +163,7 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
         _ys = tf.cast(tf.floor(_inds / width), tf.float32)  # xy format: Image
 
         scx = hm_out.shape[1]
-        scy = hm_out.shape[0]  # note: transpose
+        scy = hm_out.shape[0]
 
         _xs = _xs / scx
         _ys = _ys / scy

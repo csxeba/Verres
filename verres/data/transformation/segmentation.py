@@ -19,7 +19,11 @@ class SemanticSegmentationTensor(Transformation):
             name="semantic_segmentation",
             stride=transformation_spec["stride"],
             dtype="uint8",
-            shape=(None, None, 1),
+            shape=V.operation.padding.calculate_padded_output_shape(
+                input_shape=config.model.input_shape_hw,
+                model_stride=config.model.maximum_stride,
+                tensor_stride=transformation_spec["stride"]),
+            depth=1,
             sparse=False,
         )
         super().__init__(
@@ -29,7 +33,7 @@ class SemanticSegmentationTensor(Transformation):
             output_features=[output_feature],
         )
 
-        output_shape = tuple(s // transformation_spec["stride"] for s in config.model.input_shape)
+        output_shape = tuple(s // transformation_spec["stride"] for s in config.model.input_shape_hw)
         self.stride = transformation_spec["stride"]
         self.num_classes = config.class_mapping.num_classes
         self.semantic_tensor_shape = output_shape + (1,)
@@ -37,7 +41,8 @@ class SemanticSegmentationTensor(Transformation):
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
         canvas = np.zeros(self.semantic_tensor_shape, dtype="int64")
         for class_idx, segmentation_repr in zip(sample.label.object_types, sample.label.segmentation_repr):
-            instance_mask = np.squeeze(masking.mask_from_representation(segmentation_repr, self.semantic_tensor_shape[:2]))
+            instance_mask = np.squeeze(masking.mask_from_representation(
+                segmentation_repr, sample.input.shape_whc[:2][::-1]))  # rasterise at full input resolution
             if self.stride != 1:
                 instance_mask = cv2.resize(instance_mask, (0, 0), fx=1/self.stride, fy=1/self.stride,
                                            interpolation=cv2.INTER_NEAREST)
@@ -57,7 +62,11 @@ class InstanceSegmentationTensor(Transformation):
             name="instance_segmentation",
             stride=transformation_spec["stride"],
             dtype="float32",
-            shape=(None, None, 2),
+            shape=V.operation.padding.calculate_padded_output_shape(
+                input_shape=config.model.input_shape_hw,
+                model_stride=config.model.maximum_stride,
+                tensor_stride=transformation_spec["stride"]),
+            depth=2,
             sparse=False,
         )
         super().__init__(
@@ -67,6 +76,7 @@ class InstanceSegmentationTensor(Transformation):
             output_features=[output_feature],
         )
         self.stride = transformation_spec["stride"]
+        self.offset_error_threshold = transformation_spec.get("offset_error_threshold", 2.0)
 
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
         input_shape = sample.input.shape_whc[:2][::-1]  # Format: Matrix (HW)
@@ -80,7 +90,7 @@ class InstanceSegmentationTensor(Transformation):
 
         for centroid_scale_01, segmentation_repr in zip(object_centers, sample.label.segmentation_repr):
             instance_mask = np.squeeze(masking.mask_from_representation(
-                segmentation_repr, canvas_shape[:2]))  # Format: Matrix (HW)
+                segmentation_repr, input_shape))  # rasterise at full input resolution, Matrix (HW)
             assert instance_mask.shape[0] <= instance_mask.shape[1]
             if self.stride > 1:
                 instance_mask = cv2.resize(
@@ -113,4 +123,4 @@ class InstanceSegmentationTensor(Transformation):
         label.instance_pixel_coords = coords_non_bg_scale_01[offset_error_ok]
         label.instance_pixel_affiliations = affiliations[offset_error_ok]
 
-        return
+        return label

@@ -60,14 +60,14 @@ class EvaluationExecutor:
             model_time.append(timer.result)
 
             with timer:
-                det_label = self.pipeline.codec.decode(model_output)
+                det_label = self.pipeline.codec.decode({k: v[0] for k, v in model_output.items()})
             postproc_time.append(timer.result)
 
             detections.extend(V.utils.cocodoom.generate_coco_detections(
                 boxes_xy_01=det_label.object_keypoint_coords,
                 types=det_label.object_types,
                 scores=det_label.object_scores,
-                image_shape_xy=image.shape[:2],
+                image_shape_xy=image.shape[1::-1],
                 image_id=meta.ID))
 
             print("\r [Verres] - COCO eval "
@@ -88,15 +88,15 @@ class EvaluationExecutor:
             print(" [Verres] - No detections were generated.")
             return np.zeros(12, dtype=float)
 
-        artifactory = V.artifactory.Artifactory.get_default(self.cfg)
-        detection_output_file = str(artifactory.detections / "OD-detections.json")
-        gt_file = str(artifactory.detections / "OD-gt.json")
+        if detection_output_file is None:
+            artifactory = V.artifactory.Artifactory.get_default(self.cfg)
+            detection_output_file = str(artifactory.detections / "OD-detections.json")
 
         with open(detection_output_file, "w") as file:
             json.dump(detections, file)
 
 
-        coco = COCO(self.pipeline.dataset.descriptor.annotation_file_path)
+        coco = COCO(self.pipeline.dataset.annotation_file_path)
         det_coco = coco.loadRes(detection_output_file)
 
         cocoeval = COCOeval(coco, det_coco, iouType="bbox")

@@ -27,28 +27,10 @@ def generate_class_mapped_dataset(
         new_annotations.append(anno.copy())
     data["annotations"] = new_annotations
     data["categories"] = new_category_stuff
+    os.makedirs(os.path.dirname(mapped_annotation_path), exist_ok=True)
     with open(mapped_annotation_path, "w") as handle:
         json.dump(data, handle)
     print(f"[Verres] - Class-mapped dataset dumped to {mapped_annotation_path}")
-
-
-def subsample_dataset(
-    orig_annotation_path: str,
-    subsampled_annotation_path: str,
-    num_samples_to_keep: int,
-):
-    data = json.load(open(orig_annotation_path, "r"))
-    unique_image_ids = np.array(list({anno["image_id"] for anno in data["annotations"]}))
-    if len(unique_image_ids) < num_samples_to_keep:
-        raise ValueError("Supplied num_samples_to_keep is smaller than the total number of samples:"
-                         f" {len(unique_image_ids)} < {num_samples_to_keep}")
-    np.random.shuffle(unique_image_ids)
-    selected_image_ids = unique_image_ids[:num_samples_to_keep]
-    data["annotations"] = [anno for anno in data["annotations"] if anno["category_id"] in selected_image_ids]
-    with open(subsampled_annotation_path, "w") as handle:
-        json.dump(data, handle)
-    print(f"[Verres] - Dumped subsampled ({num_samples_to_keep/len(unique_image_ids):.2%}) "
-          f"dataset to {subsampled_annotation_path}")
 
 
 def generate_coco_detections(

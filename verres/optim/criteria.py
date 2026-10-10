@@ -31,6 +31,7 @@ class VRSCriteria:
 
         object_center_locations = tf.convert_to_tensor(y_true["object_center_locations"])
         N = tf.cast(tf.shape(object_center_locations)[0], tf.float32)
+        N = tf.maximum(N, 1.)
 
         for feature_name, loss_fn in self.loss_functions.items():
             if loss_fn.is_sparse_loss:

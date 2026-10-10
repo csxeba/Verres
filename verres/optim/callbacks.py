@@ -6,12 +6,6 @@ import tensorflow as tf
 import verres as V
 
 
-class ResetOptimizerState(tf.keras.callbacks.Callback):
-
-    def on_epoch_end(self, epoch, logs=None):
-        self.model.optimizer = self.model.optimizer.from_config(self.model.optimizer.get_config())
-
-
 class ObjectMAP(tf.keras.callbacks.Callback):
 
     def __init__(self,
@@ -23,7 +17,6 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.cfg = config
         self.evaluator: Union[V.execution.EvaluationExecutor, None] = None
         self.artifactory = artifactory
-        self.detection_tmp = str((artifactory.detections / "detections.json"))
         self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}.h5"))
         self.last_map = -1.
         self.last_chkp = ""
@@ -35,7 +28,7 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.evaluator = V.execution.EvaluationExecutor(self.cfg, model, pipelines[0])
 
     def on_epoch_end(self, epoch, logs=None):
-        detection_output_file = self.detection_tmp.format(epoch=epoch)
+        detection_output_file = str(self.artifactory.detections / "detections.json")
         result = self.evaluator.execute(detection_output_file)
 
         mAP = result[0]
@@ -51,24 +44,6 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         logs["cocodoom_val/mAP"] = mAP
         logs["cocodoom_val/mAR"] = result[6]
         return logs
-
-
-class LossAggregator(tf.keras.callbacks.Callback):
-
-    def __init__(self, names: List[str]):
-        super().__init__()
-        self.names = names
-        self.variables = [0. for _ in names]
-
-    def on_batch_end(self, batch, logs=None):
-        for v, name in zip(self.variables, self.names):
-            data = logs.pop(name)
-            v += data
-            logs[name] = v / (batch+1)
-
-    def on_epoch_end(self, epoch, logs=None):
-        for i, v in self.variables:
-            self.variables[i] = 0.
 
 
 class LatestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
@@ -96,7 +71,7 @@ class BestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
             monitor=monitored_kpi,
             mode=monitoring_mode,
             verbose=0,
-            save_best_only=False,
+            save_best_only=True,
             save_weights_only=True)
 
 
@@ -117,9 +92,7 @@ class TensorBoard(tf.keras.callbacks.TensorBoard):
 
 
 _mapping = {
-    "ResetOptimizerState": ResetOptimizerState,
     "ObjectMAP": ObjectMAP,
-    "LossAggregator": LossAggregator,
     "LatestModelCheckpoint": LatestModelCheckpoint,
     "BestModelCheckpoint": BestModelCheckpoint,
     "CSVLogger": CSVLogger,

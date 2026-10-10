@@ -13,8 +13,5 @@ class VRSHead(tf.keras.layers.Layer):
         self.config = config
         self.input_features = input_features
 
-    def postprocess_network_output(self, predictions):
-        raise NotImplementedError
-
     def call(self, inputs, training=False, mask=None):
         raise NotImplementedError

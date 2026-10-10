@@ -1,5 +1,3 @@
-import os
-
 from artifactorium import Artifactorium as _Artifactorium
 
 import verres as V
@@ -39,10 +37,6 @@ class Artifactory(_Artifactorium):
 
         if self.__class__.default_instance is None:
             self.__class__.default_instance = self
-
-    def make_checkpoint_template(self, model_name=""):
-        return os.path.join(self.checkpoints, "{}_chkp_{}.h5"
-                                              "".format(model_name, "{}"))
 
     @classmethod
     def get_default(cls, config: V.Config):

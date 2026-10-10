@@ -26,7 +26,6 @@ build-env : environment_setup.sh
 	--build-arg accelerator=${VERRES_ACCELERATOR} \
 	--build-arg http_proxy=${http_proxy} \
 	--build-arg https_proxy=${https_proxy} \
-	--build-arg ssh_password=${VERRES_SSH_PASSWORD} \
 	-f docker/Dockerfile \
 	.
 
@@ -66,20 +65,8 @@ run-jupyter : environment_setup_sample.sh
 	sleep 2
 	docker logs verres_jupyter
 
-run-ssh : environment_setup_sample.sh
-	docker run -it --rm \
-	--name verres_shh_server \
-	--hostname $(shell cat /etc/hostname) \
-	-v ${VERRES_ARTIFACTORY}:/artifactory \
-	-v ${VERRES_MODELS}:/models \
-	-v ${VERRES_DATA}:/data \
-	-p ${VERRES_SSH_PORT}:22 \
-	verres/environment:latest
-
 clean :
 	-docker kill verres_environment
 	-docker kill verres_tensorboard
 	-docker kill verres_jupyter
-	-docker kill verres_ssh_server
 	-docker rmi verres/environment:latest
-	docker system prune -f

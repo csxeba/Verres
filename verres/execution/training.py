@@ -25,7 +25,6 @@ class TrainingExecutor:
         self.criteria = criteria
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.loss_tracker = V.optim.losses.Tracker(criteria.get_output_keys())
         self.model.train_step = self.train_step
 
     @classmethod
@@ -41,6 +40,8 @@ class TrainingExecutor:
         steps = self.cfg.training.steps_per_epoch
         if self.cfg.context.verbose:
             print(" [Verres.training] - Executing in DEBUG mode.")
+        cbs = tf.keras.callbacks.CallbackList(callbacks, model=self.model)
+        cbs.on_train_begin()
         logs = {}
         for epoch in range(1, epochs + 1):
             for i, data in enumerate(stream, start=1):
@@ -52,8 +53,8 @@ class TrainingExecutor:
                         print(f" {key}: {value:.6f}")
                 if i >= steps:
                     break
-            for callback in callbacks:
-                callback.on_epoch_end(epoch, logs)
+            cbs.on_epoch_end(epoch, logs)
+        cbs.on_train_end()
 
     def execute(self, stream=None):
 

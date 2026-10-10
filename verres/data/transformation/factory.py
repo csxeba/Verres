@@ -20,13 +20,8 @@ _feature_transformation_map = {
     "heatmap": UniformSigmaHeatmapProcessor
 }
 
-_sparse_transformations = {
-    "refinement", "box_wh", "box_corner"
-}
-
 
 def factory(cfg: V.Config, transformation_specs: List[dict]) -> List[Transformation]:
-
     transformations = []
     for transformation_params in transformation_specs:
         transformation_params = transformation_params.copy()

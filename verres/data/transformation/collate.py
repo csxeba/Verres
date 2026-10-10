@@ -9,13 +9,6 @@ from ..sample import Sample
 from ... import feature
 
 
-def _concatenate_batch_index(regression_masks: List[np.ndarray]):
-    for batch_index, tensor in enumerate(regression_masks):
-        n = len(tensor)
-        batch_indices = np.full([n, 1], batch_index, dtype=tensor.dtype)
-        regression_masks[batch_index] = np.concatenate([batch_indices, tensor], axis=1)
-
-
 class CollateBatch:
 
     def __init__(self, config: V.Config, features: List[feature.Feature]):

@@ -86,18 +86,10 @@ class DataVisualizer:
         image[fg] = (image[fg] * (1. - alpha) + colorized[fg] * alpha).astype("uint8")
         return image
 
-    @staticmethod
-    def overlay_vector_field(image, field, alpha=0.3):
-        result = image.copy()
-        for x, y in np.argwhere(np.linalg.norm(field, ord=1, axis=-1)):
-            dx, dy = field[x, y].astype(int)
-            canvas = cv2.arrowedLine(image, (y, x), (y+dy, x+dx), color=(0, 0, 255), thickness=1)
-            result = result * alpha + canvas * (1 - alpha)
-        return result.astype("uint8")
-
     def overlay_heatmap(self, image, hmap, alpha=0.3):
         image = self.deprocess_image(image)
         hmap = numeric.untensorize(hmap)
+        hmap = 1. / (1. + np.exp(-hmap))  # heatmaps are raw logits
         hmap = cv2.resize(hmap, image.shape[:2][::-1], interpolation=cv2.INTER_NEAREST)
         for class_idx in range(hmap.shape[-1]):
             color = self.colors_bgr[class_idx]

@@ -5,12 +5,6 @@ from typing import List, Dict
 import numpy as np
 
 
-def timed(callback, *args, **kwargs):
-    start = time.time()
-    result = callback(*args, **kwargs)
-    return result, time.time() - start
-
-
 class Timer:
 
     def __init__(self):

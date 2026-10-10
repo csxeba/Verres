@@ -34,7 +34,7 @@ training:
         - { name: Comparison, attr_path: [metadata, num_objects], gt: 1 }
       transformations:
         - { name: image, stride: 1 }
-        - { name: heatmap, stride: 4, num_classes:}
+        - { name: heatmap, stride: 4 }
         - { name: refinement, stride: 4}
         - { name: semantic_seg, stride: 1 }
         - { name: instance_seg, stride: 1 }
@@ -77,6 +77,10 @@ evaluation:
       subset: val-mini
       transformations:
         - { name: image, stride: 1 }
+        - { name: heatmap, stride: 4 }
+        - { name: refinement, stride: 4}
+        - { name: semantic_seg, stride: 1 }
+        - { name: instance_seg, stride: 1 }
       kwargs:
         full: False
         split: run
@@ -95,7 +99,7 @@ inference:
 
   visualization_mode: detection
   to_screen: True
-  output_video_path: None
+  output_video_path: ""
   fps: 25
   total_num_frames: 400
   output_upscale_factor: 2

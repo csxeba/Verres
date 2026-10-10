@@ -109,6 +109,7 @@ sparse_losses = {"sparse_sae": sparse_sae,
 
 
 def factory(params: dict):
+    params = dict(params)
     name = params.pop("name")
     feature = params.pop("feature", None)
     if feature is None:

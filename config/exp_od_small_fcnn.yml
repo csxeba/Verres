@@ -19,7 +19,6 @@ model:
     output_width: 64
   head_spec:
     name: OD
-    num_classes: 16
     peak_nms: 0.3
 
 training:
@@ -28,11 +27,11 @@ training:
       root: /data/cocodoom
       subset: train
       sampling_probability: 1.0
-      filtered_num_objects: 0
       transformations:
         - { name: image, stride: 1 }
-        - { name: heatmap, stride: 4 }
-        - { name: regression, stride: 4 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
       kwargs:
         full: False
         split: run
@@ -47,11 +46,11 @@ training:
       - name: mean_absolute_error
         feature: refinement
         weight: 10.
-        sparse_location_feature: regression_mask
+        sparse: True
       - name: mean_absolute_error
         feature: box_wh
         weight: 1.
-        sparse_location_feature: regression_mask
+        sparse: True
 
   optimizer_spec:
     name: Adam
@@ -72,6 +71,9 @@ evaluation:
       subset: val-mini
       transformations:
         - { name: image, stride: 1 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
       kwargs:
         full: False
         split: run
@@ -84,13 +86,16 @@ inference:
       subset: val
       transformations:
         - { name: image, stride: 1 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
       kwargs:
         full: True
         split: run
 
   visualization_mode: detection
   to_screen: True
-  output_video_path: None
+  output_video_path: ""
   fps: 25
   total_num_frames: 400
   output_upscale_factor: 2

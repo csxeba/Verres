@@ -19,5 +19,5 @@ class Rescaler(VRSNeck):
 
     def call(self, inputs, **kwargs):
         features = self.backbone(inputs, **kwargs)
-        features = self.rescaler(features[0], **kwargs)
+        features = self.rescaler(features[-1], **kwargs)
         return [features]

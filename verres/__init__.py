@@ -9,16 +9,8 @@ from . import operation
 from . import data
 from . import optim
 from . import architecture
-from . import methods
 from . import visualization
 from . import execution
-
-try:
-    import tfkerassurgeon
-except ImportError:
-    print(" [Verres] - tfkerassurgeon not available. Pruning is disabled.")
-else:
-    from . import pruning
 
 working_mode = "library"
 _current = pathlib.Path.cwd()

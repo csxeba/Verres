@@ -91,6 +91,7 @@ _all_filters = {
 def factory(spec: List[dict]) -> List[FilterBase]:
     result = []
     for filter_spec in spec:
+        filter_spec = dict(filter_spec)
         filter_name = filter_spec.pop("name").lower()
         filter_type = _all_filters.get(filter_name)
         if filter_type is None:

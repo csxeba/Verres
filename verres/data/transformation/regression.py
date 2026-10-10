@@ -10,6 +10,15 @@ from ..sample import Sample, Label
 from .abstract import Transformation
 
 
+def _peak_cell_locations(label: Label, output_shape_hw: tf.Tensor) -> tf.Tensor:
+    """Tensor cell index for every object: the heatmap peak cell, never the refined center."""
+    cells = label.object_center_cells
+    if cells is None:
+        centers = tf.convert_to_tensor(label.object_centers, dtype=tf.float32)
+        cells = tf.cast(tf.floor(centers[..., ::-1] * output_shape_hw), tf.int32)
+    return tf.clip_by_value(tf.cast(cells, tf.int32), 0, tf.cast(output_shape_hw, tf.int32) - 1)
+
+
 class RefinementTensor(Transformation):
 
     def __init__(self, config: V.Config, transformation_spec: dict):
@@ -44,8 +53,10 @@ class RefinementTensor(Transformation):
 
         centers = label.object_centers  # Format: image
         output_shape = tf.cast(rreg.shape[:2], tf.float32)  # format: matrix
-        object_locations = tf.cast(tf.floor(centers[:, ::-1] * output_shape[None, :]), tf.int64)  # format: matrix
+        object_locations = _peak_cell_locations(label, output_shape)  # format: matrix
         refinements = tf.gather_nd(rreg, object_locations).numpy()  # format: image
+        # Preserve the peak cells: box regressions must gather there, not at the refined centers.
+        label.object_center_cells = object_locations.numpy()  # format: matrix
         refined_centroids = centers + refinements  # format: image
         label.object_centers = refined_centroids  # format: image
         return label
@@ -84,9 +95,9 @@ class BoxWHTensor(Transformation):
 
         centers = label.object_centers  # format: image
         output_shape = tf.cast(tensor.shape[:2], tf.float32)  # format: matrix
-        object_locations = tf.cast(tf.floor(centers[..., ::-1] * output_shape), tf.int32)  # format: matrix
+        object_locations = _peak_cell_locations(label, output_shape)  # format: matrix
         box_params = tf.gather_nd(tensor, object_locations).numpy()  # format: image
-        box_corners = tf.concat([centers + box_params / 2., centers - box_params / 2.], axis=1)  # format: image
+        box_corners = tf.concat([centers - box_params / 2., centers + box_params / 2.], axis=1)  # format: image
         label.object_keypoint_coords = box_corners
         return label
 
@@ -100,7 +111,7 @@ class BoxCornerTensor(Transformation):
             sparse=True,
             dtype="float32",
             depth=4,
-            shape=(),
+            shape=(None,),
         )
         super().__init__(
             config,
@@ -119,9 +130,8 @@ class BoxCornerTensor(Transformation):
         tensor = tensors[self.output_fields[0]]
         assert len(tensor.shape) == 3
 
-        centers = label.object_centers  # format: image
         output_shape = tf.cast(tensor.shape[:2], tf.float32)  # format: matrix
-        object_locations = tf.cast(tf.floor(centers[..., ::-1] * output_shape), tf.int32)  # format: matrix
+        object_locations = _peak_cell_locations(label, output_shape)  # format: matrix
         box_corners = tf.gather_nd(tensor, object_locations)  # format: image
         label.object_keypoint_coords = box_corners
         return label

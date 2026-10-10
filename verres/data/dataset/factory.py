@@ -1,17 +1,8 @@
-from collections import namedtuple
 from typing import List
 
 import verres as V
 from . import abstract
 from . import cocodoom
-from . import inmemory
-
-
-_builders = {"cocodoom": cocodoom.COCODoomDataset,
-             "mnist": inmemory.MNIST,
-             "fashion_mnist": inmemory.FASHION_MNIST,
-             "cifar10": inmemory.CIFAR10,
-             "cifar100": inmemory.CIFAR100}
 
 
 def factory(config: V.Config, specs: List[V.config.DatasetSpec] = None) -> List[abstract.Dataset]:

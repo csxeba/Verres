@@ -1,4 +1,3 @@
-import math
 from typing import List, Iterable, Optional, Dict
 
 import tensorflow as tf
@@ -24,11 +23,6 @@ class Pipeline:
     @property
     def output_features(self):
         return self.codec.output_features
-
-    def steps_per_epoch(self, batch_size: int = None):
-        if batch_size is None:
-            batch_size = self.cfg.training.batch_size
-        return math.ceil(len(self.dataset) / batch_size)
 
     def stream(
         self,

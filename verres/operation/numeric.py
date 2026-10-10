@@ -4,22 +4,6 @@ import numpy as np
 import tensorflow as tf
 
 
-def correlate(x):
-    var = np.var(x, axis=1)
-    cov = np.cov(x)
-    cor = cov / var[None, ...]
-    return cor
-
-
-def meshgrid_np(shape: Tuple[int, int], dtype=None):
-    m = np.stack(
-        np.meshgrid(
-            np.arange(shape[1]),
-            np.arange(shape[0])
-        ), axis=2).astype(dtype)
-    return m
-
-
 @tf.function
 def peakfind(hmap, peak_nms):
     hmap_max = tf.nn.max_pool2d(hmap[None, ...], (3, 3), strides=(1, 1), padding="SAME")[0]
@@ -39,13 +23,6 @@ def untensorize(tensor):
     if tensor.ndim == 4:
         tensor = tensor[0]
     return tensor
-
-
-def gather_and_refine(peaks, rreg):
-    refinements = tf.gather_nd(rreg, peaks)
-    coords = tf.cast(peaks[:, :2], tf.float32) + refinements
-    types = peaks[:, 2]
-    return coords, types
 
 
 def scatter(center_coords_xy: np.ndarray, vectors: np.ndarray, tensor_shape_hw: Tuple[int, int]) -> tf.Tensor:
@@ -133,9 +110,3 @@ def gauss_2D(
     assert not np.any(np.isnan(ex)) and not np.any(np.isnan(ey))
     result = np.max(per_object_2D_gaussians, axis=0)  # [s1, s2]
     return result
-
-
-def assert_for_object_collision(coordinates: np.ndarray):
-    diff_matrix = (coordinates[:, :, None] - coordinates[:, None, :]).sum(axis=0)
-    diff_matrix[np.diag_indices_from(diff_matrix)] = np.inf
-    assert not np.any(diff_matrix == 0), "Object center collision"

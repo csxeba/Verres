@@ -7,7 +7,6 @@ class Mode:
 
     DETECTION = "detection"
     RAW_HEATMAP = "raw_heatmap"
-    RAW_BOX = "raw_box"
     SEMANTIC = "semantic"
     INSTANCE = "instance"
     PANOPTIC = "panoptic"
@@ -23,6 +22,7 @@ class InferenceExecutor:
         self.cfg = config
         self.model = model
         self.pipelines = pipelines
+        self.codec = pipelines[0].codec
 
     @classmethod
     def factory(cls, config: V.Config):
@@ -45,20 +45,16 @@ class InferenceExecutor:
                     tensor = next(iterator)["image"]
 
                 with timer.time("model"):
+                    output = self.model(self.model.preprocess_input(tensor), training=False)
                     if mode == Mode.DETECTION:
-                        output = self.model.detect(tensor)
-                    elif mode == Mode.PANOPTIC:
-                        output = self.model.detect(tensor)
-                    else:
-                        output = self.model(self.model.preprocess_input(tensor), training=False)
+                        output = self.codec.decode({k: v[0] for k, v in output.items()})
 
                 with timer.time("visualizer"):
                     if mode == Mode.RAW_HEATMAP:
                         vis.draw_raw_heatmap(tensor, output, 0.4, write=True)
-                    elif mode == Mode.RAW_BOX:
-                        vis.draw_raw_box(tensor, output, 0.4, write=True)
                     elif mode == Mode.DETECTION:
-                        vis.draw_detection(tensor, output, 0.4, write=True)
+                        vis.draw_detection(tensor, output.object_keypoint_coords, output.object_types,
+                                           0.4, write=True)
                     elif mode == Mode.PANOPTIC:
                         vis.draw_panoptic_segmentation(tensor, output, 0.4, write=True)
                     elif mode == Mode.SEMANTIC:

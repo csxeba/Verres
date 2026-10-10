@@ -19,7 +19,7 @@ def stream(config: V.Config,
         N = len(pipelines)
         sampling_probabilities = [1. / N for _ in range(N)]
 
-    if len(pipelines) < len(sampling_probabilities):
+    if len(pipelines) != len(sampling_probabilities):
         raise RuntimeError("There should be a sampling probability for every pipeline passed to stream()")
 
     if collate == "default":

@@ -3,6 +3,7 @@ import os
 from typing import Dict, Any
 
 import tensorflow as tf
+import yaml
 
 import verres as V
 
@@ -48,14 +49,7 @@ def update_config(config: V.Config, field_path: str, value):
         if field is None:
             raise RuntimeError(f"No such config field: {field_path}")
     if isinstance(value, str):
-        if "." in value and value.replace(".", "").isnumeric():
-            print(f" [Verres] - Update config value {value} was automatically cast to float")
-            value = float(value)
-        elif value.isnumeric():
-            print(f" [Verres] - Update config value {value} was automatically cast to int")
-            value = int(value)
-        else:
-            pass
+        value = yaml.safe_load(value)
     if isinstance(field, dict):
         field[field_name_list[-1]] = value
     else:
@@ -81,6 +75,8 @@ def main(config_path: str = None,
         model_weights = args.model_weights
         debug = args.debug
         config_updates = dict(line.split("=") for line in args.config_updates)
+
+    config_updates = config_updates or {}
 
     if continue_train not in {None, "_unset"}:
         config_path = os.path.join(continue_train, "config.yml")

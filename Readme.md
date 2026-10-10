@@ -125,8 +125,15 @@ root by
 
 Example executions are stored in the `executions/` directory.
 
+## Status 26Q3
+
+I moved on from TensorFlow to PyTorch. A re-implementation is necessary.
+
+There are good ideas in this repo.
+
 ## Thanks!
 
 Thank you for using Verres for you Deep Learning experiments. Issues and
 pull requests are always welcome!
+
 

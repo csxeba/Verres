@@ -53,12 +53,3 @@ class VRSArchitecture(tf.keras.Model):
             features = [features[0], features[0]]
         output = self.head(features, training=training)
         return output
-
-    def postprocess(self, predictions):
-        return self.head.postprocess_network_output(predictions)
-
-    def detect(self, inputs):
-        inputs = self.preprocess_input(inputs)
-        outputs = self(inputs, training=False)
-        detection = self.postprocess(outputs)
-        return detection

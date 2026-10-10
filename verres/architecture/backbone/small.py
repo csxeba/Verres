@@ -19,7 +19,8 @@ class SmallFCNN(VRSBackbone):
 
         feature_specs = []
 
-        for stride in strides:
+        # Feature specs must follow layer order, so the strides have to be ascending
+        for stride in sorted(strides):
             if stride not in default_specs:
                 raise NotImplementedError(f"No SmallBackbone available for stride {stride}")
             feature_specs.append(default_specs[stride])

@@ -1,5 +1,5 @@
 dependencies:
-  - python~=3.9
+  - python
   - jupyter
   - matplotlib
   - numpy
@@ -8,13 +8,13 @@ dependencies:
   - pydantic
   - scipy
   - tensorboard
-  - tensorflow-mkl
+  - tensorflow
   - tqdm
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
     - Cython
     - opencv-python
-    - pycocotools-fix
+    - pycocotools
     - pydot-ng
     - pyyaml
-    - gast<0.4
+    - gast

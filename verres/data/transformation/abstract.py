@@ -60,7 +60,7 @@ class Transformation:
     def process_sample(self, sample: Sample):
         process_start_timestamp = time.time()
         results = self.call(sample)
-        self._net_processing_time += process_start_timestamp - time.time()
+        self._net_processing_time += time.time() - process_start_timestamp
         self._num_calls += 1
         self._write_result_to_sample(sample, results)
         return sample

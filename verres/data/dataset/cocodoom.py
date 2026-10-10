@@ -1,3 +1,5 @@
+import dataclasses
+import hashlib
 import json
 import os
 from collections import defaultdict
@@ -30,6 +32,12 @@ def _get_map_number(image_meta):
     return map_no
 
 
+def _class_mapping_hash(class_mapping: V.config.ClassMapping) -> str:
+    """Cache key: any change to the mapping must invalidate the class-mapped annotations."""
+    blob = json.dumps([class_mapping.class_order, class_mapping.class_mapping], sort_keys=True)
+    return hashlib.md5(blob.encode()).hexdigest()[:8]
+
+
 def _image_meta_to_sample_object(
     image_meta: Dict[str, Any],
     annotations: List[Dict[str, Any]],
@@ -41,7 +49,7 @@ def _image_meta_to_sample_object(
     object_keypoints = []
     object_types = []
     object_segmentations = []
-    map_no = [int(mapno[3:]) for mapno in image_path.split("/") if "map" in mapno][0]
+    map_no = _get_map_number(image_meta)
 
     for anno in annotations:
         object_centers.append([
@@ -85,24 +93,21 @@ def _image_meta_to_sample_object(
 class COCODoomDataset(Dataset):
 
     def __init__(self, config: V.Config, spec: V.config.DatasetSpec):
+        annotation_name = _generate_annotation_name(
+            spec.kwargs["split"],
+            spec.kwargs["full"],
+            spec.subset,
+        )
+        cache_name = annotation_name.replace(
+            ".json", f"-{_class_mapping_hash(config.class_mapping)}.json")
         self.annotation_file_path = os.path.join(
             spec.root,
             "verres_class_map_caches",
-            _generate_annotation_name(
-                spec.kwargs["split"],
-                spec.kwargs["full"],
-                spec.subset,
-            )
+            cache_name,
         )
+        os.makedirs(os.path.dirname(self.annotation_file_path), exist_ok=True)
         if not os.path.exists(self.annotation_file_path):
-            orig_annotation_file_path = os.path.join(
-                spec.root,
-                _generate_annotation_name(
-                    spec.kwargs["split"],
-                    spec.kwargs["full"],
-                    spec.subset,
-                )
-            )
+            orig_annotation_file_path = os.path.join(spec.root, annotation_name)
             if not os.path.exists(orig_annotation_file_path):
                 raise RuntimeError(f"Couldn't find specified annotation file: {orig_annotation_file_path}")
             V.utils.cocodoom.generate_class_mapped_dataset(
@@ -148,4 +153,5 @@ class COCODoomDataset(Dataset):
         print(f" [Verres.COCODoomLoader] - Num classes:", config.class_mapping.num_classes)
 
     def unpack(self, ID: int) -> Sample:
-        return self.index[ID]
+        # Cached samples must not carry encoded tensors between epochs: they are re-written per call.
+        return dataclasses.replace(self.index[ID], encoded_tensors={})

@@ -60,9 +60,20 @@ class CTDet(VRSHead):
         super().__init__(config, input_features)
         spec = config.model.head_spec.copy()
         num_classes = config.class_mapping.num_classes
-        self.hmap_head = block.VRSHead(spec.get("head_convolution_width", 0), output_width=num_classes)
-        self.rreg_head = block.VRSHead(spec.get("head_convolution_width", 0), output_width=num_classes*2)
-        self.boxx_head = block.VRSHead(spec.get("head_convolution_width", 0), output_width=num_classes*2)
+        stride = input_features[0].working_stride
+        pre_width = spec.get("head_convolution_width", 0)
+        self.hmap_head = block.VRSHead(
+            output_feature=Feature(name="heatmap", stride=stride, sparse=False, dtype="float32",
+                                   depth=num_classes),
+            pre_width=pre_width)
+        self.rreg_head = block.VRSHead(
+            output_feature=Feature(name="refinement", stride=stride, sparse=False, dtype="float32",
+                                   depth=num_classes * 2),
+            pre_width=pre_width)
+        self.boxx_head = block.VRSHead(
+            output_feature=Feature(name="box_wh", stride=stride, sparse=False, dtype="float32",
+                                   depth=num_classes * 2),
+            pre_width=pre_width)
         self.peak_nms = spec.get("peak_nms", 0.1)
 
     def call(self, inputs, training=None, mask=None):

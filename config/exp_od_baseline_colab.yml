@@ -72,6 +72,9 @@ evaluation:
       subset: val
       transformations:
         - { name: image, stride: 1 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
       kwargs:
         full: False
         split: run
@@ -84,12 +87,15 @@ inference:
       subset: val
       transformations:
         - { name: image, stride: 1 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
       kwargs:
         full: True
         split: run
 
   visualization_mode: detection
   to_screen: True
-  output_video_path: None
+  output_video_path: ""
   fps: 25
   total_num_frames: 200

@@ -14,8 +14,8 @@ _mapping = {
 
 
 def factory(config: V.Config, input_feature_specs) -> VRSHead:
-    spec = config.model.head_spec.copy()
-    name = spec.pop("name")
+    spec = dict(config.model.head_spec)
+    name = spec.pop("name", None)
     if name is None:
         raise RuntimeError(f"name must be set under config/model/head_spec")
     name = name.lower()
