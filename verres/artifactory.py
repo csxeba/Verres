@@ -9,7 +9,7 @@ class Artifactory(_Artifactorium):
 
     default_instance = None
 
-    def __init__(self, config: V.Config):
+    def __init__(self, config: V.Config, attach_to: str = None):
 
         if self.__class__.default_instance is not None:
             raise RuntimeError("Attempted to rebuild the Verres Artifactory, which is a singleton.")
@@ -21,10 +21,14 @@ class Artifactory(_Artifactorium):
         if not config.context.experiment_name:
             raise RuntimeError("Please set context.experiment_name in your config YAML.")
 
-        args = [config.context.artifactory_root,
-                config.context.experiment_set,
-                config.context.experiment_name,
-                "NOW"]
+        if attach_to is not None:
+            # Resume: keep writing into the directory of the interrupted run.
+            args = [attach_to]
+        else:
+            args = [config.context.artifactory_root,
+                    config.context.experiment_set,
+                    config.context.experiment_name,
+                    "NOW"]
 
         super().__init__(*args, return_paths_as_string=False)
 
@@ -39,7 +43,7 @@ class Artifactory(_Artifactorium):
             self.__class__.default_instance = self
 
     @classmethod
-    def get_default(cls, config: V.Config):
+    def get_default(cls, config: V.Config, attach_to: str = None):
         if cls.default_instance is None:
-            return cls(config)
+            return cls(config, attach_to)
         return cls.default_instance

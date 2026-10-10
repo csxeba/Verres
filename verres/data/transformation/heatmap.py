@@ -58,7 +58,7 @@ class UniformSigmaHeatmapProcessor(abstract.Transformation):
     def decode(self, tensors: Dict[str, tf.Tensor], label_instance: Optional[Label] = None) -> Label:
         hmap = tf.nn.sigmoid(tensors[self.output_fields[0]])  # head outputs logits
 
-        peaks, scores = T.peakfind(hmap, 0.1)
+        peaks, scores = T.peakfind(hmap, self.cfg.model.head_spec.get("peak_nms", 0.1))
 
         output_shape = tf.cast(tf.shape(hmap)[:2], tf.float32)
 

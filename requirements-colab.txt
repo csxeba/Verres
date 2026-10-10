@@ -1,0 +1,6 @@
+# Assumes a Colab runtime whose bundled TensorFlow still exposes the legacy tf.keras 2.x API (TF ~2.15); TensorFlow itself is not listed, no tf_keras shim is needed.
+pycocotools
+pydantic
+opencv-python-headless
+pyyaml
+artifactorium @ git+https://github.com/csxeba/Artifactorium.git

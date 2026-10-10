@@ -1,4 +1,5 @@
 import random
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 import numpy as np
@@ -28,21 +29,22 @@ def stream(config: V.Config,
     sampling_probabilities = np.array(sampling_probabilities)
     sampling_probabilities = sampling_probabilities / np.sum(sampling_probabilities)
 
-    meta_iterators = [
-        iter(pipeline.stream(shuffle=shuffle, batch_size=1, collate_batch=None))
-        for pipeline in pipelines]
+    meta_iterators = [iter(pipeline.dataset.meta_stream(shuffle=shuffle, infinite=True)) for pipeline in pipelines]
+    codecs = [pipeline.codec for pipeline in pipelines]
 
-    while 1:
-        meta_list = []
-        while len(meta_list) < batch_size:
-            iterator = random.choices(meta_iterators, sampling_probabilities)[0]
-            meta_list.extend(next(iterator))
+    # Encoding a sample is dominated by `cv2.imread`, which releases the GIL, so threads scale it.
+    with ThreadPoolExecutor() as pool:
+        while 1:
+            chosen = random.choices(range(len(pipelines)), sampling_probabilities, k=batch_size)
+            # `next()` stays on this thread: advancing one generator from two threads is an error.
+            samples = [next(meta_iterators[index]) for index in chosen]
+            samples = list(pool.map(lambda pair: pair[1].encode_sample(pair[0]),
+                                    zip(samples, (codecs[index] for index in chosen))))
 
-        if collate is not None:
-            batch = collate.process(meta_list)
-            yield batch
-        else:
-            yield meta_list
+            if collate is not None:
+                yield collate.process(samples)
+            else:
+                yield samples
 
 
 def get_tf_dataset(config: V.Config,

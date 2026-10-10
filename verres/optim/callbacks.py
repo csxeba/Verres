@@ -10,7 +10,8 @@ class ObjectMAP(tf.keras.callbacks.Callback):
 
     def __init__(self,
                  config: V.Config,
-                 checkpoint_best: bool = True):
+                 checkpoint_best: bool = True,
+                 every_n_epochs: int = 1):
 
         super().__init__()
         artifactory = V.Artifactory.get_default(config)
@@ -21,6 +22,7 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.last_map = -1.
         self.last_chkp = ""
         self.checkpoint_best = checkpoint_best
+        self.every_n_epochs = every_n_epochs
 
     def set_model(self, model):
         super().set_model(model)
@@ -28,22 +30,31 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.evaluator = V.execution.EvaluationExecutor(self.cfg, model, pipelines[0])
 
     def on_epoch_end(self, epoch, logs=None):
-        detection_output_file = str(self.artifactory.detections / "detections.json")
-        result = self.evaluator.execute(detection_output_file)
+        logs = logs if logs is not None else {}
+        result = {}
+        if (epoch + 1) % self.every_n_epochs == 0:
+            detection_output_file = str(self.artifactory.detections / "detections.json")
+            result = self.evaluator.execute(detection_output_file)
 
-        mAP = result[0]
-        if self.checkpoint_best:
-            if mAP > self.last_map:
-                checkpoint_path = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
-                self.model.save_weights(checkpoint_path, overwrite=True)
-                if os.path.exists(self.last_chkp):
-                    os.remove(self.last_chkp)
-                self.last_map = mAP
-                self.last_chkp = checkpoint_path
+        if self.checkpoint_best and result.get("AP", -1.) > self.last_map:
+            self._save_best(epoch, result["AP"])
 
-        logs["cocodoom_val/mAP"] = mAP
-        logs["cocodoom_val/mAR"] = result[6]
+        # The CSV log freezes its columns at the end of the first epoch, so the keys are always published.
+        logs["cocodoom_val/mAP"] = result.get("AP", -1.)
+        logs["cocodoom_val/mAP50"] = result.get("AP50", -1.)
+        logs["cocodoom_val/mAR100"] = result.get("AR100", -1.)
         return logs
+
+    def _save_best(self, epoch: int, mAP: float):
+        """Weights-only best checkpoint; the previous best survives until the new file is complete."""
+        checkpoint_path = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
+        temporary_path = checkpoint_path + ".incomplete.h5"
+        self.model.save_weights(temporary_path, overwrite=True)
+        os.replace(temporary_path, checkpoint_path)
+        if self.last_chkp and os.path.exists(self.last_chkp):
+            os.remove(self.last_chkp)
+        self.last_map = mAP
+        self.last_chkp = checkpoint_path
 
 
 class LatestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):

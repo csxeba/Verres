@@ -11,14 +11,13 @@ setup(
     author_email='csxeba@gmail.com',
     description='Curiosity',
     install_requires=["opencv-python>=4.0",
-                      "numpy",
+                      "numpy<2",
                       "matplotlib",
-                      "tensorflow>=2.2",
+                      "tensorflow==2.15.*",
                       "IPython",
                       "pycocotools",
                       "pyyaml",
                       "pydantic",
-                      "artifactorium @ git+https://github.com/csxeba/Artifactorium.git"],
-    extras_require={"gpu": ["tensorflow-gpu>=2.2"]}
+                      "artifactorium @ git+https://github.com/csxeba/Artifactorium.git"]
 
 )

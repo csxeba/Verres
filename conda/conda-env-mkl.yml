@@ -2,13 +2,13 @@ dependencies:
   - python
   - jupyter
   - matplotlib
-  - numpy
+  - numpy<2
   - pillow
   - pip
   - pydantic
   - scipy
   - tensorboard
-  - tensorflow
+  - tensorflow==2.15.*
   - tqdm
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git

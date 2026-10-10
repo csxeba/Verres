@@ -9,18 +9,13 @@ pytest.importorskip("cv2")
 import verres as V
 from verres.data.codec import Codec
 from verres.data.sample import Input, Label, Sample
+from verres.testing import fake_outputs
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 IMAGE_WH = (320, 200)
 STRIDE = 4
 BOXES_XY = np.array([[40., 50., 120., 130.], [180., 60., 260., 160.]])  # Format: image (x0, y0, x1, y1)
 TYPES = np.array([0, 1])
-
-
-def _logits(probabilities: np.ndarray) -> np.ndarray:
-    """Decode sigmoids the head output, so ground-truth heatmaps are fed back as logits."""
-    p = np.clip(probabilities.astype(np.float32), 1e-6, 1. - 1e-6)
-    return np.log(p / (1. - p))
 
 
 def _sample() -> Sample:
@@ -54,21 +49,34 @@ def test_od_roundtrip():
     codec = _codec()
 
     sample = codec.encode_sample(_sample())
-    tensors = dict(sample.encoded_tensors)
-    tensors["heatmap"] = _logits(tensors["heatmap"])
-
-    # Sparse (N, 2) targets -> dense (H, W, 2) maps, as the head would output them.
-    output_hw = np.array(tensors["heatmap"].shape[:2])
-    cells = np.floor(sample.label.object_centers[:, ::-1] * output_hw).astype(int)
-    for name in ("refinement", "box_wh"):
-        dense = np.zeros(tuple(output_hw) + (2,), dtype=np.float32)
-        dense[cells[:, 0], cells[:, 1]] = tensors[name]
-        tensors[name] = dense
-
-    decoded = codec.decode(tensors)
+    decoded = codec.decode(fake_outputs.dense_model_output(sample))
 
     order = np.argsort(np.asarray(decoded.object_keypoint_coords)[:, 0])  # peak order is raster order
     one_output_cell = STRIDE / np.array([IMAGE_WH[0], IMAGE_WH[1], IMAGE_WH[0], IMAGE_WH[1]], dtype=float)
     assert np.allclose(np.asarray(decoded.object_keypoint_coords)[order],
                        sample.label.object_keypoint_coords, atol=one_output_cell)
     assert np.array_equal(np.asarray(decoded.object_types)[order], TYPES)
+
+
+def test_od_roundtrip_without_objects():
+    """An image with no annotations must decode to empty boxes, never to None."""
+    codec = _codec()
+    sample = _sample()
+    sample.label = Label(
+        object_centers=np.zeros((0, 2)),
+        object_types=np.zeros((0,), dtype=int),
+        object_keypoint_coords=np.zeros((0, 4)),
+    )
+
+    sample = codec.encode_sample(sample)
+    decoded = codec.decode(fake_outputs.dense_model_output(sample))
+
+    assert decoded.object_keypoint_coords.shape == (0, 4)
+    assert decoded.object_types.shape == decoded.object_scores.shape == (0,)
+    detections = V.utils.cocodoom.generate_coco_detections(
+        boxes_xy_01=decoded.object_keypoint_coords,
+        types=decoded.object_types,
+        scores=decoded.object_scores,
+        image_shape_xy=IMAGE_WH,
+        image_id=sample.ID)
+    assert detections == []

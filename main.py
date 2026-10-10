@@ -64,10 +64,10 @@ def main(config_path: str = None,
          model_weights: str = None,
          debug: bool = False,
          config_updates: Dict[str, Any] = None):
+    """Notebook entry point: arguments are passed directly, the terminal goes through argparse."""
 
-    on_colab = "COLAB_GPU" in os.environ
-
-    if not on_colab:
+    # Called without arguments (or as a script) the command line is the source of the arguments.
+    if config_path is None and continue_train is None:
         args = get_args()
         config_path = args.config
         continue_train = args.continue_training
@@ -76,12 +76,19 @@ def main(config_path: str = None,
         debug = args.debug
         config_updates = dict(line.split("=") for line in args.config_updates)
 
-    config_updates = config_updates or {}
+    # A notebook process stays alive across launches, so the singleton is dropped on every entry.
+    V.Artifactory.default_instance = None
 
+    config_updates = dict(config_updates or {})
+
+    resume_dir = None
     if continue_train not in {None, "_unset"}:
-        config_path = os.path.join(continue_train, "config.yml")
-        config_updates["model.weights"] = os.path.join(continue_train, "checkpoints", "latest.h5")
-        config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(continue_train)
+        resume_dir = continue_train
+        config_path = os.path.join(resume_dir, "config.yml")
+        weights = os.path.join(resume_dir, "checkpoints", "latest.h5")
+        if os.path.exists(weights):
+            config_updates["model.weights"] = weights
+        config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(resume_dir)
 
     class_mapping_path = class_mapping_path or "config/class_mappings/cocodoom.yml"
     cfg = V.Config.from_paths(config_path, class_mapping_path)
@@ -89,6 +96,9 @@ def main(config_path: str = None,
     if config_updates:
         for field_name, value in config_updates.items():
             update_config(cfg, field_name, value)
+
+    if resume_dir is not None:
+        V.Artifactory(cfg, attach_to=resume_dir)
 
     cfg.context.debug = cfg.context.debug or debug
 

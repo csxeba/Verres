@@ -9,6 +9,7 @@ from verres.data import streaming
 from verres.architecture import VRSArchitecture
 from verres.optim.criteria import VRSCriteria
 from verres.optim.callbacks import factory as callback_factory
+from verres.optim import checkpoint
 
 
 class TrainingExecutor:
@@ -77,17 +78,37 @@ class TrainingExecutor:
                 shuffle=True,
                 collate="default")
         callbacks = callback_factory(self.cfg)
+        saver = checkpoint.CheckpointSaver(artifactory.root, self.model, self.optimizer)
+        callbacks.append(saver)
         if not self.cfg.context.debug:
+            initial_epoch = self._resume(saver, callbacks)
             self.model.compile(optimizer=self.optimizer)
             self.model.fit(
                 stream,
                 steps_per_epoch=self.cfg.training.steps_per_epoch,
                 epochs=self.cfg.training.epochs,
                 callbacks=callbacks,
-                initial_epoch=self.cfg.training.initial_epoch,
+                initial_epoch=initial_epoch,
             )
         else:
             self._train_loop_custom(stream, callbacks)
+
+    def _resume(self, saver: checkpoint.CheckpointSaver,
+                callbacks: List[tf.keras.callbacks.Callback]) -> int:
+        """Restores an interrupted run in place; returns the epoch to pass to `model.fit`."""
+        initial_epoch = self.cfg.training.initial_epoch
+        if saver.latest is None:
+            return initial_epoch
+        if not self.model.built:
+            self.model.build((None, *self.cfg.model.input_shape_hw, 3))
+        self.optimizer.build(self.model.trainable_variables)
+        epoch = saver.restore()
+        for callback in callbacks:
+            if isinstance(callback, tf.keras.callbacks.CSVLogger):
+                callback.append = True  # the interrupted run already logged earlier epochs
+        print(f" [Verres.training] - Resuming from checkpoint, epoch {epoch}")
+        # The log can be one epoch ahead of the checkpoint if the process died between the two.
+        return max(epoch, initial_epoch)
 
     # @tf.function
     def train_step(self, batch):

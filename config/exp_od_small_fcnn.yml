@@ -1,7 +1,7 @@
 context:
   experiment_set: od
-  experiment_name: baseline
-  artifactory_root: /artifactory
+  experiment_name: small_fcnn
+  artifactory_root: ./artifactory
   execution_type: training
   verbose: 2
 
@@ -24,7 +24,7 @@ model:
 training:
   data:
     - name: cocodoom
-      root: /data/cocodoom
+      root: /data/Datasets/cocodoom
       subset: train
       sampling_probability: 1.0
       transformations:
@@ -56,18 +56,19 @@ training:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
-    boundaries: [20000, 40000]
-    values: [0.01, 0.001, 0.0001]
+    # 120 epochs x 1000 steps = 120k steps; drop x0.1 at 60% and 85% of the run
+    boundaries: [72000, 102000]
+    values: [0.001, 0.0001, 0.00001]
   callbacks:
     - { name: LatestModelCheckpoint }
-    - { name: ObjectMAP, checkpoint_best: True }
+    - { name: ObjectMAP, checkpoint_best: True, every_n_epochs: 5 }
     - { name: CSVLogger }
     - { name: TensorBoard }
 
 evaluation:
   data:
     - name: cocodoom
-      root: /data/cocodoom
+      root: /data/Datasets/cocodoom
       subset: val-mini
       transformations:
         - { name: image, stride: 1 }
@@ -82,20 +83,22 @@ evaluation:
 inference:
   data:
     - name: cocodoom
-      root: /data/cocodoom
+      root: /data/Datasets/cocodoom
       subset: val
+      # Inference encodes images only: the decode chain comes from `training.data[0].transformations`.
       transformations:
         - { name: image, stride: 1 }
-        - { name: uniform_heatmap, stride: 4 }
-        - { name: refinement, stride: 4 }
-        - { name: box_wh, stride: 4 }
       kwargs:
         full: True
         split: run
+        # sequence: run2/map01     # optional `run<N>/map<NN>` selector; omit to stream the whole split
+        # frame_range: [0, 600]    # optional [start, end) frame indices inside the selected sequence
 
   visualization_mode: detection
   to_screen: True
-  output_video_path: ""
+  output_video_path: ""        # e.g. out.mp4; .mp4 (mp4v) is the default, .avi also works
   fps: 25
   total_num_frames: 400
   output_upscale_factor: 2
+  score_threshold: 0.3         # detections below this score are not drawn
+  realtime_playback: False     # sleep to the source fps when displaying on screen

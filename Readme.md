@@ -105,7 +105,7 @@ This runs `python main.py --config ...`. Training can be resumed with
 
 If one would not like to use Docker, the environment can also be assembled by
 
-`pip install .` or `pip install .[gpu]`
+`pip install .`
 
 Or using conda for CPU-based acceleration:
 
@@ -123,6 +123,20 @@ root by
 ### Examples
 
 Example configs are stored in the `config/` directory, example scripts in `experiments/`.
+
+### Tests and tools
+
+```.venv/bin/python -m pytest tests -q```
+
+`notebooks/colab_train.ipynb` runs a training on a Colab GPU: it clones the repo, downloads the official
+COCODoom archive into the VM and keeps the artifactory on Drive (`notebooks/README.md`).
+
+```python experiments/render_video.py config/exp_od_small_fcnn.yml artifactory/od/small_fcnn/xp_... \
+    --sequence run2/map01 --frames 0 600 --out out.mp4```
+
+`render_video.py` draws the detections of a trained run on one sequence into a video, and
+`inference_time_od.py <config> [--threads N] [--tflite]` benchmarks the forward and forward+decode
+latency of a config and prints a JSON summary.
 
 ## Status 26Q3
 

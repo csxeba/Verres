@@ -30,14 +30,16 @@ class VRSCriteria:
         all_losses = {}
 
         object_center_locations = tf.convert_to_tensor(y_true["object_center_locations"])
-        N = tf.cast(tf.shape(object_center_locations)[0], tf.float32)
-        N = tf.maximum(N, 1.)
+        num_objects = tf.shape(object_center_locations)[0]
+        N = tf.maximum(tf.cast(num_objects, tf.float32), 1.)
 
         for feature_name, loss_fn in self.loss_functions.items():
             if loss_fn.is_sparse_loss:
                 current_loss = loss_fn.call(y_true=y_true[feature_name],
                                             y_pred=y_pred[feature_name],
                                             locations=object_center_locations)
+                # Mean-style losses reduce over an empty gather to NaN; a batch without objects has no signal.
+                current_loss = tf.where(num_objects > 0, current_loss, 0.)
             else:
                 current_loss = loss_fn.call(y_true=y_true[feature_name],
                                             y_pred=y_pred[feature_name])

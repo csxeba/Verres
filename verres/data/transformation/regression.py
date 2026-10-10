@@ -45,9 +45,6 @@ class RefinementTensor(Transformation):
         return {self.output_fields[0]: scale_01_refinements}
 
     def decode(self, tensors: Dict[str, tf.Tensor], label: Label) -> Label:
-        if len(label.object_centers) == 0:
-            return label
-
         rreg = tensors[self.output_fields[0]]
         assert len(rreg.shape) == 3
 
@@ -87,9 +84,6 @@ class BoxWHTensor(Transformation):
         return {self.output_fields[0]: box_whs}
 
     def decode(self, tensors: Dict[str, tf.Tensor], label: Label) -> Label:
-        if len(label.object_centers) == 0:
-            return label
-
         tensor = tensors[self.output_fields[0]]
         assert len(tensor.shape) == 3
 
@@ -125,8 +119,6 @@ class BoxCornerTensor(Transformation):
         return {"box_corners": sample.label.object_keypoint_coords}
 
     def decode(self, tensors: Dict[str, tf.Tensor], label: Label) -> Label:
-        if len(label.object_centers) == 0:
-            return label
         tensor = tensors[self.output_fields[0]]
         assert len(tensor.shape) == 3
 

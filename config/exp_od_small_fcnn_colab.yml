@@ -1,0 +1,102 @@
+context:
+  experiment_set: od
+  experiment_name: small_fcnn
+  artifactory_root: /content/drive/MyDrive/verres-artifactory
+  execution_type: training
+  verbose: 2
+
+model:
+  input_height: 200
+  input_width: 320
+  maximum_stride: 8
+  backbone_spec:
+    name: SmallFCNN
+    strides: [2, 4, 8]
+    width_base: 16
+  neck_spec:
+    name: AutoFusion
+    output_stride: 4
+    output_width: 64
+  head_spec:
+    name: OD
+    peak_nms: 0.3
+
+training:
+  data:
+    - name: cocodoom
+      root: /content/cocodoom
+      subset: train
+      sampling_probability: 1.0
+      transformations:
+        - { name: image, stride: 1 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
+      kwargs:
+        full: False
+        split: run
+  epochs: 40
+  steps_per_epoch: 793    # 50732 run-train images / batch 64: one epoch is one pass over the split
+  batch_size: 64
+  criteria_spec:
+    losses:
+      - name: focal
+        feature: heatmap
+        weight: 1.
+      - name: mean_absolute_error
+        feature: refinement
+        weight: 10.
+        sparse: True
+      - name: mean_absolute_error
+        feature: box_wh
+        weight: 1.
+        sparse: True
+
+  optimizer_spec:
+    name: Adam
+  lr_schedule_spec:
+    name: PiecewiseConstantDecay
+    # 40 epochs x 793 steps = 31720 steps; drop x0.1 at 60% and 85% of the run
+    boundaries: [19032, 26962]
+    values: [0.001, 0.0001, 0.00001]
+  callbacks:
+    - { name: LatestModelCheckpoint }
+    - { name: ObjectMAP, checkpoint_best: True, every_n_epochs: 5 }
+    - { name: CSVLogger }
+    - { name: TensorBoard }
+
+evaluation:
+  data:
+    - name: cocodoom
+      root: /content/cocodoom
+      subset: val-mini
+      transformations:
+        - { name: image, stride: 1 }
+        - { name: uniform_heatmap, stride: 4 }
+        - { name: refinement, stride: 4 }
+        - { name: box_wh, stride: 4 }
+      kwargs:
+        full: False
+        split: run
+  detection_output_file : default
+
+inference:
+  data:
+    - name: cocodoom
+      root: /content/cocodoom
+      subset: val
+      # Inference encodes images only: the decode chain comes from `training.data[0].transformations`.
+      transformations:
+        - { name: image, stride: 1 }
+      kwargs:
+        full: False             # the standard Colab archive only ships the run-{train,val,test} splits
+        split: run
+
+  visualization_mode: detection
+  to_screen: True
+  output_video_path: ""        # e.g. out.mp4; .mp4 (mp4v) is the default, .avi also works
+  fps: 25
+  total_num_frames: 400
+  output_upscale_factor: 2
+  score_threshold: 0.3         # detections below this score are not drawn
+  realtime_playback: False     # sleep to the source fps when displaying on screen

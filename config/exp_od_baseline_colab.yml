@@ -1,7 +1,7 @@
 context:
   experiment_set: od
   experiment_name: baseline
-  artifactory_root: /data/My Drive/artifactory
+  artifactory_root: /content/drive/MyDrive/verres-artifactory
   execution_type: training
   verbose: 2
 
@@ -11,6 +11,7 @@ model:
   maximum_stride: 8
   backbone_spec:
     name: ResNet50
+    weights: imagenet
     feature_layers:
       - conv2_block3_out  # stride: 4 width: 256
       - conv3_block4_out  # stride: 8 width: 512
@@ -26,9 +27,11 @@ model:
 training:
   data:
     - name: cocodoom
-      root: /data/Datasets/cocodoom
+      root: /content/cocodoom
       subset: train
       sampling_probability: 1.0
+      image_level_filters:
+        - { name: Comparison, attr_path: [metadata, num_objects], ge: 1 }
       transformations:
         - { name: image, stride: 1 }
         - { name: uniform_heatmap, stride: 4 }
@@ -57,19 +60,20 @@ training:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
-    boundaries: [20000, 40000]
-    values: [0.1, 0.01, 0.001]
+    # 120 epochs x 1000 steps = 120k steps; drop x0.1 at 60% and 85% of the run
+    boundaries: [72000, 102000]
+    values: [0.001, 0.0001, 0.00001]
   callbacks:
     - { name: LatestModelCheckpoint }
-#    - { name: ObjectMAP, checkpoint_best: True }
+    - { name: ObjectMAP, checkpoint_best: True, every_n_epochs: 5 }
     - { name: CSVLogger }
     - { name: TensorBoard }
 
 evaluation:
   data:
     - name: cocodoom
-      root: /data/Datasets/cocodoom
-      subset: val
+      root: /content/cocodoom
+      subset: val-mini
       transformations:
         - { name: image, stride: 1 }
         - { name: uniform_heatmap, stride: 4 }
@@ -83,19 +87,19 @@ evaluation:
 inference:
   data:
     - name: cocodoom
-      root: /data/Datasets/cocodoom
+      root: /content/cocodoom
       subset: val
+      # Inference encodes images only: the decode chain comes from `training.data[0].transformations`.
       transformations:
         - { name: image, stride: 1 }
-        - { name: uniform_heatmap, stride: 4 }
-        - { name: refinement, stride: 4 }
-        - { name: box_wh, stride: 4 }
       kwargs:
-        full: True
+        full: False             # the standard Colab archive only ships the run-{train,val,test} splits
         split: run
 
   visualization_mode: detection
   to_screen: True
-  output_video_path: ""
+  output_video_path: ""        # e.g. out.mp4; .mp4 (mp4v) is the default, .avi also works
   fps: 25
   total_num_frames: 200
+  score_threshold: 0.3         # detections below this score are not drawn
+  realtime_playback: False     # sleep to the source fps when displaying on screen

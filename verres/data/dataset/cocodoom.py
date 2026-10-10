@@ -18,7 +18,7 @@ def _generate_annotation_name(split: str, full: bool, subset: str):
     if split not in ["map", "run"]:
         raise RuntimeError('COCODoom split must either be one of "map", "run".')
     if subset not in ["train", "val", "test", "val-mini"]:
-        raise RuntimeError('COCODoom subset must either be on of "train", "val", "test".')
+        raise RuntimeError('COCODoom subset must either be one of "train", "val", "test", "val-mini".')
     elements = [split]
     if full:
         elements.append("full")
@@ -98,6 +98,17 @@ class COCODoomDataset(Dataset):
             spec.kwargs["full"],
             spec.subset,
         )
+        orig_annotation_file_path = os.path.join(spec.root, annotation_name)
+        # The `-mini` variant is derived from its source split on first use, next to the source json.
+        if annotation_name.endswith("-mini.json") and not os.path.exists(orig_annotation_file_path):
+            source_annotation_file_path = orig_annotation_file_path.replace("-mini.json", ".json")
+            if not os.path.exists(source_annotation_file_path):
+                raise RuntimeError(f"Couldn't find the source of the mini subset: {source_annotation_file_path}")
+            V.utils.cocodoom.generate_mini_dataset(
+                source_annotation_file_path,
+                orig_annotation_file_path,
+                num_images=spec.kwargs.get("mini_size", 500),
+            )
         cache_name = annotation_name.replace(
             ".json", f"-{_class_mapping_hash(config.class_mapping)}.json")
         self.annotation_file_path = os.path.join(

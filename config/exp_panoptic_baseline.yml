@@ -22,12 +22,11 @@ model:
     output_width: 128
   head_spec:
     name: panoptic
-    num_classes: 16
 
 training:
   data:
     - name: cocodoom
-      root: /data/cocodoom
+      root: /data/Datasets/cocodoom
       subset: train
       sampling_probability: 1.0
       image_level_filters:
@@ -52,17 +51,16 @@ training:
       - name: mean_absolute_error
         feature: refinement
         weight: 10.
-        sparse_location_feature: regression_mask
       - name: mean_absolute_error
         feature: box_wh
         weight: 1.
-        sparse_location_feature: regression_mask
 
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
     name: PiecewiseConstantDecay
-    boundaries: [20000, 40000]
+    # 120 epochs x 1000 steps = 120k steps; drop x0.1 at 60% and 85% of the run
+    boundaries: [72000, 102000]
     values: [0.01, 0.001, 0.0001]
   callbacks:
     - { name: LatestModelCheckpoint }
@@ -73,8 +71,8 @@ training:
 evaluation:
   data:
     - name: cocodoom
-      root: /data/cocodoom
-      subset: val-mini
+      root: /data/Datasets/cocodoom
+      subset: val
       transformations:
         - { name: image, stride: 1 }
         - { name: heatmap, stride: 4 }
@@ -89,7 +87,7 @@ evaluation:
 inference:
   data:
     - name: cocodoom
-      root: /data/cocodoom
+      root: /data/Datasets/cocodoom
       subset: val
       transformations:
         - { name: image, stride: 1 }

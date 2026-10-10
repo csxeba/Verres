@@ -82,6 +82,7 @@ class TrainingConfig(pydantic.BaseModel):
 class EvaluationConfig(pydantic.BaseModel):
     data: List[DatasetSpec]
     detection_output_file: str = "temporary"
+    batch_size: int = 16
 
 
 class InferenceConfig(pydantic.BaseModel):
@@ -92,6 +93,8 @@ class InferenceConfig(pydantic.BaseModel):
     total_num_frames: int = -1
     output_upscale_factor: int = 1
     visualization_mode: str = ""
+    score_threshold: float = 0.3
+    realtime_playback: bool = False
 
 
 class Config(pydantic.BaseModel):
