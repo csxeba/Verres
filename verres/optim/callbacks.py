@@ -18,7 +18,7 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.cfg = config
         self.evaluator: Union[V.execution.EvaluationExecutor, None] = None
         self.artifactory = artifactory
-        self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}.h5"))
+        self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}"))
         self.last_map = -1.
         self.last_chkp = ""
         self.checkpoint_best = checkpoint_best
@@ -47,8 +47,9 @@ class ObjectMAP(tf.keras.callbacks.Callback):
 
     def _save_best(self, epoch: int, mAP: float):
         """Weights-only best checkpoint; the previous best survives until the new file is complete."""
-        checkpoint_path = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
-        temporary_path = checkpoint_path + ".incomplete.h5"
+        stem = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
+        checkpoint_path = stem + ".weights.h5"
+        temporary_path = stem + ".incomplete.weights.h5"
         self.model.save_weights(temporary_path, overwrite=True)
         os.replace(temporary_path, checkpoint_path)
         if self.last_chkp and os.path.exists(self.last_chkp):
@@ -62,7 +63,7 @@ class LatestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
     def __init__(self, config: V.Config):
 
         artifactory = V.Artifactory.get_default(config)
-        super().__init__(filepath=str(artifactory.checkpoints / "latest.h5"),
+        super().__init__(filepath=str(artifactory.checkpoints / "latest.weights.h5"),
                          monitor="loss",
                          verbose=0,
                          save_best_only=False,
@@ -78,7 +79,7 @@ class BestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
 
         artifactory = V.Artifactory.get_default(config)
         super().__init__(
-            filepath=str(artifactory.checkpoints / f"best_{monitored_kpi.replace('/', '_')}.h5"),
+            filepath=str(artifactory.checkpoints / f"best_{monitored_kpi.replace('/', '_')}.weights.h5"),
             monitor=monitored_kpi,
             mode=monitoring_mode,
             verbose=0,

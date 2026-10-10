@@ -126,6 +126,8 @@ Example configs are stored in the `config/` directory, example scripts in `exper
 
 ### Tests and tools
 
+Tests run in a TensorFlow >= 2.16 / Keras 3 environment.
+
 ```.venv/bin/python -m pytest tests -q```
 
 `notebooks/colab_train.ipynb` runs a training on a Colab GPU: it clones the repo, downloads the official

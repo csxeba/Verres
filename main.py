@@ -2,7 +2,7 @@ import argparse
 import os
 from typing import Dict, Any
 
-import verres as V  # imported first: it sets TF_USE_LEGACY_KERAS before tensorflow is imported
+import verres as V  # imported first: it pins KERAS_BACKEND before keras is imported
 
 import tensorflow as tf
 import yaml
@@ -85,9 +85,16 @@ def main(config_path: str = None,
     if continue_train not in {None, "_unset"}:
         resume_dir = continue_train
         config_path = os.path.join(resume_dir, "config.yml")
-        weights = os.path.join(resume_dir, "checkpoints", "latest.h5")
+        weights = os.path.join(resume_dir, "checkpoints", "latest.weights.h5")
+        ckpt_dir = V.optim.checkpoint.checkpoint_dir(resume_dir)
         if os.path.exists(weights):
             config_updates["model.weights"] = weights
+        elif not os.path.isdir(ckpt_dir):
+            raise FileNotFoundError(
+                f"Cannot resume {resume_dir}: neither {weights} nor {ckpt_dir} holds the run's weights.")
+        else:
+            # The run's own config.yml pins the weights file, which is gone; tf_ckpt holds them.
+            config_updates["model.weights"] = None
         config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(resume_dir)
 
     class_mapping_path = class_mapping_path or "config/class_mappings/cocodoom.yml"

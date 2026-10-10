@@ -4,7 +4,7 @@ import re
 
 import tensorflow as tf
 
-_CHECKPOINT_NAME = re.compile(r"chkp_epoch_(\d+)_map_(\d+\.\d+)\.h5$")
+_CHECKPOINT_NAME = re.compile(r"chkp_epoch_(\d+)_map_(\d+\.\d+)\.weights\.h5$")
 
 
 def _serving_concrete(model: "tf.keras.Model"):
@@ -32,7 +32,7 @@ def export_tflite(model, path: str, quantize: bool = False) -> str:
 def _best_checkpoint(checkpoints: pathlib.Path):
     """Highest-mAP best-epoch checkpoint; filenames do not sort by mAP after a resumed run."""
     scored = []
-    for path in checkpoints.glob("chkp_epoch_*_map_*.h5"):
+    for path in checkpoints.glob("chkp_epoch_*_map_*.weights.h5"):
         match = _CHECKPOINT_NAME.match(path.name)
         if match:
             scored.append(((float(match.group(2)), int(match.group(1))), path))
@@ -44,10 +44,11 @@ def load_weights_into(model, run_dir: str) -> str:
     checkpoints = pathlib.Path(run_dir) / "checkpoints"
     weights = _best_checkpoint(checkpoints)
     if weights is None:
-        weights = checkpoints / "latest.h5"
+        weights = checkpoints / "latest.weights.h5"
         if not weights.exists():
             raise FileNotFoundError(
-                f"No weights in {checkpoints}: expected chkp_epoch_*_map_*.h5 or latest.h5")
+                f"No weights in {checkpoints}: expected chkp_epoch_*_map_*.weights.h5 "
+                f"or latest.weights.h5")
     if not model.built:
         # SmallFCNN creates nothing until a traced call, and load_weights needs built layers.
         model(tf.zeros((1, *model.cfg.model.input_shape_hw, 3), dtype=tf.float32))

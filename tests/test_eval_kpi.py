@@ -1,13 +1,53 @@
 import json
+import pathlib
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import yaml
 
 pytest.importorskip("tensorflow")
 
+import verres as V
 from verres.execution.evaluation import build_kpi
 from verres.utils.cocodoom import generate_coco_detections, generate_mini_dataset
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def artifactory_singleton():
+    V.Artifactory.default_instance = None
+    yield
+    V.Artifactory.default_instance = None
+
+
+class _WeightsOnlyStub:
+    """Stands in for the model: `_save_best` only ever calls `save_weights` on it."""
+
+    def __init__(self, fail: bool = False):
+        self.fail = fail
+
+    def save_weights(self, path, overwrite=False):
+        if self.fail:
+            raise RuntimeError("disk full")
+        pathlib.Path(path).write_bytes(b"weights")
+
+
+@pytest.fixture
+def object_map(tmp_path):
+    """ObjectMAP without its evaluator: only the best-checkpoint bookkeeping is under test."""
+    spec = yaml.safe_load((REPO_ROOT / "config/exp_od_small_fcnn.yml").read_text())
+    spec["context"]["artifactory_root"] = str(tmp_path / "artifactory")
+    spec["context"]["experiment_set"] = "tests"
+    spec["context"]["experiment_name"] = "object_map"
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(yaml.dump(spec))
+
+    config = V.Config.from_paths(str(config_path), str(REPO_ROOT / "config/class_mappings/cocodoom.yml"))
+    callback = V.optim.callbacks.ObjectMAP(config)
+    callback._model = _WeightsOnlyStub()  # bypasses `set_model`, which would build the COCO evaluator
+    return callback
 
 
 def _tiny_coco_json(num_images: int, annos_per_image: int = 2) -> dict:
@@ -111,3 +151,27 @@ def test_build_kpi_reports_missing_class_as_minus_one():
 
     assert kpi["per_class_AP"] == {"imp": -1.}
     assert kpi["images_per_sec"] == 0.
+
+
+def test_object_map_keeps_only_the_new_best_weights(object_map):
+    checkpoints = pathlib.Path(V.Artifactory.default_instance.checkpoints)
+
+    object_map._save_best(epoch=0, mAP=0.1234)
+    first = checkpoints / "chkp_epoch_1_map_0.1234.weights.h5"
+    assert first.exists()
+    assert not list(checkpoints.glob("*.incomplete.weights.h5"))  # the temporary file never survives
+
+    object_map._save_best(epoch=1, mAP=0.5)
+    assert (checkpoints / "chkp_epoch_2_map_0.5000.weights.h5").exists()
+    assert not first.exists()  # the previous best is dropped only once the new one is in place
+
+
+def test_object_map_keeps_the_previous_best_when_the_save_fails(object_map):
+    checkpoints = pathlib.Path(V.Artifactory.default_instance.checkpoints)
+    object_map._save_best(epoch=0, mAP=0.1234)
+    first = checkpoints / "chkp_epoch_1_map_0.1234.weights.h5"
+
+    object_map.model.fail = True
+    with pytest.raises(RuntimeError):
+        object_map._save_best(epoch=1, mAP=0.5)
+    assert first.exists()

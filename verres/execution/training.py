@@ -63,6 +63,10 @@ class TrainingExecutor:
         with open(artifactory.root / "config.yml", "w") as handle:
             yaml.dump(self.cfg.dict(), handle)
 
+        if not self.model.built:
+            # Keras 3 creates the variables lazily, and the checkpoint saver tracks them.
+            self.model(tf.zeros((1, *self.cfg.model.input_shape_hw, 3), dtype=tf.float32))
+
         if stream is None:
             pipes = V.data.factory(self.cfg, specs=self.cfg.training.data)
 
@@ -99,8 +103,8 @@ class TrainingExecutor:
         initial_epoch = self.cfg.training.initial_epoch
         if saver.latest is None:
             return initial_epoch
-        if not self.model.built:
-            self.model.build((None, *self.cfg.model.input_shape_hw, 3))
+        if not self.model.trainable_variables:
+            raise RuntimeError("The model has no trainable variables to resume an optimizer from.")
         self.optimizer.build(self.model.trainable_variables)
         epoch = saver.restore()
         for callback in callbacks:

@@ -29,14 +29,19 @@ class TinyModel(tf.keras.Model):
 
     def __init__(self):
         super().__init__()
-        self.hidden = tf.keras.layers.Conv2D(2, 3, padding="same")
-        self.out = tf.keras.layers.Conv2D(1, 1)
+        # Layers in a plain list, as the real backbones keep them: Keras 3 only hands
+        # `tf.train.Checkpoint` the layers bound to plain attributes, never those inside a list.
+        self.layer_objects = [tf.keras.layers.Conv2D(2, 3, padding="same"),
+                              tf.keras.layers.BatchNormalization(),
+                              tf.keras.layers.Conv2D(1, 1)]
 
     def preprocess_input(self, image):
         return image
 
     def call(self, inputs, training=None, mask=None):
-        return self.out(self.hidden(inputs))
+        for layer in self.layer_objects:
+            inputs = layer(inputs, training=training)
+        return inputs
 
 
 class TinyCriteria:
@@ -81,6 +86,7 @@ def experiment(tmp_path):
 def _executor(config):
     schedule = ConstantSchedule(0.01)
     model = TinyModel()
+    model(tf.zeros((1, *HW, 3)))  # a subclassed model only materializes its weights on a call
     optimizer = tf.keras.optimizers.Adam(learning_rate=schedule)
     return TrainingExecutor(config, model, TinyCriteria(), optimizer, schedule), model, optimizer
 
@@ -99,17 +105,18 @@ def test_resume_continues_in_place(experiment):
     assert int(optimizer.iterations.numpy()) == STEPS  # 1 epoch x 2 steps
 
     # The checkpoint alone rebuilds the run: weights, optimizer step counter and epoch.
-    probe, probe_optimizer = TinyModel(), tf.keras.optimizers.Adam(learning_rate=0.01)
-    probe.build((None, *HW, 3))
+    probe, probe_optimizer = TinyModel(), tf.keras.optimizers.Adam(learning_rate=ConstantSchedule(0.01))
+    probe(tf.zeros((1, *HW, 3)))
     probe_optimizer.build(probe.trainable_variables)
     assert restore_latest(run_dir, probe, probe_optimizer) == 1
     assert int(probe_optimizer.iterations.numpy()) == STEPS
+    assert len(probe.get_weights()) == len(model.get_weights()) > 0  # the comparison below is not vacuous
     for trained, restored in zip(model.get_weights(), probe.get_weights()):
         assert np.allclose(trained, restored)
 
     # Adam slots must come back as well, not just the step counter.
-    assert len(probe_optimizer.variables()) == len(optimizer.variables())
-    for trained, restored in zip(optimizer.variables(), probe_optimizer.variables()):
+    assert len(probe_optimizer.variables) == len(optimizer.variables)
+    for trained, restored in zip(optimizer.variables, probe_optimizer.variables):
         assert np.allclose(trained.numpy(), restored.numpy()), trained.name
 
     # Resume the way main(continue_train=run_dir) does: same directory, more epochs.
@@ -130,3 +137,18 @@ def test_resume_continues_in_place(experiment):
 
     header = (run_dir / "training_logs.csv").read_text().strip().splitlines()[0]
     assert header.startswith("epoch")  # the log was appended to, not truncated or restarted
+
+
+def test_restore_rejects_an_optimizer_with_a_different_variable_set(experiment):
+    config, stream = experiment
+    executor, _, _ = _executor(config)
+    executor.execute(stream=stream)
+    run_dir = pathlib.Path(V.Artifactory.default_instance.root)
+
+    model = TinyModel()
+    model(tf.zeros((1, *HW, 3)))
+    # A float learning rate is its own variable, so the slots no longer line up with the run's.
+    foreign = tf.keras.optimizers.Adam(learning_rate=0.01)
+    foreign.build(model.trainable_variables)
+    with pytest.raises(RuntimeError, match="optimizer variables"):
+        restore_latest(run_dir, model, foreign)

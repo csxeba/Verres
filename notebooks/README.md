@@ -22,12 +22,10 @@ Download and extraction need ~5 GB of VM disk and are repeated on every new runt
 ## 3. First run checklist
 
 1. Runtime -> Change runtime type -> T4 GPU; the notebook only warns when no GPU is visible.
-2. Run the cells in order and read the `RESUMABLE` list before training. Colab's TensorFlow is
-   Keras 3, which Verres cannot use (it rejects `.h5` weight checkpoints), so the first cell reads the
-   runtime's TensorFlow version and sets `TF_USE_LEGACY_KERAS=1`, and the dependency cell installs
-   `tf_keras` pinned to that same version (a hard-coded pin would replace the runtime's TensorFlow;
-   TF < 2.16 needs no `tf_keras`). Cell 3b asserts the legacy backend is active and tells you to
-   Runtime -> Restart session when it is not.
+2. Run the cells in order and read the `RESUMABLE` list before training. The runtime's own
+   TensorFlow / Keras 3 is used as is: the config cell sets `KERAS_BACKEND=tensorflow`, and the
+   dependency cell installs `requirements-colab.txt` (TensorFlow itself is not reinstalled) and
+   checks the Keras major version.
 3. Fresh run: `RUN_DIR = None`. After a disconnect: mount Drive, re-download the dataset, set `RUN_DIR`
    to a `RESUMABLE` path. `EPOCHS` raises `training.epochs` for an already configured run.
 4. `artifactory_root` in the colab configs must point at Drive - checkpoints are what survives a disconnect.

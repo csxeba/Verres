@@ -52,7 +52,8 @@ class ApplicationBackbone(VRSBackbone):
 
     @tf.function
     def call(self, x, training=None, mask=None):
-        result = self._wrapped_model(x, training, mask)
+        # Keras 3 populates `training` as a keyword itself, so passing it positionally duplicates it.
+        result = self._wrapped_model(x, training=training)
         if len(self.feature_specs) == 1:
             result = [result]
         return result
