@@ -198,3 +198,4 @@ models/
 
 # Your environment setup
 environment_setup.sh
+artifactory/
