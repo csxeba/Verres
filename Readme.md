@@ -32,11 +32,11 @@ Verres organizes a Deep Learning experiment into the following abstractions:
 
 ### Data concepts:
 
-- **Task**: Specifies the ground truth and output that will be learned (eg. object detection)
-- **Data loader**: responsible for holding and transforming a dataset and exposes
-an iterator-like interface, that yields (batches of) sample IDs.
-- **Data streamer**: wraps the Data loader with the training preprocessing and
-ground truth tensor generation logic for training a neural network.
+- **Dataset**: holds a dataset and exposes sample IDs (`verres.data.dataset`).
+- **Transformation**: turns a sample into network input or ground truth tensors
+  (`verres.data.transformation`).
+- **Pipeline**: combines a dataset with its transformations. `stream()` and
+  `get_tf_dataset()` (`verres.data.streaming`) produce the training stream.
 
 ### Model concepts:
 
@@ -53,20 +53,16 @@ The backbone does not call this preprocessor, but assumes the inputs given to th
 backbone.call() method are treated with the exposed preprocessor.
 
 ### Postprocessing
-The head is responsible for exposing the following methods:
-- call(inputs): describes the logic for the forward pass during inference.
-- detect(inputs): handles preprocessing, calls *call()* and executes postprocessing.
-- train_step(data): handles image preprocessing, executes the forward pass in
-gradient tape, calculates gradients and calls optimizer.apply_gradients().
+The head is responsible for exposing `call(inputs)`, which describes the forward
+pass during inference. Training logic (`train_step`) lives in the
+`TrainingExecutor` (`verres.execution`).
 
- 
 ## Datasets
 
-Current supported datasets are available under verres.data.
+The currently supported dataset is available under verres.data.dataset.
 
 - cocodoom: synthetic video dataset with frame-by-frame annotations for objects,
 instance masks, depth and a lot more. See https://www.robots.ox.ac.uk/~vgg/research/researchdoom/cocodoom/
-- inmemory: some image classification datasets, that fit into the RAM easily.
 
 ## Framework mode
 
@@ -78,29 +74,32 @@ files in the Verres docker environment.
 Building and interactively entering the Verres environment can be done by
 using our Makefile.
 
-First edit the `.env` file and set the following paths and variables:
+First copy `environment_setup_sample.sh` to `environment_setup.sh` and set the following variables:
 
-- **host_artifactory_root**: where artifacts (logfiles, model checkpoints) go.
+- **VERRES_ARTIFACTORY**: where artifacts (logfiles, model checkpoints) go.
   Mounted to `/artifactory`
-- **host_models_root**: where your pretrained weights are.
+- **VERRES_MODELS**: where your pretrained weights are.
   Mounted to `/models`
-- **host_data_root**: where your datasets are stored (cocodoom for instance)
+- **VERRES_DATA**: where your datasets are stored (cocodoom for instance)
   Mounted to `/data`
-- **compute_accelerator**: either mkl or gpu
-- **host_tensorboard_port**: where to forward the tensorboard port
-- **host_jupyter_port**: where to forward the jupyter port
+- **VERRES_ACCELERATOR**: either mkl or gpu
+- **VERRES_TENSORBOARD_PORT**: where to forward the tensorboard port
+- **VERRES_JUPYTER_PORT**: where to forward the jupyter port
 
 The Verres framework root will also be mounted to `/workspace`.
 
 `make` or `make run` will start and attach to an interactive shell.
 
-`make jupyter` will start a jupyter server.
+`make run-jupyter` will start a jupyter server.
 
-`make tensorboard` will fire up a TensorBoard server.
+`make run-tensorboard` will fire up a TensorBoard server.
 
-An arbitrary Python script can be executed in the docker environment by issuing
+An experiment can be executed in the docker environment by issuing
 
-```./main arbitrary_path_to_python_script.py [--arbitrary --params]```
+```./main path/to/config.yml [-e EXECUTION_TYPE] [-w MODEL_WEIGHTS] [-u field.path=value ...]```
+
+This runs `python main.py --config ...`. Training can be resumed with
+`--continue_training <artifact dir>`.
 
 ### Non-docker
 
@@ -119,11 +118,11 @@ Or using conda for GPU-based acceleration:
 It is advised to set the PYTHONPATH variable to include the Verres repository
 root by
 
-`EXPORT PYTHONPATH="${pwd}:${PYTHONPATH}"`
+`export PYTHONPATH="$(pwd):${PYTHONPATH}"`
 
 ### Examples
 
-Example executions are stored in the `executions/` directory.
+Example configs are stored in the `config/` directory, example scripts in `experiments/`.
 
 ## Status 26Q3
 
@@ -133,7 +132,7 @@ There are good ideas in this repo.
 
 ## Thanks!
 
-Thank you for using Verres for you Deep Learning experiments. Issues and
+Thank you for using Verres for your Deep Learning experiments. Issues and
 pull requests are always welcome!
 
 
