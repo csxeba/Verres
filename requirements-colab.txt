@@ -1,4 +1,12 @@
-# Assumes a Colab runtime whose bundled TensorFlow still exposes the legacy tf.keras 2.x API (TF ~2.15); TensorFlow itself is not listed, no tf_keras shim is needed.
+# Extra packages for a Colab runtime. TensorFlow is NOT listed: Colab already ships it and
+# reinstalling one can break the runtime's CUDA/GPU stack. tf_keras is not listed either - the
+# notebook installs it pinned to the runtime's own TensorFlow (pip install "tf_keras~=2.21.0" by
+# hand in a local venv), because tf_keras depends on the matching tensorflow version.
+# Verified against tensorflow 2.21.0 / tf_keras 2.21.0 / numpy 2.5.3 on python 3.12.
+# Verres needs the legacy Keras 2 API, which TF >= 2.16 only exposes through tf_keras, enabled by
+# TF_USE_LEGACY_KERAS=1 (set by verres/__init__.py); TF < 2.16 has that API in-tree and needs none.
+# TF >= 2.21 no longer depends on tensorboard, but the TensorBoard callback needs tf.summary.scalar.
+tensorboard
 pycocotools
 pydantic
 opencv-python-headless

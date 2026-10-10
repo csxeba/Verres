@@ -2,10 +2,10 @@ import argparse
 import os
 from typing import Dict, Any
 
+import verres as V  # imported first: it sets TF_USE_LEGACY_KERAS before tensorflow is imported
+
 import tensorflow as tf
 import yaml
-
-import verres as V
 
 
 def get_args():
