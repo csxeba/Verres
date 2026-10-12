@@ -10,3 +10,4 @@
 - Docstrings: maximum 2 sentence
 - Load skills right away: `ponytail:ponytail`, `project-memory`
 - Project memory root is `verres-memory`
+- Google Drive connector: resolve folders/files with `search_files` (`parentId = ...`, `excludeContentSnippets`), read CSV/JSON with `read_file_content` (plain text); `download_file_content` returns base64, use only for tiny files

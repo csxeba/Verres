@@ -25,3 +25,13 @@ Contains ideas planned out at various stages.
 - Big network runs of the key-frames (X), every n frames, predicts output t0
 - Small diff network:
   - input is sparse dX_t + output at t > 0. 
+  
+  
+## Random idea - computer control
+
+This is a tangential idea.
+
+Gesture-based computer inputs. Since mouse is still the king, try to aid
+mouse control with gaze first. Gaze direction + face gesture would be used to
+make large scale adjustment to mouse position, then mouse is used for finer
+control. Setup could be used to extract data for further refinement trainings.
