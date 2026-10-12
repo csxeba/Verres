@@ -25,6 +25,7 @@ class CollateBatch:
                     result["object_center_locations"] = ops.numeric.get_object_center_locations(
                         sample_list,
                         stride=ftr.stride,
+                        input_shape_hw=self.cfg.model.input_shape_hw,
                     )
             else:
                 collated = np.stack(tensor_list, axis=0)

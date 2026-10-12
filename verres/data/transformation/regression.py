@@ -14,8 +14,8 @@ def _peak_cell_locations(label: Label, output_shape_hw: tf.Tensor) -> tf.Tensor:
     """Tensor cell index for every object: the heatmap peak cell, never the refined center."""
     cells = label.object_center_cells
     if cells is None:
-        centers = tf.convert_to_tensor(label.object_centers, dtype=tf.float32)
-        cells = tf.cast(tf.floor(centers[..., ::-1] * output_shape_hw), tf.int32)
+        # Same float64 computation the training targets use, so both paths pick the same cell.
+        cells = T.peak_cell_locations(label.object_centers, np.asarray(output_shape_hw, dtype=int))
     return tf.clip_by_value(tf.cast(cells, tf.int32), 0, tf.cast(output_shape_hw, tf.int32) - 1)
 
 
@@ -38,7 +38,8 @@ class RefinementTensor(Transformation):
         self.stride: int = transformation_spec["stride"]
 
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
-        label_shape = tuple(s // self.stride for s in sample.input.shape_whc[:2])
+        # Target grid follows the model input, not the native image; (w, h) order for quantize_coordinates.
+        label_shape = tuple(s // self.stride for s in self.cfg.model.input_shape_hw[::-1])
         scale_01_precise_coords = sample.label.object_centers
         scale_01_quantized_coords = T.quantize_coordinates(scale_01_precise_coords, label_shape)
         scale_01_refinements = scale_01_precise_coords - scale_01_quantized_coords

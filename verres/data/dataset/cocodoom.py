@@ -17,8 +17,8 @@ from .. import filters
 def _generate_annotation_name(split: str, full: bool, subset: str):
     if split not in ["map", "run"]:
         raise RuntimeError('COCODoom split must either be one of "map", "run".')
-    if subset not in ["train", "val", "test", "val-mini"]:
-        raise RuntimeError('COCODoom subset must either be one of "train", "val", "test", "val-mini".')
+    if subset not in ["train", "val", "test", "train-mini", "val-mini"]:
+        raise RuntimeError('COCODoom subset must either be one of "train", "val", "test", "train-mini", "val-mini".')
     elements = [split]
     if full:
         elements.append("full")

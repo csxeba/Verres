@@ -25,7 +25,10 @@ class ImageProcessor(Transformation):
         image = cv2.imread(sample.input.image_path)
         if image is None:
             raise RuntimeError(f"No image found @ {sample.input.image_path}")
-        assert image.shape[:2] == sample.input.shape_whc[:2][::-1] == self.cfg.model.input_shape_hw[:2]
+        height, width = self.cfg.model.input_shape_hw[:2]
+        if image.shape[:2] != (height, width):  # boxes are built on the model-input grid, so resizing is lossless for the targets
+            image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
+        assert image.shape[:2] == (height, width)
         return {self.output_fields[0]: image}
 
     def decode(self, tensors, label):

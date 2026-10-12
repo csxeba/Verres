@@ -47,7 +47,8 @@ class VRSCriteria:
                 tf.assert_equal(tf.reduce_any(tf.math.is_nan(current_loss)), False,
                                 f"NaN Guard for {feature_name}/{loss_fn.name}")
 
-            loss += current_loss * loss_fn.loss_weight / N
+            # Mean-reduced terms are already per-object averages: dividing them by N again starves them.
+            loss += current_loss * loss_fn.loss_weight / (N if loss_fn.sum_reduced else 1.)
             all_losses[feature_name] = current_loss
 
         total_loss = tf.reduce_mean(loss)

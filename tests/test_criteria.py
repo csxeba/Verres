@@ -32,17 +32,17 @@ def _losses(locations, refinement, box_wh):
     return {name: float(value) for name, value in criteria(y_true, y_pred).items()}
 
 
-def test_sparse_losses_keep_the_old_formula_for_batches_with_objects():
+def test_only_sum_reduced_terms_are_divided_by_the_object_count():
     locations = np.array([[0, 1, 2], [0, 4, 5]], dtype=np.int64)  # (batch, y, x) format: matrix
 
     losses = _losses(locations, REFINEMENT, BOX_WH)
 
-    # mean(|target|) over the gathered cells, weighted and divided by the number of objects.
+    # mean(|target|) over the gathered cells, weighted; only the sum-reduced focal term is divided by the object count.
     assert losses["refinement"] == pytest.approx(np.abs(REFINEMENT).mean())
     assert losses["box_wh"] == pytest.approx(np.abs(BOX_WH).mean())
     assert losses["loss"] == pytest.approx(losses["heatmap"] / NUM_OBJECTS
-                                           + np.abs(REFINEMENT).mean() * 10. / NUM_OBJECTS
-                                           + np.abs(BOX_WH).mean() / NUM_OBJECTS)
+                                           + np.abs(REFINEMENT).mean() * 10.
+                                           + np.abs(BOX_WH).mean())
 
 
 def test_batch_without_objects_has_no_regression_loss_and_no_nan():

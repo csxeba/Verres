@@ -1,3 +1,4 @@
+import math
 from typing import List, Dict
 
 import tensorflow as tf
@@ -7,6 +8,9 @@ from verres.feature import Feature
 from ..layers import block
 from .base import VRSHead
 from ..backbone import FeatureSpec
+
+# CenterNet bias init: sigmoid(-2.197) == 0.1 background prior, so focal loss starts near its floor.
+HEATMAP_PRIOR_BIAS = -math.log((1.0 - 0.1) / 0.1)
 
 
 class OD(VRSHead):
@@ -24,7 +28,8 @@ class OD(VRSHead):
                     dtype="float32",
                     depth=num_classes,
                 ),
-                pre_width=pre_width
+                pre_width=pre_width,
+                output_bias_initializer=tf.keras.initializers.Constant(HEATMAP_PRIOR_BIAS)
             ),
             block.VRSHead(
                 output_feature=Feature(
@@ -65,7 +70,8 @@ class CTDet(VRSHead):
         self.hmap_head = block.VRSHead(
             output_feature=Feature(name="heatmap", stride=stride, sparse=False, dtype="float32",
                                    depth=num_classes),
-            pre_width=pre_width)
+            pre_width=pre_width,
+            output_bias_initializer=tf.keras.initializers.Constant(HEATMAP_PRIOR_BIAS))
         self.rreg_head = block.VRSHead(
             output_feature=Feature(name="refinement", stride=stride, sparse=False, dtype="float32",
                                    depth=num_classes * 2),

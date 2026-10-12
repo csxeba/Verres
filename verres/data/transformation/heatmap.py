@@ -35,9 +35,8 @@ class UniformSigmaHeatmapProcessor(abstract.Transformation):
         self.stride = transformation_spec["stride"]
         self.num_classes = config.class_mapping.num_classes
         self.tensor_depth = self.num_classes + 1  # bg
-        self.full_tensor_shape = (config.model.input_shape_hw[0] // self.stride,
-                                  config.model.input_shape_hw[1] // self.stride,
-                                  self.num_classes)  # Format: matrix
+        # Same padded grid as the feature, so a model input that is not a multiple of the stride still matches.
+        self.full_tensor_shape = tuple(padded_shape) + (self.num_classes,)  # Format: matrix
 
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
         gauss = np.zeros(self.full_tensor_shape, dtype=np.float32)
@@ -71,6 +70,8 @@ class UniformSigmaHeatmapProcessor(abstract.Transformation):
         label_instance.object_centers = centroids.numpy()[..., ::-1]
         label_instance.object_types = types.numpy()
         label_instance.object_scores = scores.numpy()
+        # The peaks are exact cells; re-deriving them from the float32 centroids would shift objects by one cell.
+        label_instance.object_center_cells = peaks[:, :2].numpy()
 
         return label_instance
 
@@ -159,6 +160,7 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
         _scores, _inds = tf.math.top_k(_hm, k=100, sorted=True)
         _classes = _inds % cat
         _inds = tf.cast(_inds / cat, tf.int32)
+        cells_yx = tf.stack([_inds // width, _inds % width], axis=1)  # format: matrix
         _xs = tf.cast(_inds % width, tf.float32)
         _ys = tf.cast(tf.floor(_inds / width), tf.float32)  # xy format: Image
 
@@ -178,5 +180,6 @@ class VariableSigmaHeatmapProcessor(UniformSigmaHeatmapProcessor):
         label.object_centers = centroids[valid_score]
         label.object_types = _classes[valid_score]
         label.object_scores = _scores[valid_score]
+        label.object_center_cells = cells_yx[valid_score].numpy()  # exact cells, see UniformSigmaHeatmapProcessor
 
         return label

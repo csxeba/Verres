@@ -30,12 +30,14 @@ class VRSConvolution(VRSLayerStack):
                  batch_normalize: bool = True,
                  kernel_size: int = 3,
                  stride: int = 1,
-                 initializer: str = "he_uniform"):
+                 initializer: str = "he_uniform",
+                 bias_initializer=None):
 
         super().__init__()
 
+        bias_kwarg = {} if bias_initializer is None else {"bias_initializer": bias_initializer}
         self.layer_objects = [tfl.Conv2D(width, kernel_size, padding="same", kernel_initializer=initializer,
-                                         strides=stride)]
+                                         strides=stride, **bias_kwarg)]
         if batch_normalize:
             self.layer_objects.append(tfl.BatchNormalization())
         if activation is not None:
@@ -58,6 +60,7 @@ class VRSHead(VRSLayerStack):
                  pre_activation: str = "leakyrelu",
                  output_activation: str = "linear",
                  output_initializer: str = "default",
+                 output_bias_initializer=None,
                  batch_normalize: bool = True,
                  **kwargs):
 
@@ -74,7 +77,8 @@ class VRSHead(VRSLayerStack):
                 activation=output_activation,
                 batch_normalize=False,
                 kernel_size=1,
-                initializer=output_initializer
+                initializer=output_initializer,
+                bias_initializer=output_bias_initializer
             )
         )
         self.output_feature = output_feature

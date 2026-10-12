@@ -40,12 +40,13 @@ class SemanticSegmentationTensor(Transformation):
 
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
         canvas = np.zeros(self.semantic_tensor_shape, dtype="int64")
+        target_wh = self.semantic_tensor_shape[1::-1]
         for class_idx, segmentation_repr in zip(sample.label.object_types, sample.label.segmentation_repr):
             instance_mask = np.squeeze(masking.mask_from_representation(
                 segmentation_repr, sample.input.shape_whc[:2][::-1]))  # rasterise at full input resolution
-            if self.stride != 1:
-                instance_mask = cv2.resize(instance_mask, (0, 0), fx=1/self.stride, fy=1/self.stride,
-                                           interpolation=cv2.INTER_NEAREST)
+            if instance_mask.shape[::-1] != target_wh:
+                # Masks are native, targets live on the model-input grid.
+                instance_mask = cv2.resize(instance_mask, target_wh, interpolation=cv2.INTER_NEAREST)
             canvas[instance_mask] = class_idx+1
         return {self.output_fields[0]: canvas}
 
@@ -79,22 +80,17 @@ class InstanceSegmentationTensor(Transformation):
         self.offset_error_threshold = transformation_spec.get("offset_error_threshold", 2.0)
 
     def call(self, sample: Sample) -> Dict[str, np.ndarray]:
-        input_shape = sample.input.shape_whc[:2][::-1]  # Format: Matrix (HW)
-        assert input_shape[0] <= input_shape[1]
-        assert all(s % self.stride == 0 for s in input_shape)
-
-        canvas_shape = tuple(s // self.stride for s in input_shape)  # Format: Matrix (HW)
+        # Targets live on the model-input grid, masks are rasterised at the native resolution first.
+        canvas_shape = tuple(s // self.stride for s in self.cfg.model.input_shape_hw)  # Format: Matrix (HW)
         canvas_shape_np = np.array(canvas_shape[::-1])  # Format: Image (WH)
         instance_canvas = np.zeros(canvas_shape + (2,), dtype="float32")
         object_centers = sample.label.object_centers  # Format: Image (WH)
 
         for centroid_scale_01, segmentation_repr in zip(object_centers, sample.label.segmentation_repr):
             instance_mask = np.squeeze(masking.mask_from_representation(
-                segmentation_repr, input_shape))  # rasterise at full input resolution, Matrix (HW)
-            assert instance_mask.shape[0] <= instance_mask.shape[1]
-            if self.stride > 1:
-                instance_mask = cv2.resize(
-                    instance_mask, (0, 0), fx=1/self.stride, fy=1/self.stride, interpolation=cv2.INTER_NEAREST)
+                segmentation_repr, sample.input.shape_whc[:2][::-1]))  # Matrix (HW)
+            if instance_mask.shape != canvas_shape:
+                instance_mask = cv2.resize(instance_mask, canvas_shape_np, interpolation=cv2.INTER_NEAREST)
             coords_scale_01 = np.argwhere(instance_mask)[:, ::-1] / canvas_shape_np[None, :]  # Format: Image (WH)
             instance_canvas[instance_mask] = centroid_scale_01[None, :] - coords_scale_01
         return {self.output_fields[0]: instance_canvas}
@@ -108,10 +104,11 @@ class InstanceSegmentationTensor(Transformation):
         semseg = label.semantic_segmentation
         centroids_scale_01 = label.object_centers
 
-        mesh_xy = T.meshgrid(semseg.shape[:2], dtype=tf.float32) / tf.convert_to_tensor(semseg.shape[:2])
+        # Image (WH) order, as in the encoder: mesh_xy is (x, y), the shape is reversed to (w, h).
+        grid_wh = tf.cast(tf.convert_to_tensor(semseg.shape[:2]), tf.float32)[::-1]
         non_bg = semseg > 0
-        coords_non_bg_scale_01 = mesh_xy[non_bg]
-        iseg_offset_scale_01 = iseg[non_bg][:, ::-1] + coords_non_bg_scale_01
+        coords_non_bg_scale_01 = T.meshgrid(semseg.shape[:2], dtype=tf.float32)[non_bg] / grid_wh
+        iseg_offset_scale_01 = iseg[non_bg] + coords_non_bg_scale_01
 
         D = tf.reduce_sum(  # [M, 1, 2] - [N, 1, 2] -> [M, N, 2]
             tf.square(iseg_offset_scale_01[:, None, :] - centroids_scale_01[None, :, :]), axis=2)  # -> [M, N]

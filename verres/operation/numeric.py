@@ -71,11 +71,17 @@ def label_shape_from_input_shape_and_stride(input_shape: Tuple[int, int], stride
     return tuple(s // stride for s in input_shape)
 
 
-def get_object_center_locations(sample_list, stride: int):
+def peak_cell_locations(center_coords_wh_01: np.ndarray, output_shape_hw: Tuple[int, int]) -> np.ndarray:
+    """Cell (h, w) of every center on the output grid; float64 so the training path and the decode path agree."""
+    centers = np.asarray(center_coords_wh_01, dtype=np.float64)[:, ::-1]
+    return np.floor(centers * np.asarray(output_shape_hw, dtype=np.float64)).astype(np.int64)
+
+
+def get_object_center_locations(sample_list, stride: int, input_shape_hw: Tuple[int, int]):
     coords_list = [
-        sample.label.object_centers[:, ::-1] * label_shape_from_input_shape_and_stride(
-            input_shape=sample.input.shape_whc[:2][::-1],
-            stride=stride,
+        peak_cell_locations(
+            sample.label.object_centers,
+            label_shape_from_input_shape_and_stride(input_shape=input_shape_hw, stride=stride),
         ) for sample in sample_list
     ]
     object_center_locations = collate_object_center_locations(coords_list)

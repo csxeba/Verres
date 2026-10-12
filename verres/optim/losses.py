@@ -61,6 +61,7 @@ class LossFunction:
     loss_fn: callable
     loss_weight: tf.Variable
     is_sparse_loss: bool
+    sum_reduced: bool = False  # sum-reduced losses are normalized by the object count in the criteria
 
     def call(self, *args, **kwargs):
         return self.loss_fn(*args, **kwargs)
@@ -128,6 +129,7 @@ def factory(params: dict):
 
     loss_weight = tf.Variable([weight], trainable=is_trainable_weight)
 
-    loss_object = LossFunction(name, feature, loss_fn, loss_weight, is_sparse_loss)
+    loss_object = LossFunction(name, feature, loss_fn, loss_weight, is_sparse_loss,
+                               sum_reduced=loss_fn in (focal_loss, sse, sae, sparse_sae))
     print(f" [Verres.losses] - Factory built: {name}({str(params)})")
     return loss_object
