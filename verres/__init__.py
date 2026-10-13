@@ -1,6 +1,23 @@
 import os
 import pathlib
 
+# Keras reads the backend on import, so it has to be chosen before anything pulls keras in.
+os.environ.setdefault("KERAS_BACKEND", "tensorflow")
+
+import keras
+
+if int(keras.__version__.split(".")[0]) < 3:
+    raise RuntimeError(
+        f"Verres requires Keras 3 with the TensorFlow backend, but keras {keras.__version__} is "
+        "imported. Install tensorflow >= 2.16 (which ships Keras 3) and uninstall tf_keras, which "
+        "takes over tf.keras when present.")
+
+if keras.backend.backend() != "tensorflow":
+    raise RuntimeError(
+        f"Verres requires the tensorflow Keras backend, but `{keras.backend.backend()}` is active. "
+        "Set KERAS_BACKEND=tensorflow before the first `import keras`; in a notebook the kernel may "
+        "have imported keras already, so Runtime -> Restart session.")
+
 from .config import Config
 from .artifactory import Artifactory
 
@@ -9,16 +26,8 @@ from . import operation
 from . import data
 from . import optim
 from . import architecture
-from . import methods
 from . import visualization
 from . import execution
-
-try:
-    import tfkerassurgeon
-except ImportError:
-    print(" [Verres] - tfkerassurgeon not available. Pruning is disabled.")
-else:
-    from . import pruning
 
 working_mode = "library"
 _current = pathlib.Path.cwd()

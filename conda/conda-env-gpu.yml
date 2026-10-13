@@ -6,7 +6,7 @@ dependencies:
   - pip
   - scipy
   - tensorboard
-  - tensorflow-gpu
+  - tensorflow>=2.16
   - tqdm
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
@@ -15,4 +15,3 @@ dependencies:
     - pycocotools-fix
     - pydot-ng
     - pyyaml
-    - gast<0.4

@@ -1,12 +1,15 @@
 import time
+from typing import List
 
 import tensorflow as tf
+import yaml
 
 import verres as V
 from verres.data import streaming
 from verres.architecture import VRSArchitecture
 from verres.optim.criteria import VRSCriteria
 from verres.optim.callbacks import factory as callback_factory
+from verres.optim import checkpoint
 
 
 class TrainingExecutor:
@@ -23,7 +26,6 @@ class TrainingExecutor:
         self.criteria = criteria
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.loss_tracker = V.optim.losses.Tracker(criteria.get_output_keys())
         self.model.train_step = self.train_step
 
     @classmethod
@@ -34,11 +36,14 @@ class TrainingExecutor:
         optimizer = V.optim.optimizers.factory(config, scheduler)
         return cls(config, model, criteria, optimizer, scheduler)
 
-    def _train_loop_custom(self, stream):
+    def _train_loop_custom(self, stream, callbacks: List[tf.keras.callbacks.Callback]):
         epochs = self.cfg.training.epochs
         steps = self.cfg.training.steps_per_epoch
         if self.cfg.context.verbose:
             print(" [Verres.training] - Executing in DEBUG mode.")
+        cbs = tf.keras.callbacks.CallbackList(callbacks, model=self.model)
+        cbs.on_train_begin()
+        logs = {}
         for epoch in range(1, epochs + 1):
             for i, data in enumerate(stream, start=1):
                 logs = self.train_step(data)
@@ -47,11 +52,20 @@ class TrainingExecutor:
                     print(f" [Verres.training] - Epoch {epoch}/{epochs} - Step {i}/{steps}")
                     for key, value in logs.items():
                         print(f" {key}: {value:.6f}")
+                if i >= steps:
+                    break
+            cbs.on_epoch_end(epoch, logs)
+        cbs.on_train_end()
 
     def execute(self, stream=None):
 
         artifactory = V.Artifactory.get_default(self.cfg)
-        self.cfg.copy(artifactory.root)
+        with open(artifactory.root / "config.yml", "w") as handle:
+            yaml.dump(self.cfg.dict(), handle)
+
+        if not self.model.built:
+            # Keras 3 creates the variables lazily, and the checkpoint saver tracks them.
+            self.model(tf.zeros((1, *self.cfg.model.input_shape_hw, 3), dtype=tf.float32))
 
         if stream is None:
             pipes = V.data.factory(self.cfg, specs=self.cfg.training.data)
@@ -67,16 +81,38 @@ class TrainingExecutor:
                 batch_size=self.cfg.training.batch_size,
                 shuffle=True,
                 collate="default")
-
+        callbacks = callback_factory(self.cfg)
+        saver = checkpoint.CheckpointSaver(artifactory.root, self.model, self.optimizer)
+        callbacks.append(saver)
         if not self.cfg.context.debug:
+            initial_epoch = self._resume(saver, callbacks)
             self.model.compile(optimizer=self.optimizer)
-            self.model.fit(stream,
-                           steps_per_epoch=self.cfg.training.steps_per_epoch,
-                           epochs=self.cfg.training.epochs,
-                           callbacks=callback_factory(self.cfg),
-                           initial_epoch=self.cfg.training.initial_epoch)
+            self.model.fit(
+                stream,
+                steps_per_epoch=self.cfg.training.steps_per_epoch,
+                epochs=self.cfg.training.epochs,
+                callbacks=callbacks,
+                initial_epoch=initial_epoch,
+            )
         else:
-            self._train_loop_custom(stream)
+            self._train_loop_custom(stream, callbacks)
+
+    def _resume(self, saver: checkpoint.CheckpointSaver,
+                callbacks: List[tf.keras.callbacks.Callback]) -> int:
+        """Restores an interrupted run in place; returns the epoch to pass to `model.fit`."""
+        initial_epoch = self.cfg.training.initial_epoch
+        if saver.latest is None:
+            return initial_epoch
+        if not self.model.trainable_variables:
+            raise RuntimeError("The model has no trainable variables to resume an optimizer from.")
+        self.optimizer.build(self.model.trainable_variables)
+        epoch = saver.restore()
+        for callback in callbacks:
+            if isinstance(callback, tf.keras.callbacks.CSVLogger):
+                callback.append = True  # the interrupted run already logged earlier epochs
+        print(f" [Verres.training] - Resuming from checkpoint, epoch {epoch}")
+        # The log can be one epoch ahead of the checkpoint if the process died between the two.
+        return max(epoch, initial_epoch)
 
     # @tf.function
     def train_step(self, batch):

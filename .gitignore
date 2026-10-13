@@ -177,7 +177,7 @@ fabric.properties
 #####################
 
 # Training outputs and checkpoints
-artifactory/
+verres-artifactory/
 
 # Custom scripts
 experiments/
@@ -198,3 +198,8 @@ models/
 
 # Your environment setup
 environment_setup.sh
+artifactory/
+verres-memory
+
+# IDE
+.idea/

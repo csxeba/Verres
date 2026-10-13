@@ -14,10 +14,5 @@ class VRSNeck(VRSBackbone):
     def preprocess_input(self, inputs):
         return self.backbone.preprocess_input(inputs)
 
-    def detect(self, inputs):
-        outputs = self(inputs, training=False)
-        centroids, whs, types, scores = self.postprocess(outputs)
-        return centroids, whs, types, scores
-
     def call(self, inputs, **kwargs):
         raise NotImplementedError

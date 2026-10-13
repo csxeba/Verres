@@ -5,8 +5,10 @@ from .application import ApplicationBackbone
 
 
 def factory(config: V.Config):
-    spec = config.model.backbone_spec.copy()
-    name = spec.pop("name")
+    spec = dict(config.model.backbone_spec)
+    name = spec.pop("name", None)
+    if name is None:
+        raise RuntimeError("name must be set under config/model/backbone_spec")
     if name.lower() in ["small", "smallfcnn", "small_fcnn"]:
         backbone = SmallFCNN(config)
         if config.context.verbose > 1:

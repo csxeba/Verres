@@ -1,7 +1,8 @@
 import cv2
 
 import verres as V
-from .. import feature
+from ... import feature
+from ..sample import Sample
 from . abstract import Transformation
 
 
@@ -18,15 +19,17 @@ class ImageProcessor(Transformation):
                 sparse=False,
                 dtype="uint8",
                 depth=3,
-                shape=tuple(config.model.input_shape[:2])))
+                shape=tuple(config.model.input_shape_hw[:2])))
 
-    @classmethod
-    def from_descriptors(cls, config: V.Config, data_descriptor, feature_descriptor):
-        return cls(config)
-
-    def call(self, image_path):
-        image = cv2.imread(image_path)
-        # assert image.shape[:2] == self.cfg.model.input_shape[:2]
+    def call(self, sample: Sample):
+        image = cv2.imread(sample.input.image_path)
         if image is None:
-            raise RuntimeError(f"No image found @ {image_path}")
-        return image
+            raise RuntimeError(f"No image found @ {sample.input.image_path}")
+        height, width = self.cfg.model.input_shape_hw[:2]
+        if image.shape[:2] != (height, width):  # boxes are built on the model-input grid, so resizing is lossless for the targets
+            image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
+        assert image.shape[:2] == (height, width)
+        return {self.output_fields[0]: image}
+
+    def decode(self, tensors, label):
+        return label

@@ -1,18 +1,20 @@
 dependencies:
+  - python
   - jupyter
   - matplotlib
   - numpy
   - pillow
   - pip
+  - pydantic
   - scipy
   - tensorboard
-  - tensorflow-mkl
+  - tensorflow>=2.16
   - tqdm
   - pip:
     - git+https://github.com/csxeba/Artifactorium.git
     - Cython
     - opencv-python
-    - pycocotools-fix
+    - pycocotools
     - pydot-ng
     - pyyaml
-    - gast<0.4
+    - gast

@@ -1,20 +1,42 @@
-import io
 import json
-import pickle
-from typing import List
-from collections import deque
+import os
+from typing import Dict, List
 
 import numpy as np
+import tensorflow as tf
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
 import verres as V
+from verres.data import Sample
+
+DEFAULT_OUTPUT_FILES = (None, "", "default", "temporary")
+
+
+def build_kpi(cocoeval: COCOeval, n_images: int, seconds: float) -> Dict[str, object]:
+    """KPI dict of a summarized COCOeval: overall stats plus per-class AP over all IoUs and areas."""
+    stats = cocoeval.stats  # [AP, AP50, AP75, APs, APm, APl, AR1, AR10, AR100, ARs, ARm, ARl]
+    precision = cocoeval.eval["precision"]  # Format: (iou, recall, class, area, maxdet)
+    category_names = [cocoeval.cocoGt.cats[cid]["name"] for cid in cocoeval.params.catIds]
+
+    kpi = {
+        "AP": float(stats[0]), "AP50": float(stats[1]), "AP75": float(stats[2]),
+        "APs": float(stats[3]), "APm": float(stats[4]), "APl": float(stats[5]),
+        "AR1": float(stats[6]), "AR10": float(stats[7]), "AR100": float(stats[8]),
+        "n_images": int(n_images),
+        "images_per_sec": float(n_images / seconds) if seconds > 0 else 0.,
+        "per_class_AP": {},
+    }
+
+    for index, name in enumerate(category_names):
+        valid = precision[:, :, index, 0, -1]  # iou 0.5:0.95, all areas, all detections
+        valid = valid[valid > -1]
+        kpi["per_class_AP"][name] = float(valid.mean()) if valid.size else -1.
+
+    return kpi
 
 
 class EvaluationExecutor:
-
-    RESULT_KEYS = ["map", "map.5", "map.75", "map.S", "map.M", "map.L",
-                   "mar1", "mar10", "mar100", "mar.S", "mar.M", "mar.L"]
 
     def __init__(self,
                  config: V.Config,
@@ -24,6 +46,8 @@ class EvaluationExecutor:
         self.cfg = config
         self.model = model
         self.pipeline = pipeline
+        self.batch_size = config.evaluation.batch_size
+        self.forward = tf.function(lambda x: model(x, training=False), reduce_retracing=True)
 
     @classmethod
     def factory(cls, config: V.Config) -> List["EvaluationExecutor"]:
@@ -31,81 +55,81 @@ class EvaluationExecutor:
         pipelines = V.data.factory(config, specs=config.evaluation.data)
         return [cls(config, model, pipeline) for pipeline in pipelines]
 
-    def execute(self, detection_output_file: str = None):
-        detections = self._execute_detection()
-        results = self._execute_evaluation(detections, detection_output_file)
-        return results
+    def execute(self, detection_output_file: str = None) -> Dict[str, object]:
+        output_file = detection_output_file or self.cfg.evaluation.detection_output_file
+        if output_file in DEFAULT_OUTPUT_FILES:
+            artifactory = V.Artifactory.get_default(self.cfg)
+            output_file = str(artifactory.detections / "OD-detections.json")
+
+        detections, model_seconds = self._execute_detection()
+        return self._execute_evaluation(detections, output_file, model_seconds)
 
     def _execute_detection(self):
+        """Batched forward pass; decoding stays per sample because it is not TF-traceable."""
 
         detections = []
-        data_time = deque(maxlen=10)
-        model_time = deque(maxlen=10)
-        postproc_time = deque(maxlen=10)
+        num_images = len(self.pipeline)
+        model_seconds = 0.
         timer = V.utils.profiling.Timer()
 
-        N = len(self.pipeline)
+        iterator = iter(self.pipeline.stream(shuffle=False, batch_size=self.batch_size, collate_batch=None))
 
-        iterator = iter(self.pipeline.stream(shuffle=False, batch_size=1, collate_batch=None))
-
-        for i in range(1, N+1):
-            with timer:
-                meta = next(iterator)[0]
-                image = meta["image_tensor"]
-            data_time.append(timer.result)
+        for start in range(0, num_images, self.batch_size):
+            # The stream is infinite, so the final batch must be truncated to the remaining images.
+            samples: List[Sample] = next(iterator)[:num_images - start]
+            images = np.stack([sample.encoded_tensors["image"] for sample in samples])
 
             with timer:
-                network_input = self.model.preprocess_input(image[None, ...])
-                model_output = self.model(network_input, training=False)
-            model_time.append(timer.result)
+                model_output = self.forward(self.model.preprocess_input(images))
+            model_seconds += timer.result
 
-            with timer:
-                result = self.model.postprocess(model_output)
-            postproc_time.append(timer.result)
-
-            detections.extend(V.utils.cocodoom.generate_coco_detections(
-                boxes=result["boxes"],
-                types=result["types"],
-                scores=result["scores"],
-                image_shape=image.shape[:2],
-                image_id=meta["image_id"]))
+            detections.extend(self._decode_batch(samples, model_output))
 
             print("\r [Verres] - COCO eval "
-                  f"progress: {i / N:>7.2%} "
-                  f"Data: {1 / np.mean(data_time):.2f} FPS - "
-                  f"MTime: {1 / np.mean(model_time):.2f} FPS - "
-                  f"PTime: {1 / np.mean(postproc_time):.2f} FPS", end="")
+                  f"progress: {min(start + self.batch_size, num_images) / num_images:>7.2%} "
+                  f"Model: {min(start + self.batch_size, num_images) / max(model_seconds, 1e-9):.2f} FPS", end="")
 
         print()
 
+        return detections, model_seconds
+
+    def _decode_batch(self, samples: List[Sample], model_output: Dict[str, tf.Tensor]) -> list:
+        detections = []
+        for index, sample in enumerate(samples):
+            detection_label = self.pipeline.codec.decode({k: v[index] for k, v in model_output.items()})
+            detections.extend(V.utils.cocodoom.generate_coco_detections(
+                boxes_xy_01=detection_label.object_keypoint_coords,
+                types=detection_label.object_types,
+                scores=detection_label.object_scores,
+                image_shape_xy=sample.input.shape_whc[:2],
+                image_id=sample.ID))
         return detections
 
     def _execute_evaluation(self,
                             detections: list,
-                            detection_output_file: str = None):
+                            output_file: str,
+                            model_seconds: float) -> Dict[str, object]:
 
         if len(detections) == 0:
             print(" [Verres] - No detections were generated.")
-            return np.zeros(12, dtype=float)
+            return {}
 
-        if detection_output_file is None:
-            if self.cfg.evaluation.detection_output_file == "default":
-                artifactory = V.artifactory.Artifactory.get_default(self.cfg)
-                detection_output_file = str(artifactory.detections / "OD-detections.json")
-            elif self.cfg.evaluation.detection_output_file in {"tmp", "temp", "temporary"}:
-                detection_output_file = io.StringIO()
-            else:
-                detection_output_file = self.cfg.evaluation.detection_output_file
-
-        with open(detection_output_file, "w") as file:
+        os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
+        with open(output_file, "w") as file:
             json.dump(detections, file)
 
-        coco = COCO(self.pipeline.dataset.descriptor.annotation_file_path)
-        det_coco = coco.loadRes(detection_output_file)
+        coco = COCO(self.pipeline.dataset.annotation_file_path)
+        det_coco = coco.loadRes(output_file)
 
         cocoeval = COCOeval(coco, det_coco, iouType="bbox")
         cocoeval.evaluate()
         cocoeval.accumulate()
         cocoeval.summarize()
 
-        return cocoeval.stats
+        kpi = build_kpi(cocoeval, len(self.pipeline), model_seconds)
+        kpi_path = os.path.splitext(output_file)[0] + "-kpi.json"
+        with open(kpi_path, "w") as file:
+            json.dump(kpi, file, indent=2)
+        print(f" [Verres] - KPI written to {kpi_path}")
+
+        return kpi

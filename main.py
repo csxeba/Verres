@@ -2,9 +2,10 @@ import argparse
 import os
 from typing import Dict, Any
 
-import tensorflow as tf
+import verres as V  # imported first: it pins KERAS_BACKEND before keras is imported
 
-import verres as V
+import tensorflow as tf
+import yaml
 
 
 def get_args():
@@ -48,14 +49,7 @@ def update_config(config: V.Config, field_path: str, value):
         if field is None:
             raise RuntimeError(f"No such config field: {field_path}")
     if isinstance(value, str):
-        if "." in value and value.replace(".", "").isnumeric():
-            print(f" [Verres] - Update config value {value} was automatically cast to float")
-            value = float(value)
-        elif value.isnumeric():
-            print(f" [Verres] - Update config value {value} was automatically cast to int")
-            value = int(value)
-        else:
-            pass
+        value = yaml.safe_load(value)
     if isinstance(field, dict):
         field[field_name_list[-1]] = value
     else:
@@ -64,15 +58,16 @@ def update_config(config: V.Config, field_path: str, value):
 
 
 def main(config_path: str = None,
+         class_mapping_path: str = None,
          continue_train: str = None,
          execution_type: str = None,
          model_weights: str = None,
          debug: bool = False,
          config_updates: Dict[str, Any] = None):
+    """Notebook entry point: arguments are passed directly, the terminal goes through argparse."""
 
-    on_cluster = "COLAB_GPU" in os.environ
-
-    if not on_cluster:
+    # Called without arguments (or as a script) the command line is the source of the arguments.
+    if config_path is None and continue_train is None:
         args = get_args()
         config_path = args.config
         continue_train = args.continue_training
@@ -81,16 +76,36 @@ def main(config_path: str = None,
         debug = args.debug
         config_updates = dict(line.split("=") for line in args.config_updates)
 
-    if continue_train not in {None, "_unset"}:
-        config_path = os.path.join(continue_train, "config.yml")
-        config_updates["model.weights"] = os.path.join(continue_train, "checkpoints", "latest.h5")
-        config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(continue_train)
+    # A notebook process stays alive across launches, so the singleton is dropped on every entry.
+    V.Artifactory.default_instance = None
 
-    cfg = V.Config(config_path)
+    config_updates = dict(config_updates or {})
+
+    resume_dir = None
+    if continue_train not in {None, "_unset"}:
+        resume_dir = continue_train
+        config_path = os.path.join(resume_dir, "config.yml")
+        weights = os.path.join(resume_dir, "checkpoints", "latest.weights.h5")
+        ckpt_dir = V.optim.checkpoint.checkpoint_dir(resume_dir)
+        if os.path.exists(weights):
+            config_updates["model.weights"] = weights
+        elif not os.path.isdir(ckpt_dir):
+            raise FileNotFoundError(
+                f"Cannot resume {resume_dir}: neither {weights} nor {ckpt_dir} holds the run's weights.")
+        else:
+            # The run's own config.yml pins the weights file, which is gone; tf_ckpt holds them.
+            config_updates["model.weights"] = None
+        config_updates["training.initial_epoch"] = V.utils.logging_utils.extract_last_epoch(resume_dir)
+
+    class_mapping_path = class_mapping_path or "config/class_mappings/cocodoom.yml"
+    cfg = V.Config.from_paths(config_path, class_mapping_path)
 
     if config_updates:
         for field_name, value in config_updates.items():
             update_config(cfg, field_name, value)
+
+    if resume_dir is not None:
+        V.Artifactory(cfg, attach_to=resume_dir)
 
     cfg.context.debug = cfg.context.debug or debug
 
@@ -111,7 +126,7 @@ def main(config_path: str = None,
     elif execution_type == V.execution.ExecutionType.EVALUATION:
         execute_evaluation(cfg)
     else:
-        assert False
+        raise RuntimeError(f"Unknown execution type: {execution_type}")
 
 
 if __name__ == '__main__':

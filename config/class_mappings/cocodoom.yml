@@ -1,0 +1,29 @@
+class_order:
+  - hitscanner
+  - projectile
+  - melee
+  - boss
+
+class_colors_rgb:
+  hitscanner: [255, 0, 0]  # Red
+  projectile: [0, 255, 0]  # Green
+  melee: [0, 0, 255]  # Blue
+  boss: [0, 255, 255]  # Cyan
+
+class_mapping:
+  POSSESSED: hitscanner
+  SHOTGUY: hitscanner
+  VILE: hitscanner
+  CHAINGUY: hitscanner
+  UNDEAD: projectile
+  FATSO: projectile
+  TROOP: projectile
+  HEAD: projectile
+  BRUISER: projectile
+  KNIGHT: projectile
+  BABY: projectile
+  PAIN: projectile
+  SERGEANT: melee
+  SKULL: melee
+  SPIDER: boss
+  CYBORG: boss

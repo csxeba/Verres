@@ -19,12 +19,14 @@ class SmallFCNN(VRSBackbone):
 
         feature_specs = []
 
-        for stride in strides:
+        # Feature specs must follow layer order, so the strides have to be ascending
+        for stride in sorted(strides):
             if stride not in default_specs:
                 raise NotImplementedError(f"No SmallBackbone available for stride {stride}")
             feature_specs.append(default_specs[stride])
 
         super().__init__(feature_specs)
+        self.cfg = config
         stride = max(spec.working_stride for spec in feature_specs)
         self.layer_objects = [
             tfl.Conv2D(width_base, 3, padding="same", activation="relu", name="block1_conv1")]
@@ -44,7 +46,9 @@ class SmallFCNN(VRSBackbone):
         self.output_layer_names = [spec.layer_name for spec in self.feature_specs]
 
     def preprocess_input(self, inputs):
-        return tf.cast(inputs, tf.float32) / 255.
+        inputs = tf.cast(inputs, tf.float32) / 255.
+        # MaxPool2D with padding="valid" would drop the remainder of an input that is not a multiple of the stride.
+        return V.operation.padding.pad_to_stride(inputs, model_stride=self.cfg.model.maximum_stride)
 
     def call(self, x, training=None, mask=None):
         result = []

@@ -1,0 +1,10 @@
+# Extra packages for a Colab runtime. Colab's bundled TensorFlow is used as is, with its own Keras 3
+# backend, so TensorFlow is NOT listed here: reinstalling one can break the runtime's CUDA/GPU stack.
+# Verified against tensorflow 2.21.0 / keras 3.15.1 / numpy 2.5.3 on python 3.12.
+# TF >= 2.21 no longer depends on tensorboard, but the TensorBoard callback needs tf.summary.scalar.
+tensorboard
+pycocotools
+pydantic
+opencv-python-headless
+pyyaml
+artifactorium @ git+https://github.com/csxeba/Artifactorium.git

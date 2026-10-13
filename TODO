@@ -1,0 +1,2 @@
+- Artifactory path configuration doesn't work ATM
+- Handle -mini- datasets when missing

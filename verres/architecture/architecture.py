@@ -28,7 +28,8 @@ class VRSArchitecture(tf.keras.Model):
         self.head = head
         if config.model.weights is not None:
             print(" [Verres.architecture] - Loading weights from", config.model.weights)
-            self.build((None, None, None, 3))
+            # Keras 3 creates the variables lazily, so one traced call must precede load_weights.
+            self(tf.zeros((1, *config.model.input_shape_hw, 3), dtype=tf.float32))
             self.load_weights(config.model.weights)
 
     @classmethod
@@ -45,20 +46,10 @@ class VRSArchitecture(tf.keras.Model):
         return self.backbone.preprocess_input(inputs)
 
     def call(self, inputs, training=None, mask=None):
-        if training is None:
-            training = False
-        training = tf.cast(training, tf.bool)
+        # Keras 3 layers branch on `training` in Python, so it must never be a tensor here.
+        training = False if training is None else training
         features = self.backbone(inputs, training=training)
         if self.single_backbone_mode:
             features = [features[0], features[0]]
         output = self.head(features, training=training)
         return output
-
-    def postprocess(self, predictions):
-        return self.head.postprocess_network_output(predictions)
-
-    def detect(self, inputs):
-        inputs = self.preprocess_input(inputs)
-        outputs = self(inputs, training=False)
-        detection = self.postprocess(outputs)
-        return detection

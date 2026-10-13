@@ -6,28 +6,23 @@ import tensorflow as tf
 import verres as V
 
 
-class ResetOptimizerState(tf.keras.callbacks.Callback):
-
-    def on_epoch_end(self, epoch, logs=None):
-        self.model.optimizer = self.model.optimizer.from_config(self.model.optimizer.get_config())
-
-
 class ObjectMAP(tf.keras.callbacks.Callback):
 
     def __init__(self,
                  config: V.Config,
-                 checkpoint_best: bool = True):
+                 checkpoint_best: bool = True,
+                 every_n_epochs: int = 1):
 
         super().__init__()
         artifactory = V.Artifactory.get_default(config)
         self.cfg = config
         self.evaluator: Union[V.execution.EvaluationExecutor, None] = None
         self.artifactory = artifactory
-        self.detection_tmp = str((artifactory.detections / "detections.json"))
-        self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}.h5"))
+        self.checkpoint_tmp = str((artifactory.checkpoints / "chkp_epoch_{epoch}_map_{map:.4f}"))
         self.last_map = -1.
         self.last_chkp = ""
         self.checkpoint_best = checkpoint_best
+        self.every_n_epochs = every_n_epochs
 
     def set_model(self, model):
         super().set_model(model)
@@ -35,40 +30,32 @@ class ObjectMAP(tf.keras.callbacks.Callback):
         self.evaluator = V.execution.EvaluationExecutor(self.cfg, model, pipelines[0])
 
     def on_epoch_end(self, epoch, logs=None):
-        detection_output_file = self.detection_tmp.format(epoch=epoch)
-        result = self.evaluator.execute(detection_output_file)
+        logs = logs if logs is not None else {}
+        result = {}
+        if (epoch + 1) % self.every_n_epochs == 0:
+            detection_output_file = str(self.artifactory.detections / "detections.json")
+            result = self.evaluator.execute(detection_output_file)
 
-        mAP = result[0]
-        if self.checkpoint_best:
-            if mAP > self.last_map:
-                checkpoint_path = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
-                self.model.save_weights(checkpoint_path, overwrite=True)
-                if os.path.exists(self.last_chkp):
-                    os.remove(self.last_chkp)
-                self.last_map = mAP
-                self.last_chkp = checkpoint_path
+        if self.checkpoint_best and result.get("AP", -1.) > self.last_map:
+            self._save_best(epoch, result["AP"])
 
-        logs["cocodoom_val/mAP"] = mAP
-        logs["cocodoom_val/mAR"] = result[6]
+        # The CSV log freezes its columns at the end of the first epoch, so the keys are always published.
+        logs["cocodoom_val/mAP"] = result.get("AP", -1.)
+        logs["cocodoom_val/mAP50"] = result.get("AP50", -1.)
+        logs["cocodoom_val/mAR100"] = result.get("AR100", -1.)
         return logs
 
-
-class LossAggregator(tf.keras.callbacks.Callback):
-
-    def __init__(self, names: List[str]):
-        super().__init__()
-        self.names = names
-        self.variables = [0. for _ in names]
-
-    def on_batch_end(self, batch, logs=None):
-        for v, name in zip(self.variables, self.names):
-            data = logs.pop(name)
-            v += data
-            logs[name] = v / (batch+1)
-
-    def on_epoch_end(self, epoch, logs=None):
-        for i, v in self.variables:
-            self.variables[i] = 0.
+    def _save_best(self, epoch: int, mAP: float):
+        """Weights-only best checkpoint; the previous best survives until the new file is complete."""
+        stem = self.checkpoint_tmp.format(epoch=epoch+1, map=mAP)
+        checkpoint_path = stem + ".weights.h5"
+        temporary_path = stem + ".incomplete.weights.h5"
+        self.model.save_weights(temporary_path, overwrite=True)
+        os.replace(temporary_path, checkpoint_path)
+        if self.last_chkp and os.path.exists(self.last_chkp):
+            os.remove(self.last_chkp)
+        self.last_map = mAP
+        self.last_chkp = checkpoint_path
 
 
 class LatestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
@@ -76,7 +63,7 @@ class LatestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
     def __init__(self, config: V.Config):
 
         artifactory = V.Artifactory.get_default(config)
-        super().__init__(filepath=str(artifactory.checkpoints / "latest.h5"),
+        super().__init__(filepath=str(artifactory.checkpoints / "latest.weights.h5"),
                          monitor="loss",
                          verbose=0,
                          save_best_only=False,
@@ -92,11 +79,11 @@ class BestModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
 
         artifactory = V.Artifactory.get_default(config)
         super().__init__(
-            filepath=str(artifactory.checkpoints / f"best_{monitored_kpi.replace('/', '_')}.h5"),
+            filepath=str(artifactory.checkpoints / f"best_{monitored_kpi.replace('/', '_')}.weights.h5"),
             monitor=monitored_kpi,
             mode=monitoring_mode,
             verbose=0,
-            save_best_only=False,
+            save_best_only=True,
             save_weights_only=True)
 
 
@@ -117,9 +104,7 @@ class TensorBoard(tf.keras.callbacks.TensorBoard):
 
 
 _mapping = {
-    "ResetOptimizerState": ResetOptimizerState,
     "ObjectMAP": ObjectMAP,
-    "LossAggregator": LossAggregator,
     "LatestModelCheckpoint": LatestModelCheckpoint,
     "BestModelCheckpoint": BestModelCheckpoint,
     "CSVLogger": CSVLogger,

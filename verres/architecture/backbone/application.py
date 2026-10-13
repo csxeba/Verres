@@ -13,7 +13,7 @@ class ApplicationBackbone(VRSBackbone):
 
         base_model = keras_utils.ApplicationCatalogue().make_model(
             config.model.backbone_spec["name"],
-            input_shape=config.model.input_shape,
+            input_shape=config.model.input_shape_hw,
             weights=config.model.backbone_spec.get("weights", None))
 
         feature_layers = config.model.backbone_spec.get("feature_layers", "default")
@@ -46,13 +46,15 @@ class ApplicationBackbone(VRSBackbone):
 
     def preprocess_input(self, inputs):
         inputs = tf.cast(inputs, tf.keras.backend.floatx())
+        inputs = inputs[..., ::-1]  # cv2 loads BGR, ImageNet weights expect RGB
         inputs = self._preprocess_input_base(inputs)
         inputs = V.operation.padding.pad_to_stride(inputs, model_stride=self.cfg.model.maximum_stride)
         return inputs
 
     @tf.function
     def call(self, x, training=None, mask=None):
-        result = self._wrapped_model(x, training, mask)
+        # Keras 3 populates `training` as a keyword itself, so passing it positionally duplicates it.
+        result = self._wrapped_model(x, training=training)
         if len(self.feature_specs) == 1:
             result = [result]
         return result
