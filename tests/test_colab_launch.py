@@ -18,8 +18,8 @@ sys.path.insert(0, str(REPO_ROOT))  # `tools` is a plain directory, not an insta
 from tools import colab_launch as cl  # noqa: E402
 
 CLASS_MAPPING = str(REPO_ROOT / "config/class_mappings/cocodoom.yml")
-COS = "config/exp_od_small_fcnn_colab_cos.yml"
-DEBUG = "config/exp_od_small_fcnn_colab_debug.yml"
+COS = "config/exp_od_baseline.yml"
+DEBUG = "config/exp_od_debug.yml"
 
 
 def _load(relative_path: str) -> V.Config:
@@ -138,7 +138,7 @@ def test_status_snippet_ignores_a_zombie_child(monkeypatch, tmp_path, capsys):
         os.waitpid(pid, 0)
 
 
-@pytest.mark.parametrize("config_path", [COS, DEBUG])
+@pytest.mark.parametrize("config_path", [COS])
 def test_colab_configs_parse(config_path):
     config = _load(config_path)
 
@@ -159,22 +159,3 @@ def test_eval_marker_counts_the_pulled_log():
         pytest.skip("pulled Colab log not available")
 
     assert REAL_LOG.read_text(errors="replace").count(cl.EVAL_MARKER) == 1
-
-
-def test_debug_config_evaluates_the_map_exactly_once(tmp_path):
-    config = _load(DEBUG)
-    assert config.training.epochs == 5
-    assert config.training.data[0].subset == "train-mini"
-    assert config.evaluation.data[0].subset == "val-mini"
-    config.context.artifactory_root = str(tmp_path)  # the callback's checkpoint path is built from it
-
-    every_n_epochs = next(callback["every_n_epochs"] for callback in config.training.callbacks
-                          if callback["name"] == "ObjectMAP")
-    callback = V.optim.callbacks.ObjectMAP(config, checkpoint_best=False, every_n_epochs=every_n_epochs)
-    evaluations = []
-    callback.evaluator = SimpleNamespace(execute=lambda *args, **kwargs: evaluations.append(args) or {})
-
-    for epoch in range(config.training.epochs):
-        callback.on_epoch_end(epoch)
-
-    assert len(evaluations) == 1

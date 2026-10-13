@@ -13,7 +13,7 @@ from verres.execution import export
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 CLASS_MAPPING = str(REPO_ROOT / "config/class_mappings/cocodoom.yml")
-CONFIG_PATH = str(REPO_ROOT / "config/exp_od_small_fcnn.yml")
+CONFIG_PATH = str(REPO_ROOT / "config/exp_od_baseline.yml")
 
 
 def _build(config_path: str = CONFIG_PATH):

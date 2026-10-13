@@ -16,7 +16,7 @@ from verres.optim.schedule import ConstantSchedule
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 CLASS_MAPPING = str(REPO_ROOT / "config/class_mappings/cocodoom.yml")
-BASE_CONFIG = REPO_ROOT / "config/exp_od_small_fcnn.yml"
+BASE_CONFIG = REPO_ROOT / "config/exp_od_baseline.yml"
 
 HW = (8, 8)
 STEPS = 2

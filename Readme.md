@@ -133,7 +133,7 @@ Tests run in a TensorFlow >= 2.16 / Keras 3 environment.
 `notebooks/colab_train.ipynb` runs a training on a Colab GPU: it clones the repo, downloads the official
 COCODoom archive into the VM and keeps the artifactory on Drive (`notebooks/README.md`).
 
-```python experiments/render_video.py config/exp_od_small_fcnn.yml artifactory/od/small_fcnn/xp_... \
+```python experiments/render_video.py config/exp_od_baseline.yml artifactory/od/baseline/xp_... \
     --sequence run2/map01 --frames 0 600 --out out.mp4```
 
 `render_video.py` draws the detections of a trained run on one sequence into a video, and

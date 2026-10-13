@@ -200,3 +200,6 @@ models/
 environment_setup.sh
 artifactory/
 verres-memory
+
+# IDE
+.idea/

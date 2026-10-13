@@ -15,7 +15,7 @@ sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 import export_benchmark as tool  # noqa: E402
 
-CONFIG_PATH = str(REPO_ROOT / "config/exp_od_small_fcnn.yml")
+CONFIG_PATH = str(REPO_ROOT / "config/exp_od_baseline.yml")
 
 
 @pytest.fixture(scope="module")

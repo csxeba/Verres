@@ -10,7 +10,7 @@ import tensorflow as tf
 import verres as V
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-CONFIG_PATH = str(REPO_ROOT / "config/exp_od_small_fcnn.yml")  # sparse `mean_absolute_error` regression terms
+CONFIG_PATH = str(REPO_ROOT / "config/exp_od_baseline.yml")  # sparse `mean_absolute_error` regression terms
 CLASS_MAPPING_PATH = str(REPO_ROOT / "config/class_mappings/cocodoom.yml")
 H, W = 12, 16
 NUM_OBJECTS = 2
@@ -42,7 +42,7 @@ def test_only_sum_reduced_terms_are_divided_by_the_object_count():
     assert losses["box_wh"] == pytest.approx(np.abs(BOX_WH).mean())
     assert losses["loss"] == pytest.approx(losses["heatmap"] / NUM_OBJECTS
                                            + np.abs(REFINEMENT).mean() * 10.
-                                           + np.abs(BOX_WH).mean())
+                                           + np.abs(BOX_WH).mean() * 20.)  # box_wh weight of the baseline config
 
 
 def test_batch_without_objects_has_no_regression_loss_and_no_nan():

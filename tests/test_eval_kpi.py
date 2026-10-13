@@ -37,7 +37,7 @@ class _WeightsOnlyStub:
 @pytest.fixture
 def object_map(tmp_path):
     """ObjectMAP without its evaluator: only the best-checkpoint bookkeeping is under test."""
-    spec = yaml.safe_load((REPO_ROOT / "config/exp_od_small_fcnn.yml").read_text())
+    spec = yaml.safe_load((REPO_ROOT / "config/exp_od_baseline.yml").read_text())
     spec["context"]["artifactory_root"] = str(tmp_path / "artifactory")
     spec["context"]["experiment_set"] = "tests"
     spec["context"]["experiment_name"] = "object_map"

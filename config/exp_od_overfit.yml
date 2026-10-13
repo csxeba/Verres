@@ -36,7 +36,7 @@ training:
         full: False
         split: run
         mini_size: 10   # 10 evenly-strided train images
-  epochs: 60
+  epochs: 300
   steps_per_epoch: 20
   batch_size: 10
   criteria_spec:
@@ -50,14 +50,16 @@ training:
         sparse: True
       - name: mean_absolute_error
         feature: box_wh
-        weight: 1.
+        weight: 20.
         sparse: True
 
   optimizer_spec:
     name: Adam
   lr_schedule_spec:
-    name: constant
-    learning_rate: 0.001
+    name: CosineDecay
+    initial_learning_rate: 0.001
+    decay_steps: 6000
+    alpha: 0.01
   callbacks:
     - { name: LatestModelCheckpoint }
     - { name: ObjectMAP, checkpoint_best: True, every_n_epochs: 10 }

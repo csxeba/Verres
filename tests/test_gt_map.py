@@ -14,7 +14,7 @@ from pycocotools.cocoeval import COCOeval
 from verres.testing import fake_outputs
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-CONFIG_PATH = str(REPO_ROOT / "config/exp_od_small_fcnn.yml")
+CONFIG_PATH = str(REPO_ROOT / "config/exp_od_baseline.yml")
 CLASS_MAPPING_PATH = str(REPO_ROOT / "config/class_mappings/cocodoom.yml")
 NUM_IMAGES = 100
 # Measured GT ceiling on 100 val-mini images: AP = AP50 = AP75 = 0.995 (309 of 310 objects decoded).

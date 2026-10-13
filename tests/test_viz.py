@@ -12,7 +12,7 @@ import verres as V
 from verres.execution.inference import _apply_sequence_selector
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-CONFIG_PATH = str(REPO_ROOT / "config/exp_od_small_fcnn.yml")
+CONFIG_PATH = str(REPO_ROOT / "config/exp_od_baseline.yml")
 CLASS_MAPPING = str(REPO_ROOT / "config/class_mappings/cocodoom.yml")
 DATASET_ROOT = "/data/Datasets/cocodoom"
 SEQUENCE = "run1/map01"
